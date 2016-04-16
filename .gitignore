@@ -1,0 +1,16 @@
+
+# Compiled extensionless executable files in /src/
+# This stanza must precede wildcard patterns below!
+/src/*
+!/src/*.*
+!/src/Makefile
+
+# compiled object files
+*.o
+
+# emacs saves
+[#]*[#]
+.[#]*
+*~
+
+.depend.mk
