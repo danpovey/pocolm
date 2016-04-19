@@ -86,6 +86,27 @@ void Count::Add(float f) {
     top3 = f;
 }
 
+
+void Count::Add(float scale, int32 num_pieces) {
+  if (num_pieces == 1) {
+    Add(scale);
+  } else {
+    assert(num_pieces > 0 && "Adding zero count");
+    total += num_pieces * scale;
+    if (scale >= top1) {
+      if (num_pieces > 2) top3 = scale;
+      else top3 = top1;
+      top1 = scale;
+      top2 = scale;
+    } else if (scale >= top2) {
+      top2 = scale;
+      top3 = scale;
+    } else if (scale >= top3) {
+      top3 = scale;
+    }
+  }
+}
+
 // inline
 void Count::AddBackward(const Count &other,
                         Count *this_deriv,

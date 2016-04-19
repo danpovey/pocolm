@@ -1,15 +1,25 @@
 
+all:
 
 
 TESTFILES = count-test
 
-OBJFILES = count
+OBJFILES = count.o lm-state.o
 
-BINFILES =
+BINFILES = get-text-counts get-int-counts print-int-counts \
+	merge-counts print-counts
 
-CXXFLAGS += -Wall
+$(BINFILES): $(OBJFILES)
 
-LDFLAGS = -g
+
+all: $(TESTFILES) $(BINFILES)
+
+clean:
+	-rm *.o $(BINFILES) $(TESTFILES)
+
+CXXFLAGS += -Wall -g -stdlib=libstdc++
+LDFLAGS += -g -stdlib=libstdc++
+
 LDLIBS =
 CXX = g++
 CC = $(CXX)

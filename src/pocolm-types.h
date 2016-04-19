@@ -19,4 +19,27 @@ typedef uint64_t uint64;
 typedef float    float32;
 typedef double   double64;
 
+enum SpecialSymbols {
+  kBosSymbol = 1,
+  kEosSymbol = 2,
+  kUnkSymbol = 3
+};
+
+#ifdef _MSC_VER
+#include <unordered_map>
+#include <unordered_set>
+using std::unordered_map;
+using std::unordered_set;
+#elif __cplusplus > 199711L || defined(__GXX_EXPERIMENTAL_CXX0X__)
+#include <unordered_map>
+#include <unordered_set>
+using std::unordered_map;
+using std::unordered_set;
+#else
+#include <tr1/unordered_map>
+#include <tr1/unordered_set>
+using std::tr1::unordered_map;
+using std::tr1::unordered_set;
+#endif
+
 #endif  // POCOLM_POCOLM_TYPES_H_

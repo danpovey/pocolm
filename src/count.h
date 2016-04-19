@@ -21,6 +21,7 @@
 #define POCOLM_COUNT_H_
 
 #include <iostream>
+#include "pocolm-types.h"
 
 namespace pocolm {
 
@@ -49,6 +50,13 @@ class Count {
     assert(f >= 0.0f);
   }
 
+  Count(float scale, int32 num_pieces):
+      total(scale * num_pieces) {
+    top1 = (num_pieces >= 1 ? scale : 0.0);
+    top2 = (num_pieces >= 2 ? scale : 0.0);
+    top3 = (num_pieces >= 3 ? scale : 0.0);
+  }
+
   Count(const Count &other):
       total(other.total), top1(other.top1),
       top2(other.top2), top3(other.top3) { }
@@ -59,6 +67,7 @@ class Count {
     total = other.total;
     top1 = other.top1;
     top2 = other.top2;
+    top3 = other.top3;
     return *this;
   }
 
@@ -76,6 +85,9 @@ class Count {
   // Add a single float... c.Add(f) gives identical results to c.Add(Count(f)),
   // it's just more efficient.
   inline void Add(float f);
+
+  // Add a set of 'num_pieces' individual counts each of value 'scale'.
+  inline void Add(float scale, int32 num_pieces);
 
 
   /**
@@ -124,6 +136,17 @@ class Count {
   inline void Check() const;
 
 };
+
+// this is used for debug output.
+inline std::ostream & operator << (std::ostream &os,
+                                   const Count &count) {
+  os << '(' << count.total << ',' << count.top1;
+  if (count.top2 != 0) os << ',' << count.top2;
+  if (count.top3 != 0) os << ',' << count.top3;
+  os << ')';
+  return os;
+}
+
 
 }
 

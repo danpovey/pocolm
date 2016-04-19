@@ -28,8 +28,6 @@
 
 
 
-
-
 namespace pocolm {
 
 float RandUniform() {
@@ -46,18 +44,36 @@ void TestCountAdd() {
   std::vector<float> vec;
   for (int32 i = 0; i < num_elements; i++) {
     float f = RandUniform();
-    vec.push_back(f);
-    if (rand() % 2 == 0) {
+    int32 count = 1 + rand() % 4;
+    for (int32 j = 0; j < count; j++)
+      vec.push_back(f);
+    if (count == 1 && (rand() % 2 == 0)) {
       if (rand() % 2 == 0) {
-        sum1.Add(Count(f));
+        if (rand() % 2 == 0) {
+          sum1.Add(Count(f));
+        } else {
+          sum1.Add(f);
+        }
       } else {
-        sum1.Add(f);
+        if (rand() % 2 == 0) {
+          sum2.Add(Count(f));
+        } else {
+          sum2.Add(f);
+        }
       }
     } else {
       if (rand() % 2 == 0) {
-        sum2.Add(Count(f));
+        if (rand() % 2 == 0) {
+          sum1.Add(Count(f, count));
+        } else {
+          sum1.Add(f, count);
+        }
       } else {
-        sum2.Add(f);
+        if (rand() % 2 == 0) {
+          sum2.Add(Count(f, count));
+        } else {
+          sum2.Add(f, count);
+        }
       }
     }
     if (rand() % 3 == 0) {
