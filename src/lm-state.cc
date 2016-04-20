@@ -27,15 +27,16 @@ void IntLmState::Print(std::ostream &os) const {
   os << " [ ";
   for (int32 i = 0; i < history.size(); i++)
     os << history[i] << " ";
-  os << "] -> ";
+  os << "]: ";
   for (int32 i = 0; i < counts.size(); i++)
     os << counts[i].first << "->" << counts[i].second << " ";
-  os << std::endl;
+  os << "\n";
+  Check();
 }
 
 
 void IntLmState::Write(std::ostream &os) const {
-  if (rand() % 10 == 0)
+  if (rand() % 2 == 0)
     Check();
   int32 history_size = history.size(),
       num_counts = counts.size(),
@@ -87,7 +88,6 @@ void IntLmState::Read(std::istream &is) {
   counts.resize(num_counts);
   assert(sizeof(std::pair<int32,int32>) == 8);
 
-
   size_t expected_bytes = sizeof(int32) * 2 * num_counts;
   bytes_read = is.read(reinterpret_cast<char*>(&(counts[0])),
                        expected_bytes).gcount();
@@ -108,17 +108,92 @@ void IntLmState::Check() const {
   for (size_t i = 0; i < counts.size(); i++) {
     assert(counts[i].first > 0 && counts[i].first != kBosSymbol);
     assert(counts[i].second > 0);
+    if (i + 1 < counts.size())
+      assert(counts[i].first < counts[i+1].first);
   }
 }
+
+void FloatLmState::Write(std::ostream &os) const {
+  int32 history_size = history.size(), num_counts = counts.size();
+  assert(num_counts > 0);
+  os.write(reinterpret_cast<const char*>(&history_size), sizeof(int32));
+  os.write(reinterpret_cast<const char*>(&num_counts), sizeof(int32));
+  os.write(reinterpret_cast<const char*>(&total), sizeof(float));
+  os.write(reinterpret_cast<const char*>(&discounted), sizeof(float));
+  if (history_size > 0) {
+    os.write(reinterpret_cast<const char*>(&(history[0])),
+             sizeof(int32) * history_size);
+  }
+  os.write(reinterpret_cast<const char*>(&(counts[0])),
+           sizeof(std::pair<int32, float>) * num_counts);
+  if (!os.good()) {
+    std::cerr << "Failure writing FloatLmState to stream\n";
+    exit(1);
+  }
+}
+
+void FloatLmState::Read(std::istream &is) {
+  int32 history_size, num_counts;
+  is.read(reinterpret_cast<char*>(&history_size), sizeof(int32));
+  is.read(reinterpret_cast<char*>(&num_counts), sizeof(int32));
+  if (!is.good() || is.eof()) {
+    std::cerr << "Failure reading FloatLmState from stream\n";
+    exit(1);
+  }
+  if (history_size < 0 || history_size > 10000 || num_counts <= 0) {
+    std::cerr << "Failure reading FloatLmState from stream: "
+        "got implausible data (wrong input?)\n";
+    exit(1);
+  }
+  is.read(reinterpret_cast<char*>(&total), sizeof(float));
+  is.read(reinterpret_cast<char*>(&discounted), sizeof(float));
+  history.resize(history_size);
+  counts.resize(num_counts);
+  if (history_size > 0) {
+    is.read(reinterpret_cast<char*>(&(history[0])),
+            sizeof(int32) * history_size);
+  }
+  is.read(reinterpret_cast<char*>(&(counts[0])),
+          sizeof(std::pair<int32, float>) * num_counts);
+  if (!is.good()) {
+    std::cerr << "Failure reading FloatLmState from stream\n";
+    exit(1);
+  }
+  if (rand() % 10 == 0)
+    Check();
+}
+
+void FloatLmState::Check() const {
+  for (size_t i = 0; i < history.size(); i++)
+    assert(history[i] > 0 && history[i] != static_cast<int32>(kEosSymbol));
+  assert(counts.size() > 0);
+  for (size_t i = 0; i < counts.size(); i++) {
+    assert(counts[i].first > 0 && counts[i].first != kBosSymbol);
+    if (i + 1 < counts.size())
+      assert(counts[i].first < counts[i+1].first);
+  }
+}
+
+void FloatLmState::Print(std::ostream &os) const {
+  os << " [ ";
+  for (int32 i = 0; i < history.size(); i++)
+    os << history[i] << " ";
+  os << "]: ";
+  os << "total=" << total << " discounted=" << discounted << " ";
+  for (int32 i = 0; i < counts.size(); i++)
+    os << counts[i].first << "->" << counts[i].second << " ";
+  os << "\n";
+}
+
 
 void GeneralLmState::Print(std::ostream &os) const {
   os << " [ ";
   for (int32 i = 0; i < history.size(); i++)
     os << history[i] << " ";
-  os << "] -> ";
+  os << "]: ";
   for (int32 i = 0; i < counts.size(); i++)
     os << counts[i].first << "->" << counts[i].second << " ";
-  os << std::endl;
+  os << "\n";
 }
 
 void GeneralLmState::Write(std::ostream &os) const {
@@ -212,8 +287,10 @@ void GeneralLmState::Check() const {
   assert(counts.size() > 0);
   for (size_t i = 0; i < counts.size(); i++) {
     assert(counts[i].first > 0 && counts[i].first != kBosSymbol);
-    // don't do any checking on the counts, as they could be derivatives and
-    // wouldn't pass the normal checks such as for positivity.
+    if (i + 1 < counts.size())
+      assert(counts[i].first < counts[i+1].first);
+    // don't do any further checking on the counts, as they could be derivatives
+    // and wouldn't pass the normal checks such as for positivity.
   }
 }
 

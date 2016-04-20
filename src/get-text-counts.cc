@@ -21,6 +21,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <iomanip>
 
 
 /*
@@ -92,10 +93,17 @@ int main (int argc, char **argv) {
     int size = line_ints.size();
     // 'count' will contain the reversed history and then the predicted word.
 
+    // the '<< std::setfill(' ') << setw(7)' is to left pad with spaces.
+    // this allows us to get the correct sorting order.  This width allows
+    // for vocabulary sizes up to 10 million - 1... should be enough for
+    // a while.
     for (int pos = 1; pos < size; pos++) {
       for (int h = pos - 1; h >= 0 && h > pos - ngram_order; h--)
-        std::cout << line_ints[h] << " ";
-      std::cout << line_ints[pos] << "\n";
+        std::cout << std::setfill(' ') << std::setw(7) << line_ints[h] << " ";
+      std::cout << std::setfill(' ') << std::setw(7) << line_ints[pos] << "\n";
+      assert(line_ints[pos] < 10000000 &&
+             "To deal with vocabularies over 10 million, change setw(7) to setw(8)"
+             "or more.");
     }
   }
 

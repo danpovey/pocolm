@@ -151,6 +151,6 @@ int main (int argc, const char **argv) {
 /*
   testing
 
- ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null /dev/null /dev/null
+ ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort -n | uniq -c | get-int-counts /dev/null /dev/null /dev/null
 
  */

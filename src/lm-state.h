@@ -74,6 +74,49 @@ class IntLmState {
 
 };
 
+
+/**
+   This class is used for storing stats that have been discounted, e.g
+   3-gram stats from which the discount amount has been removed.  We store
+   the total-counts for each word as floats, and we also store the total
+   count for the state and the discounted count (i.e. the amount that
+   was removed during discounting, and which will determine the
+   backoff weight).
+ */
+class FloatLmState {
+ public:
+  // Reversed history, e.g. count of "a b c" would have c as 'next-word', and [
+  // b a ] as 'history'.
+  std::vector<int32> history;
+
+  // The total count for this state, it's equal to discounted_amount plus the
+  // sum of the .second elements of 'counts'.  We treat this as a derived
+  // variable...  note, we have to decide what to do about derivatives; most
+  // likely we will make sure that the 'total' is zero in the derivatives when
+  // we write them to disk.
+  float total;
+  // The discounted amount for this state-- it equals the amount that was
+  // removed via discounting.
+  float discounted;
+  // A vector of pairs (next-word, discounted-count-for-that-word), sorted
+  // on word.
+  std::vector<std::pair<int32, float> > counts;
+
+  // writes to the ostream.  Throws on error.
+  void Write(std::ostream &os) const;
+
+  // prints in text form to the ostream (for debug- the output is not computer readable).
+  void Print(std::ostream &os) const;
+
+  // reads from the istream, which is assumed to not be at EOF.
+  // Throws on error.
+  void Read(std::istream &is);
+
+  // checks the data for validity, dies if that fails.
+  void Check() const;
+};
+
+
 /**
    This class is the general case of storing counts for an LM state, in which we
    might have done weighting, smoothing and interpolation.  Unlike IntLmState,
@@ -104,7 +147,6 @@ class GeneralLmState {
 
   // checks the data for validity, dies if that fails.
   void Check() const;
-
 };
 
 /* This class is used in building a GeneralLmState; it allows you to efficiently

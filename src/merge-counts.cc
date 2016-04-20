@@ -37,11 +37,13 @@ namespace pocolm {
 class CountMerger {
  public:
   CountMerger(int num_sources,
-              const char **source_names) {
+              const char **source_names): num_lm_states_written_(0) {
     assert(num_sources > 0);
     Init(num_sources, source_names);
     while (!hist_to_sources_.empty())
       OutputState();
+    std::cerr << "merge-counts: wrote " << num_lm_states_written_
+              << " LM states.\n";
   }
   ~CountMerger() {
     delete [] inputs_;
@@ -108,6 +110,7 @@ class CountMerger {
         scales_[sources[0]] == -1) {
       GeneralLmState &input = general_lm_states_[sources[0]];
       input.Write(std::cout);
+      num_lm_states_written_++;
     } else {
       GeneralLmStateBuilder &builder = builder_;
       builder.Clear();
@@ -123,6 +126,7 @@ class CountMerger {
       builder.Output(&(output_lm_state.counts));
       output_lm_state.history = hist;
       output_lm_state.Write(std::cout);
+      num_lm_states_written_++;
     }
     for (std::vector<int32>::const_iterator iter = sources.begin();
          iter != sources.end(); ++iter) {
@@ -156,12 +160,7 @@ class CountMerger {
   // processed.
   std::map<std::vector<int32>, std::vector<int32> > hist_to_sources_;
 
-  enum ReadType {
-    kNoData,
-    kEof,
-    kActive,
-    kInactive,
-  };
+  int64 num_lm_states_written_;
 };
 
 }  // namespace pocolm
@@ -189,15 +188,15 @@ int main (int argc, const char **argv) {
   some testing:
 ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/stdout /dev/null | print-int-counts
 get-int-counts: processed 5 LM states, with 6 individual n-grams.
- [ 1 ] -> 11->2
+ [ 1 ]: 11->2
  print-int-counts: printed 1 LM states, with 1 individual n-grams.
 
  ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/null /dev/stdout | print-int-counts
 get-int-counts: processed 5 LM states, with 6 individual n-grams.
- [ 11 1 ] -> 12->2
- [ 12 11 ] -> 13->2
- [ 13 12 ] -> 14->1 2->1
- [ 14 13 ] -> 2->1
+ [ 11 1 ]: 12->2
+ [ 12 11 ]: 13->2
+ [ 13 12 ]: 2->1 14->1
+ [ 14 13 ]: 2->1
 print-int-counts: printed 4 LM states, with 5 individual n-grams.
 
  */
