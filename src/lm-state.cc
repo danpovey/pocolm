@@ -119,7 +119,7 @@ void FloatLmState::Write(std::ostream &os) const {
   os.write(reinterpret_cast<const char*>(&history_size), sizeof(int32));
   os.write(reinterpret_cast<const char*>(&num_counts), sizeof(int32));
   os.write(reinterpret_cast<const char*>(&total), sizeof(float));
-  os.write(reinterpret_cast<const char*>(&discounted), sizeof(float));
+  os.write(reinterpret_cast<const char*>(&discount), sizeof(float));
   if (history_size > 0) {
     os.write(reinterpret_cast<const char*>(&(history[0])),
              sizeof(int32) * history_size);
@@ -146,7 +146,7 @@ void FloatLmState::Read(std::istream &is) {
     exit(1);
   }
   is.read(reinterpret_cast<char*>(&total), sizeof(float));
-  is.read(reinterpret_cast<char*>(&discounted), sizeof(float));
+  is.read(reinterpret_cast<char*>(&discount), sizeof(float));
   history.resize(history_size);
   counts.resize(num_counts);
   if (history_size > 0) {
@@ -179,7 +179,7 @@ void FloatLmState::Print(std::ostream &os) const {
   for (int32 i = 0; i < history.size(); i++)
     os << history[i] << " ";
   os << "]: ";
-  os << "total=" << total << " discounted=" << discounted << " ";
+  os << "total=" << total << " discount=" << discount << " ";
   for (int32 i = 0; i < counts.size(); i++)
     os << counts[i].first << "->" << counts[i].second << " ";
   os << "\n";

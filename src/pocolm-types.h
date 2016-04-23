@@ -19,6 +19,9 @@ typedef uint64_t uint64;
 typedef float    float32;
 typedef double   double64;
 
+// don't change these, there is code that relies on the fact that kBosSymbol is
+// first and kEosSymbol is second, e.g. search for kEosSymbol in
+// discount-counts-1gram.cc.
 enum SpecialSymbols {
   kBosSymbol = 1,
   kEosSymbol = 2,

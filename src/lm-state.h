@@ -95,9 +95,9 @@ class FloatLmState {
   // likely we will make sure that the 'total' is zero in the derivatives when
   // we write them to disk.
   float total;
-  // The discounted amount for this state-- it equals the amount that was
-  // removed via discounting.
-  float discounted;
+  // The total discount amount for this state-- it equals the amount that was
+  // removed via discounting (but it's zero for the unigram state).
+  float discount;
   // A vector of pairs (next-word, discounted-count-for-that-word), sorted
   // on word.
   std::vector<std::pair<int32, float> > counts;
@@ -114,6 +114,13 @@ class FloatLmState {
 
   // checks the data for validity, dies if that fails.
   void Check() const;
+
+  void Swap(FloatLmState *other) {
+    history.swap(other->history);
+    std::swap(total, other->total);
+    std::swap(discount, other->discount);
+    counts.swap(other->counts);
+  }
 };
 
 

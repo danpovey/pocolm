@@ -5,8 +5,10 @@
 !/src/*.*
 !/src/Makefile
 
-# compiled object files
+# compiled object files, and directories automatically created on Darwin OS
+# for debug symbols.
 *.o
+*.dSYM
 
 # emacs saves
 [#]*[#]
