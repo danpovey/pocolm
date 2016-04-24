@@ -73,7 +73,7 @@ class CountMerger {
       inputs_[i].open(name.c_str(), std::ios_base::binary|std::ios_base::in);
       if (inputs_[i].fail()) {
         std::cerr << "merge-counts: failed to open file '"
-                  << name << "'\n";
+                  << name << "' for reading\n";
         exit(1);
       }
       ReadStream(i);

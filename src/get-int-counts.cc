@@ -47,18 +47,24 @@
 // paul hsu maxent interpolation
 
 int main (int argc, const char **argv) {
-  int ngram_order = argc - 1;
-  if (ngram_order <= 0) {
+  int num_outputs = argc - 1;
+  if (num_outputs <= 0) {
     std::cerr << "get-int-counts: expected usage:\n"
+              << "get-int-counts <order1-output> <order2-output> ... <text-counts\n"
+              << " or: get-int-counts <text-counts <all-output>\n"
+              << "(the first method gives you counts divided by order, the second\n"
+              << "gives you all orders of counts together.. note that typically\n"
+              << "the only reason there are multiple orders is end effects.\n"
+              << "e.g.:\n"
               << " cat data | get-text-counts <ngram-order> | sort |\\\n"
               << "   uniq -c | get-int-counts <order1-output> <order2-output>\n";
-
-
     exit(1);
   }
-  std::ofstream *outputs = new std::ofstream[ngram_order];
+  // note: if num_outputs is 1 and the input is of higher order, all data just goes
+  // to the same file.
+  std::ofstream *outputs = new std::ofstream[num_outputs];
 
-  for (int32 i = 0; i < ngram_order; i++) {
+  for (int32 i = 0; i < num_outputs; i++) {
     outputs[i].open(argv[i + 1], std::ios_base::binary|std::ios_base::out);
     if (!outputs[i]) {
       std::cerr << "get-int-counts: Failed to open '" << argv[i + 1] << "' for output.";
@@ -98,9 +104,9 @@ int main (int argc, const char **argv) {
       if (errno) goto fail;
     }
     if (wseq.empty()) goto fail;
-    if (wseq.size() > static_cast<size_t>(ngram_order)) {
+    if (wseq.size() > static_cast<size_t>(num_outputs) && num_outputs != 1) {
       std::cerr << "get-int-counts: bad line for n-gram-order="
-                << ngram_order << ": '" << line << "'\n";
+                << num_outputs << ": '" << line << "'\n";
       exit(1);
     }
 
@@ -109,7 +115,9 @@ int main (int argc, const char **argv) {
 
     if (int_lm_state.history != wseq) {
       if (!first_time) {
-        int_lm_state.Write(outputs[int_lm_state.history.size()]);
+        int32 output_index = (num_outputs == 1 ? 0 :
+                              int_lm_state.history.size());
+        int_lm_state.Write(outputs[output_index]);
         num_states_written++;
       }
       first_time = false;
@@ -126,7 +134,9 @@ int main (int argc, const char **argv) {
   }
 
   if (!first_time) {
-    int_lm_state.Write(outputs[int_lm_state.history.size()]);
+    int32 output_index = (num_outputs == 1 ? 0 :
+                          int_lm_state.history.size());
+    int_lm_state.Write(outputs[output_index]);
     num_states_written++;
   } else {
     std::cerr << "get-int-counts: processed no data\n";
@@ -136,7 +146,7 @@ int main (int argc, const char **argv) {
             << num_states_written << " LM states, with "
             << num_counts << " individual n-grams.\n";
 
-  for (int32 i = 0; i < ngram_order; i++) {
+  for (int32 i = 0; i < num_outputs; i++) {
     outputs[i].close();
     if (outputs[i].fail()) {
       std::cerr << "get-int-counts: failed to close file "

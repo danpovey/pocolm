@@ -8,7 +8,7 @@ OBJFILES = count.o lm-state.o
 
 BINFILES = get-text-counts get-int-counts print-int-counts \
 	merge-counts print-counts discount-counts print-float-counts \
-    discount-counts-1gram compute-probs
+    discount-counts-1gram merge-float-counts compute-probs
 
 $(BINFILES): $(OBJFILES)
 

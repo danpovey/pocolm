@@ -83,6 +83,8 @@ class ProbComputer {
   // train_input_.
   void ReadNextDiscountedState() {
     if (!next_discounted_state_.counts.empty()) {
+      // this will move the contents of next_discounted_state_ into the
+      // appropriate position in the discounted_state_ array.
       size_t hist_size = next_discounted_state_.history.size();
       if (discounted_state_.size() <= hist_size)
         discounted_state_.resize(hist_size + 1);
@@ -92,10 +94,10 @@ class ProbComputer {
       discounted_state_[hist_size].Swap(&next_discounted_state_);
       next_discounted_state_.history.clear();
       next_discounted_state_.counts.clear();
-      train_input_.peek();
-      if (!train_input_.eof())
-        next_discounted_state_.Read(train_input_);
     }
+    train_input_.peek();
+    if (!train_input_.eof())
+      next_discounted_state_.Read(train_input_);
   }
 
   bool NextDiscountedStateValid() {
@@ -106,8 +108,8 @@ class ProbComputer {
   // it reaches a LM state that is lexicographically later than
   // dev_state_.
   void BufferTrainInput() {
-    while (next_discounted_state_.history <= dev_state_.history &&
-           NextDiscountedStateValid())
+    while (NextDiscountedStateValid() &&
+           next_discounted_state_.history <= dev_state_.history)
       ReadNextDiscountedState();
     // At this point we've either read all the training-data input, or we've
     // reached a history that is lexicographically later than
@@ -202,12 +204,12 @@ class ProbComputer {
   }
 
   void ProduceOutput() {
-    std::cout << total_count_ << " " << total_log_prob_;
+    std::cout << total_count_ << " " << total_log_prob_ << "\n";
     std::cerr << "compute-probs: average log-prob per word was "
               << (total_log_prob_ / total_count_)
               << " (perplexity = "
               << exp(-total_log_prob_ / total_count_) << ") over "
-              << total_count_ << " words.";
+              << total_count_ << " words.\n";
   }
 
   // train_input_ is the source for reading float-counts into
@@ -259,28 +261,17 @@ int main (int argc, const char **argv) {
 /*
  testing:
 
-
   ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 2 | sort | uniq -c | get-int-counts int.1gram int.2gram
   merge-counts int.2gram,1.0 | discount-counts 0.8 0.7 0.6 float.2gram 1gram
   discount-counts-1gram 20 <1gram >float.1gram
-  echo 10 11 12 | get-text-counts 2 > dev.int
-  merge-counts float.2gram float.1gram
+  echo 10 11 12 | get-text-counts 2 | sort | uniq -c | get-int-counts dev.int
+  merge-float-counts float.2gram float.1gram > float.all
+ compute-probs float.all dev.int
 
+ compute-probs float.all dev.int
+4 -9.55299
+compute-probs: average log-prob per word was -2.38825 (perplexity = 10.8944) over 4 words.
 
-  /dev/null /dev/stdout  |  discount-counts 0.8 0.7 0.6 /dev/null /dev/stdout | discount-counts-1gram 20 | print-float-counts
+rm dev.int float.?gram float.all int.?gram
 
-  some testing:
-( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/stdout /dev/null | print-int-counts
-get-int-counts: processed 5 LM states, with 6 individual n-grams.
- [ 1 ]: 11->2
- print-int-counts: printed 1 LM states, with 1 individual n-grams.
-
- ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/null /dev/stdout | print-int-counts
-get-int-counts: processed 5 LM states, with 6 individual n-grams.
- [ 11 1 ]: 12->2
- [ 12 11 ]: 13->2
- [ 13 12 ]: 2->1 14->1
- [ 14 13 ]: 2->1
-print-int-counts: printed 4 LM states, with 5 individual n-grams.
-
- */
+*/
