@@ -172,6 +172,11 @@ void FloatLmState::Check() const {
     if (i + 1 < counts.size())
       assert(counts[i].first < counts[i+1].first);
   }
+  double my_total = discount;
+  for (std::vector<std::pair<int32,float> >::const_iterator iter =
+           counts.begin(); iter != counts.end(); ++iter)
+    my_total += iter->second;
+  assert(fabs(total - my_total) <= 0.0001 * fabs(my_total));
 }
 
 void FloatLmState::Print(std::ostream &os) const {
@@ -185,6 +190,13 @@ void FloatLmState::Print(std::ostream &os) const {
   os << "\n";
 }
 
+void FloatLmState::ComputeTotal() {
+  double my_total = discount;
+  for (std::vector<std::pair<int32,float> >::iterator iter =
+           counts.begin(); iter != counts.end(); ++iter)
+    my_total += iter->second;
+  total = my_total;
+}
 
 void GeneralLmState::Print(std::ostream &os) const {
   os << " [ ";
@@ -371,6 +383,11 @@ void GeneralLmStateBuilder::Output(
     (*output)[i].first = pairs[i].first;
     (*output)[i].second = counts[pairs[i].second];
   }
+}
+
+void GeneralLmState::Swap(GeneralLmState *other) {
+  history.swap(other->history);
+  counts.swap(other->counts);
 }
 
 }

@@ -24,8 +24,10 @@
 #include <vector>
 #include <map>
 #include <stdlib.h>
+#include <iomanip>
 #include "pocolm-types.h"
 #include "lm-state.h"
+#include "lm-state-derivs.h"
 
 
 /**
@@ -49,7 +51,7 @@ class ProbComputer {
       total_log_prob_(0.0),
       total_count_(0) {
 
-    assert(argc == 3);
+    assert(argc >= 3);
     train_input_.open(argv[1], std::ios_base::binary|std::ios_base::in);
     if (train_input_.fail()) {
       std::cerr << "compute-probs: error opening '" << argv[1]
@@ -62,8 +64,33 @@ class ProbComputer {
                 << "' for reading\n";
       exit(1);
     }
+    // we write the training-set derivatives separately for each n-gram order.
+    num_train_deriv_outputs_ = argc - 3;
+    if (num_train_deriv_outputs_ != 0) {
+      train_deriv_outputs_ = new std::ofstream[num_train_deriv_outputs_];
+    } else {
+      train_deriv_outputs_ = NULL;
+    }
+    for (int32 i = 0; i < num_train_deriv_outputs_; i++) {
+      train_deriv_outputs_[i].open(argv[i + 3],
+                                   std::ios_base::binary|std::ios_base::out);
+      if (train_deriv_outputs_[i].fail()) {
+        std::cerr << "compute-probs: error opening '" << argv[i + 3]
+                  << "' for writing\n";
+      }
+    }
     ProcessInput();
     ProduceOutput();
+  }
+
+  ~ProbComputer() {
+    for (int32 i = 0; i < num_train_deriv_outputs_; i++) {
+      train_deriv_outputs_[i].close();
+      if (train_deriv_outputs_[i].fail()) {
+        std::cerr << "Failed to close stream for writing train derivs "
+            "(full disk?)\n";
+      }
+    }
   }
  private:
 
@@ -92,8 +119,17 @@ class ProbComputer {
       // into the appropriate position in discounted_state_,
       // then clear next_discounted_state_.
       discounted_state_[hist_size].Swap(&next_discounted_state_);
-      next_discounted_state_.history.clear();
-      next_discounted_state_.counts.clear();
+      if (!next_discounted_state_.counts.empty()) {
+        // if the thing we just 'swapped out' was nonempty, we need
+        // to clear it, but first we must write any derivatives
+        // (if we're writing derivatives).
+        if (train_deriv_outputs_ != NULL) {
+          assert(num_train_deriv_outputs_ > hist_size);
+          next_discounted_state_.WriteDerivs(train_deriv_outputs_[hist_size]);
+        }
+        next_discounted_state_.history.clear();
+        next_discounted_state_.counts.clear();
+      }
     }
     train_input_.peek();
     if (!train_input_.eof())
@@ -141,6 +177,138 @@ class ProbComputer {
     return static_cast<int32>(h);
   }
 
+  // This function computes the probability for word 'word' in a history of
+  // length 'hist_size' equal to discounted_state_[hist_size].history, and
+  // updates the total_log_prob_ and total_count_ stats appropriately.
+  void ProcessWord(int32 hist_size, int32 word, int32 count_of_word) {
+    // count_position is only needed for the backprop; for history lengths > 0,
+    // it is used to cache the positions in the 'counts' vectors where we found the
+    // word.
+    std::vector<int32> count_position(hist_size, -1);
+
+    // here, tot_prob will accumulate the total probability for this word in
+    // this history, and cur_backoff_prob will be the probability assigned to
+    // backoff.. as we back off from higher-order to lower-order states it
+    // will get smaller and smaller.  Note, we do backoff 'with interpolation'
+    // read "A Bit of Progress in Language Modeling" by Goodman to understand
+    // what this means, it comes from Chen and Goodman's work.
+    float cur_backoff_prob = 1.0;
+    // tot_prob is the probability our model predicts for this word in this
+    // history (a sum over all backoff orders, since the model is "with
+    // interpolation".
+    float tot_prob = 0.0;
+    for (int32 h = hist_size; h >= 0; h--) {
+      const FloatLmState &lm_state = discounted_state_[h];
+      assert(lm_state.total != 0.0);
+      if (h == 0) {
+        // here we can actually make some assumptions about the counts- that
+        // they start from kEosSymbol and have no gaps.  This is because
+        // of how discount-counts-1gram works.  This saves us having to do
+        // a logarithmic-time lookup.
+        assert(word >= kEosSymbol &&
+               lm_state.counts.size() >= word &&
+               lm_state.counts[word - kEosSymbol].first ==
+               word);
+        double unigram_count = lm_state.counts[word - kEosSymbol].second,
+            unigram_total = lm_state.total;
+        tot_prob += cur_backoff_prob * unigram_count / unigram_total;
+      } else {
+        std::pair<int32, float> search_pair(word,
+                                            0.0);
+        std::vector<std::pair<int32, float> >::const_iterator
+            iter = std::lower_bound(lm_state.counts.begin(),
+                                    lm_state.counts.end(),
+                                    search_pair);
+        if (iter != lm_state.counts.end() &&
+            iter->first == word) {
+          // There is a discounted-count for this word.
+          float this_count = iter->second;
+          tot_prob += cur_backoff_prob * this_count / lm_state.total;
+          count_position[h - 1] = iter - lm_state.counts.begin();
+        }
+        // update the backoff probability / backoff penalty.
+        cur_backoff_prob *= lm_state.discount / lm_state.total;
+      }
+    }
+    assert(tot_prob > 0.0);
+    float log_prob = log(tot_prob);
+    total_log_prob_ += log_prob * count_of_word;
+    total_count_ += count_of_word;
+
+    if (train_deriv_outputs_ == NULL)
+      return;
+
+    // The rest of this function is the "backwards computation".
+    // dF/dtot_prob [where F is log(tot_prob)] is 1 / tot_prob.
+    float tot_prob_deriv = count_of_word / tot_prob,
+        cur_backoff_prob_deriv = 0.0;
+    // go in the backwards direction.
+    for (int32 h = 0; h <= hist_size; h++) {
+      FloatLmStateDerivs &lm_state = discounted_state_[h];
+      if (h == 0) {
+        double unigram_count = lm_state.counts[word - kEosSymbol].second,
+            unigram_total = lm_state.total;
+        // the forwards computation did:
+        // tot_prob += cur_backoff_prob * unigram_count / unigram_total;
+        cur_backoff_prob_deriv += tot_prob_deriv * unigram_count / unigram_total;
+        float unigram_count_deriv =
+            tot_prob_deriv * cur_backoff_prob / unigram_total,
+            unigram_total_deriv =
+            -(tot_prob_deriv * cur_backoff_prob * unigram_count) /
+            (unigram_total * unigram_total);
+        lm_state.total_deriv += unigram_total_deriv;
+        lm_state.count_derivs[word - kEosSymbol] += unigram_count_deriv;
+      } else {
+        // 'pos' is the position in the counts array, or -1 if there
+        // was no explicit count for this word.
+        int32 pos = count_position[h - 1];
+        float total = lm_state.total, discount = lm_state.discount;
+
+        // code we're backprop'ing through at this point is:
+        // cur_backoff_prob *= discount / total;
+        // Mentally, we rearrange it as follows to clarify that there
+        // are really two different variables involved:
+        // cur_backoff_prob = prev_backoff_prob * discount / total;
+        // and then we can write the following as the backprop code:
+        //
+        // lm_state.discount_deriv += cur_backoff_prob_deriv * prev_backoff_prob / total
+        // lm_state.total_deriv -= (cur_backoff_prob_deriv * prev_backoff_prob * discount) / (total * total);
+        // prev_backoff_prob_deriv = cur_backoff_prob_deriv * discount / total;
+        ///  .. now, note that prev_backoff_prob == cur_backoff_prob * total / discount., so
+        //  the statement
+        // lm_state.total_deriv -= (cur_backoff_prob_deriv * prev_backoff_prob * discount)  / (total * total);
+        // can be simplified to:
+        // lm_state.total_deriv -= (cur_backoff_prob_deriv * cur_backoff_prob)  / total;
+        //
+        lm_state.total_deriv -= (cur_backoff_prob_deriv * cur_backoff_prob) / total;
+        // mentally we view the following statement as:
+        //  prev_backoff_prob = cur_backoff_prob * total / discount
+        // and we view instances of 'cur_backoff_prob' in the lines below as
+        // really referring to 'prev_backoff_prob'.
+        cur_backoff_prob *= total / discount;
+        // view the next statement as
+        // lm_state.discount_deriv += cur_backoff_prob_deriv * prev_backoff_prob / total
+        lm_state.discount_deriv += cur_backoff_prob_deriv * cur_backoff_prob / total;
+        // view the next statement as:
+        // prev_backoff_prob_deriv = cur_backoff_prob_deriv * discount / total;
+        cur_backoff_prob_deriv *= discount / total;
+
+        if (pos != -1) {
+          float this_count = lm_state.counts[pos].second;
+          double &this_count_deriv = lm_state.count_derivs[pos];
+          // forward code:
+          // tot_prob += cur_backoff_prob * this_count / lm_state.total;
+          lm_state.total_deriv -=
+              (tot_prob_deriv * cur_backoff_prob * this_count) /
+              (total * total);
+          this_count_deriv += tot_prob_deriv * cur_backoff_prob / total;
+          cur_backoff_prob_deriv += tot_prob_deriv * this_count / total;
+        }
+      }
+    }
+    assert(fabs(cur_backoff_prob - 1.0) < 0.001);
+  }
+
   void ProcessCurrentDevState() {
     BufferTrainInput();
     int32 hist_size = LongestRelevantHistorySize();
@@ -153,58 +321,30 @@ class ProbComputer {
           count_of_word = iter->second;
       assert(word > 0 && word != kBosSymbol &&
              count_of_word > 0);
+      ProcessWord(hist_size, word, count_of_word);
+    }
+  }
 
-      // here, tot_prob will accumulate the total probability for this word in
-      // this history, and cur_backoff_prob will be the probability assigned to
-      // backoff.. as we back off from higher-order to lower-order states it
-      // will get smaller and smaller.  Note, we do backoff 'with interpolation'
-      // read "A Bit of Progress in Language Modeling" by Goodman to understand
-      // what this means, it comes from Chen and Goodman's work.
-      float cur_backoff_prob = 1.0;
-      // tot_prob is the probability our model predicts for this word in this
-      // history (a sum over all backoff orders, since the model is "with
-      // interpolation".
-      float tot_prob = 0.0;
-      for (int32 h = hist_size; h >= 0; h--) {
-        const FloatLmState &train_counts = discounted_state_[h];
-        assert(train_counts.total != 0.0);
-        if (h == 0) {
-          // here we can actually make some assumptions about the counts- that
-          // they start from kEosSymbol and have no gaps.  This is because
-          // of how discount-counts-1gram works.  This saves us having to do
-          // a logarithmic-time lookup.
-          assert(word >= kEosSymbol &&
-                 train_counts.counts.size() >= word &&
-                 train_counts.counts[word-kEosSymbol].first ==
-                 word);
-          double unigram_count = train_counts.counts[word-kEosSymbol].second,
-              unigram_total = train_counts.total;
-          tot_prob += cur_backoff_prob * unigram_count / unigram_total;
-        } else {
-          std::pair<int32, float> search_pair(word,
-                                              0.0);
-          std::vector<std::pair<int32, float> >::const_iterator
-              iter = std::lower_bound(train_counts.counts.begin(),
-                                      train_counts.counts.end(),
-                                      search_pair);
-          if (iter != train_counts.counts.end() &&
-              iter->first == word) {
-            // There is a discounted-count for this word.
-            float this_count = iter->second;
-            tot_prob += cur_backoff_prob * this_count / train_counts.total;
-            cur_backoff_prob *= train_counts.discount / train_counts.total;
-          }
+  void FlushBuffers() {
+    if (train_deriv_outputs_ != NULL) {
+      while (!train_input_.eof())
+        ReadNextDiscountedState();
+      for (size_t i = 0; i < discounted_state_.size(); i++) {
+        if (!discounted_state_[i].counts.empty()) {
+          assert(i < num_train_deriv_outputs_);
+          discounted_state_[i].WriteDerivs(train_deriv_outputs_[i]);
+          // make sure we never do the same if this is called twice.
+          discounted_state_[i].counts.clear();
+          discounted_state_[i].history.clear();
         }
       }
-      assert(tot_prob > 0.0);
-      float log_prob = log(tot_prob);
-      total_log_prob_ += log_prob * count_of_word;
-      total_count_ += count_of_word;
     }
   }
 
   void ProduceOutput() {
-    std::cout << total_count_ << " " << total_log_prob_ << "\n";
+    FlushBuffers();
+    std::cout << std::setprecision(10)
+              << total_count_ << " " << total_log_prob_ << "\n";
     std::cerr << "compute-probs: average log-prob per word was "
               << (total_log_prob_ / total_count_)
               << " (perplexity = "
@@ -218,18 +358,27 @@ class ProbComputer {
   // dev_input_ is the source for reading int-counts into dev_state_.
   std::ifstream dev_input_;
 
+  // If the final optional argument is supplied, the derivatives w.r.t. the
+  // training float-counts are written to these streams (indexed by
+  // history-length).
+  int32 num_train_deriv_outputs_;
+  std::ofstream *train_deriv_outputs_;
+
   // dev_state_ is the current set of counts whose probabilities we
   // want to compute.  Since in normal usage this will be dev data,
   // we call it 'dev_state'.
   IntLmState dev_state_;
 
   // discounted_state_, indexed by history-length (0 for unigram counts, 1 for
-  // bigram, etc.), is the counts from the training data.
-  std::vector<FloatLmState> discounted_state_;
+  // bigram, etc.), is the counts from the training data.  We store this as
+  // class FlloatLmStateDerivs so that it has the capacity to store the
+  // derivatives also, in case we were called with the extended usage that
+  // requires the derivatives.
+  std::vector<FloatLmStateDerivs> discounted_state_;
 
   // This is a temporary buffer for the next state to be transferred to the
   // appropriate position in the 'discounted_state_' array.
-  FloatLmState next_discounted_state_;
+  FloatLmStateDerivs next_discounted_state_;
 
   double total_log_prob_;
   // total_count_ is the total count of the dev data.
@@ -239,15 +388,17 @@ class ProbComputer {
 }  // namespace pocolm
 
 int main (int argc, const char **argv) {
-  if (argc <= 1) {
+  if (argc < 3) {
     std::cerr << "usage:\n"
-              << "compute-probs <train-float-counts> <dev-int-counts>\n"
+              << "compute-probs <train-float-counts> <dev-int-counts> [<train-float-count-derivs-order1> .. <train-float-count-derivs-orderN>]\n"
               << "This program prints the total count of dev words, followed by\n"
               << "the total log-prob, to stdout on one line.\n"
               << "The <train-float-counts> are discounted float-counts from\n"
               << "training data, obtained by a sequence of steps involving\n"
               << "merging and discounting; and the <dev-int-counts> are\n"
-              << "derived from get-int-counts (on dev data).\n";
+              << "derived from get-int-counts (on dev data).\n"
+              << "If the <train-float-count-derivs> argument is supplied, the\n"
+              << "derivatives w.r.t. the float-counts are written to that file.\n";
     exit(1);
   }
 
@@ -266,12 +417,35 @@ int main (int argc, const char **argv) {
   discount-counts-1gram 20 <1gram >float.1gram
   echo 10 11 12 | get-text-counts 2 | sort | uniq -c | get-int-counts dev.int
   merge-float-counts float.2gram float.1gram > float.all
- compute-probs float.all dev.int
+  compute-probs float.all dev.int derivs.1gram derivs.2gram
+ # produces:
+# 4 -10.12835491
+# compute-probs: average log-prob per word was -2.53209 (perplexity = 12.5798) over 4 words.
 
- compute-probs float.all dev.int
-4 -9.55299
-compute-probs: average log-prob per word was -2.38825 (perplexity = 10.8944) over 4 words.
+perl -e "print -10.12835491 + $(perturb-float-counts 1 float.1gram derivs.1gram float_perturbed.1gram) . \"\n\"; "
+# -10.127844731
+  compute-probs <(merge-float-counts float.2gram float_perturbed.1gram) dev.int /dev/null /dev/null
+# 4 -10.12784529
+
+### Now testing 2-gram derivatives.
+perl -e "print -10.12835491 + $(perturb-float-counts 2 float.2gram derivs.2gram float_perturbed.2gram) . \"\n\"; "
+# -10.12970472
+  compute-probs <(merge-float-counts float_perturbed.2gram float.1gram) dev.int /dev/null /dev/null
+# 4 -10.12970519
+
 
 rm dev.int float.?gram float.all int.?gram
+
+
+## checking that the derivs w.r.t scaling any of the sets of counts
+## by the same constant, are zero.
+print-float-derivs float.2gram derivs.2gram | awk '{for (n=1;n<=NF;n++) print $n;}' | perl -ane 'if (m/[=>](\S+),d=(.+)/) { $x = $1 * $2;  print "$x\n"; }' | awk '{x+=$1} END{print x; }'
+print-float-derivs: printed 5 LM states, with 6 individual n-grams.
+1.5e-06 # small; good.
+print-float-derivs float.1gram derivs.1gram | awk '{for (n=1;n<=NF;n++) print $n;}' | perl -ane 'if (m/[=>](\S+),d=(.+)/) { $x = $1 * $2;  print "$x\n"; }' | awk '{x+=$1} END{print x; }'
+print-float-derivs: printed 1 LM states, with 19 individual n-grams.
+-2.49332e-07 # small; good.
+
+
 
 */

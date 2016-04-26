@@ -1,4 +1,4 @@
-// print-float-counts.cc
+// print-float-derivs.cc
 
 // Copyright     2016  Johns Hopkins University (Author: Daniel Povey)
 
@@ -24,41 +24,58 @@
 #include <vector>
 #include <stdlib.h>
 #include "pocolm-types.h"
-#include "lm-state.h"
+#include "lm-state-derivs.h"
 
 
 /*
-   This program exists to enable human inspection of float-count files, e.g.  as
-   output to the first filename argument of discount-counts.  get-int-counts.
-   It reads such counts from its stdin, and writes them in human-readable text
-   form to the stdout.
+   This program exists to enable human inspection of float-count files and their
+   associated derivatives.
 */
 
 
 int main (int argc, char **argv) {
-  if (argc != 1) {
-    std::cerr << "print-float-counts: expected usage: print-float-counts <float_counts >counts.txt\n";
-        exit(1);
+  if (argc != 3) {
+    std::cerr << "print-float-counts: expected usage:\n"
+              << "print-float-derivs <float-counts> <float-derivs> >counts.txt\n"
+              << "e.g.:\n"
+              << "print-float-derivs float.1gram derivs.1gram\n";
+    exit(1);
   }
 
   int64 num_lm_states = 0;
   int64 num_counts = 0;
 
+  std::ifstream counts_input(argv[1],
+                             std::ios_base::in|std::ios_base::binary),
+      derivs_input(argv[2],
+                   std::ios_base::in|std::ios_base::binary);
+  if (!counts_input.is_open()) {
+    std::cerr << "print-float-derivs: error opening '" << argv[1]
+              << "' for reading\n";
+    exit(1);
+  }
+  if (!derivs_input.is_open()) {
+    std::cerr << "print-float-derivs: error opening '" << argv[2]
+              << "' for reading\n";
+    exit(1);
+  }
+
   // we only get EOF after trying to read past the end of the file,
   // so first call peek().
-  while (std::cin.peek(), !std::cin.eof()) {
-    pocolm::FloatLmState lm_state;
-    lm_state.Read(std::cin);
+  while (counts_input.peek(), !counts_input.eof()) {
+    pocolm::FloatLmStateDerivs lm_state;
+    lm_state.Read(counts_input);
+    lm_state.ReadDerivs(derivs_input);
     lm_state.Print(std::cout);
     num_lm_states++;
     num_counts += lm_state.counts.size();
   }
 
-  std::cerr << "print-float-counts: printed "
+  std::cerr << "print-float-derivs: printed "
             << num_lm_states << " LM states, with "
             << num_counts << " individual n-grams.\n";
   return 0;
 }
 
-// see discount-counts.cc for a command-line example that was used to test this.
+// see compute-probs.cc for a command-line example that was used to test this.
 

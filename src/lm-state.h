@@ -71,7 +71,6 @@ class IntLmState {
 
   // checks the data for validity, dies if that fails.
   void Check() const;
-
 };
 
 
@@ -121,6 +120,9 @@ class FloatLmState {
     std::swap(discount, other->discount);
     counts.swap(other->counts);
   }
+  // this sets 'total' to the sum of all the counts plus 'discount'; it's
+  // currently only called from 'perturb-float-counts'.
+  void ComputeTotal();
 };
 
 
@@ -154,6 +156,8 @@ class GeneralLmState {
 
   // checks the data for validity, dies if that fails.
   void Check() const;
+
+  void Swap(GeneralLmState *other);
 };
 
 /* This class is used in building a GeneralLmState; it allows you to efficiently
