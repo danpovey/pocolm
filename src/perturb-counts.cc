@@ -1,4 +1,4 @@
-// perturb-float-counts.cc
+// perturb-counts.cc
 
 // Copyright     2016  Johns Hopkins University (Author: Daniel Povey)
 
@@ -26,27 +26,51 @@
 #include "pocolm-types.h"
 #include "lm-state-derivs.h"
 
+namespace pocolm {
 
 /*
-  This function perturbs the count 'count' by a small random offset
-  ('delta' controls the range of the relative change in 'count').
-  It returns the predicted change in the overall objective that results
-  from this random change, which equals the change times 'deriv';
-  'deriv' is the computed derivative of the objective function w.r.t.
-  this count.
+  This function perturbs the count 'count' by a small random offset ('delta'
+  controls the range of the relative change in 'count').  It returns the
+  predicted change in the overall objective that results from this random
+  change, which equals the sum of each component of the change times the
+  corresponding component of 'deriv'; 'deriv' is the computed derivative of the
+  objective function w.r.t. this count.
 */
 float PerturbCount(float delta,
-                   float deriv,
-                   float *count) {
-  float relative_change = delta * (((rand() % 100) - 50) / 100.0),
-      this_change = *count * relative_change;
-  *count += this_change;
-  return deriv * this_change;
+                   const Count &deriv,
+                   Count *count) {
+  float old_dot = deriv.DotProduct(*count);
+  {
+    float relative_change = delta * (((rand() % 100) - 50) / 100.0),
+        this_change = count->top1 * relative_change;
+    count->top1 += this_change;
+  }
+  {
+    float relative_change = delta * (((rand() % 100) - 50) / 100.0),
+        this_change = count->top2 * relative_change;
+    count->top2 += this_change;
+  }
+  {
+    float relative_change = delta * (((rand() % 100) - 50) / 100.0),
+        this_change = count->top3 * relative_change;
+    count->top3 += this_change;
+  }
+  {
+    float relative_change = delta * (((rand() % 100) - 50) / 100.0),
+        this_change = count->total * relative_change;
+    count->total += this_change;
+  }
+  float top = count->top1 + count->top2 + count->top3;
+  // the total cannot be less than the top1 + top2 + top3; ensure this.
+  if (count->total < top)
+    count->total = top;
+  return deriv.DotProduct(*count) - old_dot;
 }
 
+}
 
 /*
-   For use in testing derivatives, this program perturbs float-counts by a small
+   For use in testing derivatives, this program perturbs counts by a small
    (relative) amount; it also reads the derivatives and prints the predicted
    change in objective function to the standard output.
 */
@@ -54,8 +78,8 @@ float PerturbCount(float delta,
 
 int main (int argc, char **argv) {
   if (argc != 5) {
-    std::cerr << "perturb-float-counts: expected usage:\n"
-              << "perturb-float-counts <srand-seed> <float-counts-in> <float-derivs-in> <float-counts-out>\n"
+    std::cerr << "perturb-counts: expected usage:\n"
+              << "perturb-counts <srand-seed> <counts-in> <derivs-in> <counts-out>\n"
               << "This program prints to the standard output the objective function change\n"
               << "that is predicted to result from the perturbation (based on the\n"
               << "derivatives).\n";
@@ -97,18 +121,14 @@ int main (int argc, char **argv) {
   // we only get EOF after trying to read past the end of the file,
   // so first call peek().
   while (derivs_input.peek(), !derivs_input.eof()) {
-    pocolm::FloatLmStateDerivs lm_state;
+    pocolm::GeneralLmStateDerivs lm_state;
     lm_state.Read(counts_input);
     lm_state.ReadDerivs(derivs_input);
-    assert(lm_state.total_deriv == 0.0);
 
-    tot_objf_change += PerturbCount(delta, lm_state.discount_deriv,
-                                    &lm_state.discount);
     size_t num_counts = lm_state.counts.size();
     for (size_t i = 0; i < num_counts; i++)
-      tot_objf_change += PerturbCount(delta, lm_state.count_derivs[i],
-                                      &lm_state.counts[i].second);
-    lm_state.ComputeTotal();  // adjust the total count.
+      tot_objf_change += pocolm::PerturbCount(delta, lm_state.count_derivs[i],
+                                              &lm_state.counts[i].second);
     lm_state.Write(counts_output);
 
     num_lm_states++;
@@ -117,12 +137,12 @@ int main (int argc, char **argv) {
 
   counts_output.close();
   if (counts_output.fail()) {
-    std::cerr << "perturb-float-counts: error closing stream "
+    std::cerr << "perturb-counts: error closing stream "
               << argv[3] << " (disk full?)\n";
     exit(1);
   }
 
-  std::cerr << "perturb-float-counts: perturbed "
+  std::cerr << "perturb-counts: perturbed "
             << num_lm_states << " LM states, with "
             << num_counts << " individual n-grams; delta = " << delta
             << ", predicted-objf-change = " << tot_objf_change << "\n";

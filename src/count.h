@@ -129,7 +129,7 @@ class Count {
 
   // returns total * other.total + top1 * other.top1, etc.
   // only really useful when dealing with derivatives.
-  inline float DotProduct(const Count &other);
+  inline float DotProduct(const Count &other) const;
 
   // this does some assertions to make sure this is a well-formed
   // count (do not apply this to counts that represent derivatives).

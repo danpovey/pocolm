@@ -28,6 +28,18 @@ enum SpecialSymbols {
   kUnkSymbol = 3
 };
 
+// some hardcoded constants; we use #defines because dealing with constants in
+// C/C++ is such a headache.
+// please see discount-counts-1gram.cc for how these are used.
+#define POCOLM_UNIGRAM_D1 0.75
+#define POCOLM_UNIGRAM_D2 0.25
+#define POCOLM_UNIGRAM_D3 0.1
+// In unigram discounting, 'POCOLM_UNK_PROPORTION' is the proportion of the
+// discounted amount that we assign to the unknown-word '<unk>'... the remaining
+// discounted amount is divided equally between all words except <s> and <unk>.
+#define POCOLM_UNK_PROPORTION 0.5
+
+
 #ifdef _MSC_VER
 #include <unordered_map>
 #include <unordered_set>

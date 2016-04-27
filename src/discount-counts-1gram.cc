@@ -1,4 +1,4 @@
-// discount-counts.cc
+// discount-counts-1gram.cc
 
 // Copyright     2016  Johns Hopkins University (Author: Daniel Povey)
 
@@ -86,11 +86,6 @@ class UnigramCountDiscounter {
     // automatically is not likely to be very robust in the unigram case
     // e.g. consider cases like when the vocabulary includes all words of dev
     // data, or only words with count >2 in training data, etc.
-    const float D1 = 0.75, D2 = 0.25, D3 = 0.1,
-        unk_proportion = 0.5;
-    // 'unk_proportion' is the proportion of the discounted amount that we
-    // assign to the unknown-word '<unk>'... the remaining discounted
-    // amount is assigned equally to all words except <s> and <unk>.
 
     // 'unigram_counts' is indexed by word index... index 0 is not used as that
     // is not a valid word index.
@@ -110,8 +105,9 @@ class UnigramCountDiscounter {
                   << vocab_size_ << "\n";
       }
       const Count &count = iter->second;
-      float discount = D1 * count.top1 + D2 * count.top2 +
-          D3 * count.top3;
+      float discount = POCOLM_UNIGRAM_D1 * count.top1 +
+          POCOLM_UNIGRAM_D2 * count.top2 +
+          POCOLM_UNIGRAM_D3 * count.top3;
       assert(discount < count.total);
       float this_count = count.total,
           discounted_count = this_count - discount;
@@ -121,10 +117,10 @@ class UnigramCountDiscounter {
     }
 
 
-    // we distribute the discounted_count to all words except <unk> and <s>.
-    float extra_count = total_discount * (1.0 - unk_proportion) /
+    // the general discount is distributed to all words except <unk> and <s>.
+    float extra_count = total_discount * (1.0 - POCOLM_UNK_PROPORTION) /
         (vocab_size_ - 2),
-        extra_unk_count = unk_proportion * total_discount;
+        extra_unk_count = POCOLM_UNK_PROPORTION * total_discount;
 
     std::cerr << "discount-counts-1gram: total count is " << total_count
               << ", total discount is " << total_discount
@@ -136,7 +132,7 @@ class UnigramCountDiscounter {
     unigram_counts[kUnkSymbol] += extra_unk_count;
 
     for (int32 i = 1; i <= vocab_size_; i++)
-      if (i != kBosSymbol && i != kEosSymbol)
+      if (i != kBosSymbol && i != kUnkSymbol)
         unigram_counts[i] += extra_count;
 
     output_lm_state->history.clear();  // it's the unigram state.

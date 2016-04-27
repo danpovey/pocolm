@@ -1,4 +1,4 @@
-// print-float-derivs.cc
+// print-derivs.cc
 
 // Copyright     2016  Johns Hopkins University (Author: Daniel Povey)
 
@@ -28,17 +28,16 @@
 
 
 /*
-   This program exists to enable human inspection of float-count files and their
-   associated derivatives.
+   This is the counterpart, for derivatives, of the program print-counts.
 */
 
 
 int main (int argc, char **argv) {
   if (argc != 3) {
-    std::cerr << "print-float-counts: expected usage:\n"
-              << "print-float-derivs <float-counts> <float-derivs> >counts_and_derivs.txt\n"
+    std::cerr << "print-derivs: expected usage:\n"
+              << "print-derivs <counts> <derivs> >counts_and_derivs.txt\n"
               << "e.g.:\n"
-              << "print-float-derivs float.1gram derivs.1gram\n";
+              << "print-derivs counts.1gram derivs.1gram\n";
     exit(1);
   }
 
@@ -63,7 +62,7 @@ int main (int argc, char **argv) {
   // we only get EOF after trying to read past the end of the file,
   // so first call peek().
   while (counts_input.peek(), !counts_input.eof()) {
-    pocolm::FloatLmStateDerivs lm_state;
+    pocolm::GeneralLmStateDerivs lm_state;
     lm_state.Read(counts_input);
     lm_state.ReadDerivs(derivs_input);
     lm_state.Print(std::cout);
@@ -71,7 +70,7 @@ int main (int argc, char **argv) {
     num_counts += lm_state.counts.size();
   }
 
-  std::cerr << "print-float-derivs: printed "
+  std::cerr << "print-derivs: printed "
             << num_lm_states << " LM states, with "
             << num_counts << " individual n-grams.\n";
   return 0;

@@ -155,7 +155,7 @@ void Count::AddBackward(const Count &other,
 }
 
 // inline
-float Count::DotProduct(const Count &other) {
+float Count::DotProduct(const Count &other) const {
   return total * other.total +
       top1 * other.top1 +
       top2 * other.top2 +

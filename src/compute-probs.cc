@@ -417,34 +417,56 @@ int main (int argc, const char **argv) {
   discount-counts-1gram 20 <1gram >float.1gram
   echo 10 11 12 | get-text-counts 2 | sort | uniq -c | get-int-counts dev.int
   merge-float-counts float.2gram float.1gram > float.all
-  compute-probs float.all dev.int derivs.1gram derivs.2gram
+  compute-probs float.all dev.int float_derivs.1gram float_derivs.2gram
  # produces:
-# 4 -10.12835491
-# compute-probs: average log-prob per word was -2.53209 (perplexity = 12.5798) over 4 words.
+# 4 -10.0067209
+# compute-probs: average log-prob per word was -2.50168 (perplexity = 12.203) over 4 words.
 
-perl -e "print -10.12835491 + $(perturb-float-counts 1 float.1gram derivs.1gram float_perturbed.1gram) . \"\n\"; "
-# -10.127844731
+perl -e "print -10.0067209 + $(perturb-float-counts 1 float.1gram float_derivs.1gram float_perturbed.1gram) . \"\n\"; "
+# -10.006247441
   compute-probs <(merge-float-counts float.2gram float_perturbed.1gram) dev.int /dev/null /dev/null
-# 4 -10.12784529
+# 4 -10.00624859
 
 ### Now testing 2-gram derivatives.
-perl -e "print -10.12835491 + $(perturb-float-counts 2 float.2gram derivs.2gram float_perturbed.2gram) . \"\n\"; "
-# -10.12970472
+perl -e "print -10.0067209 + $(perturb-float-counts 2 float.2gram float_derivs.2gram float_perturbed.2gram) . \"\n\"; "
+# -10.007106366
   compute-probs <(merge-float-counts float_perturbed.2gram float.1gram) dev.int /dev/null /dev/null
-# 4 -10.12970519
-
-
-rm dev.int float.?gram float.all int.?gram
+# 4 -10.00710714
 
 
 ## checking that the derivs w.r.t scaling any of the sets of counts
 ## by the same constant, are zero.
-print-float-derivs float.2gram derivs.2gram | awk '{for (n=1;n<=NF;n++) print $n;}' | perl -ane 'if (m/[=>](\S+),d=(.+)/) { $x = $1 * $2;  print "$x\n"; }' | awk '{x+=$1} END{print x; }'
-print-float-derivs: printed 5 LM states, with 6 individual n-grams.
-1.5e-06 # small; good.
-print-float-derivs float.1gram derivs.1gram | awk '{for (n=1;n<=NF;n++) print $n;}' | perl -ane 'if (m/[=>](\S+),d=(.+)/) { $x = $1 * $2;  print "$x\n"; }' | awk '{x+=$1} END{print x; }'
+print-float-derivs float.2gram float_derivs.2gram | awk '{for (n=1;n<=NF;n++) print $n;}' | perl -ane 'if (m/[=>](\S+),d=(.+)/) { $x = $1 * $2;  print "$x\n"; }' | awk '{x+=$1} END{print x; }'
+# good, it's small:
+# 1.5e-06
+
+print-float-derivs float.1gram float_derivs.1gram | awk '{for (n=1;n<=NF;n++) print $n;}' | perl -ane 'if (m/[=>](\S+),d=(.+)/) { $x = $1 * $2;  print "$x\n"; }' | awk '{x+=$1} END{print x; }'
 print-float-derivs: printed 1 LM states, with 19 individual n-grams.
 -2.49332e-07 # small; good.
+
+
+# extend the above to propagating backwards through discount-counts-1gram:
+
+# after back-proping through the 1-gram discounting, check that the derivative w.r.t. just scaling
+# the 1-gram counts by a constant is zero.
+discount-counts-1gram-backward 1gram float.1gram float_derivs.1gram derivs.1gram
+
+print-derivs 1gram derivs.1gram | awk '{for (n=1;n<=NF;n++) print $n;}' | \
+  perl -ane 'if (m/\((.+)\),d=\((.+)\)/) { @A = split(",", $1); @B = split(",", $2); $tot = 0; for ($n = 0; $n < 4; $n++) { $tot += $A[$n] * $B[$n]; } print "$tot\n"; } ' | \
+    awk '{x+=$1; } END{print x;}'
+# again, it's small:
+# -1.114e-06
+
+# testing the propagation of 1-gram derivatives backward through discount-counts-1gram-backward:
+
+perl -e "print -10.0067209 + $(perturb-counts 3 1gram derivs.1gram perturbed.1gram) . \"\n\"; "
+# -10.00413492
+
+  compute-probs <(discount-counts-1gram 20 <perturbed.1gram| merge-float-counts float.2gram /dev/stdin) dev.int /dev/null /dev/null
+# 4 -10.00414324
+
+
+
 
 
 
