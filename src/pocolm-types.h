@@ -38,7 +38,9 @@ enum SpecialSymbols {
 // discounted amount that we assign to the unknown-word '<unk>'... the remaining
 // discounted amount is divided equally between all words except <s> and <unk>.
 #define POCOLM_UNK_PROPORTION 0.5
-
+// 1 if when discounting, we want keep the parts of the counts separate as we
+// add them to the backoff state.
+#define POCOLM_SEPARATE_COUNTS 1
 
 #ifdef _MSC_VER
 #include <unordered_map>

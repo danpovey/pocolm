@@ -114,14 +114,33 @@ class Count {
      'this_deriv' in case we already propagated the derivative w.r.t that top1,
      top2 or top3.  At the end of processing all the summands, the top1, top2
      and top3 of 'this_deriv' should all be zero.
+
+     @param [in] other  The other count which, in the forward pass of addition, we added
+     @param [in,out] this_deriv  The derivative of the objective function w.r.t. the
+                        sum.  Primarily this is an input (it's propagated backward
+                        to 'other_deriv' but in order to properly handle ties (and
+                        avoid counting some inputs twice) we need to be able to write
+                        to it.
+     @param [in,out] other_deriv  The derivative of the objective function w.r.t. 'other'.
+                         This function *adds* to 'other_deriv'
   */
   inline void AddBackward(const Count &other,
                           Count *this_deriv,
-                          Count *other_deriv);
+                          Count *other_deriv) const;
 
+  /*
+    The backwards-differentiation counterpart of Add(float f);
+      @param [in]      f              The float that we originally added to *this.
+      @param [in,out]  this_deriv     The derivative of the objective function w.r.t. *this.
+                                      This is primarily an input but it needs to be writable
+                                      so that we can zero components of the derivative
+                                      when used, so they're not 'used twice' in case of ties.
+      @param [in,out]  f_deriv        The derivative w.r.t. 'f'.  This function *adds* to
+                                      'f_deriv'.
+   */
   inline void AddBackward(float f,
                           Count *this_deriv,
-                          Count *other_deriv);
+                          float *f_deriv) const;
 
   void Write(std::ostream &os, bool binary);
 
@@ -134,6 +153,12 @@ class Count {
   // this does some assertions to make sure this is a well-formed
   // count (do not apply this to counts that represent derivatives).
   inline void Check() const;
+
+ private:
+  // some code that we can share between two versions of AddBackward.
+  inline void AddBackwardInternal(float f,
+                                  Count *this_deriv,
+                                  float *f_deriv) const;
 
 };
 

@@ -110,46 +110,41 @@ void Count::Add(float scale, int32 num_pieces) {
 // inline
 void Count::AddBackward(const Count &other,
                         Count *this_deriv,
-                        Count *other_deriv) {
+                        Count *other_deriv) const {
+  // TODO: remove these checks.
   Check();
   other.Check();
-  //  note, the code's structure mirrors that of 'add'.
-  other_deriv->total += this_deriv->total;
-  if (other.top1 >= top1) {
-    // the following assert is because *this is supposed to be a sum of things
-    // including 'other', so other->top1 must not be greater than this->top1.
-    assert(other.top1 == top1);
-    other_deriv->top1 += this_deriv->top1;
-    // prevent the derivative for the top1 from being 'counted twice' in case of
-    // ties.
-    this_deriv->top1 = 0.0;
 
-    if (other.top2 >= top2) {
-      assert(other.top2 == top2);
-      other_deriv->top2 += this_deriv->top2;
-      this_deriv->top2 = 0.0;
-      if (other.top3 >= top3) {
-        assert(other.top3 == top3);
-        other_deriv->top3 += this_deriv->top3;
-        this_deriv->top3 = 0.0;
-      }
-    } else if (other.top2 >= top3) {
-      assert(other.top2 == top3);
-      other_deriv->top2 += this_deriv->top3;
-      this_deriv->top3 = 0.0;
-    }
-  } else if (other.top1 >= top2) {
-    assert(other.top1 == top2);
-    other_deriv->top1 += this_deriv->top2;
+  other_deriv->total += this_deriv->total;
+
+  // We tried to have more optimized code for this, that took advantage of the
+  // sorting to avoid doing all 9 comparisons, but it was very complex and hard
+  // to verify.  This is easier.  Anyway this code isn't accessed enough times
+  // for us to worry too much about efficiency.
+  AddBackwardInternal(other.top1, this_deriv, &other_deriv->top1);
+  AddBackwardInternal(other.top2, this_deriv, &other_deriv->top2);
+  AddBackwardInternal(other.top3, this_deriv, &other_deriv->top3);
+}
+
+// inline
+void Count::AddBackward(float f,
+                        Count *this_deriv,
+                        float *f_deriv) const {
+  (*f_deriv) += this_deriv->total;
+  AddBackwardInternal(f, this_deriv, f_deriv);
+}
+
+void Count::AddBackwardInternal(float f,
+                                Count *this_deriv,
+                                float *f_deriv) const {
+  if (f == top1 && this_deriv->top1 != 0.0) {
+    (*f_deriv) += this_deriv->top1;
+    this_deriv->top1 = 0.0;
+  } else if (f == top2 && this_deriv->top2 != 0.0) {
+    (*f_deriv) += this_deriv->top2;
     this_deriv->top2 = 0.0;
-    if (other.top2 >= top3) {
-      assert(other.top2 == top3);
-      other_deriv->top2 += this_deriv->top3;
-      this_deriv->top3 = 0.0;
-    }
-  } else if (other.top1 >= top3) {
-    assert(other.top1 == top3);
-    other_deriv->top1 += this_deriv->top3;
+  } else if (f == top3 && this_deriv->top3 != 0.0) {
+    (*f_deriv) += this_deriv->top3;
     this_deriv->top3 = 0.0;
   }
 }

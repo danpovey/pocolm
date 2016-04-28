@@ -51,18 +51,19 @@ class CountDiscounter {
  public:
   CountDiscounter(int argc,
                   const char **argv): num_lm_states_processed_(0) {
-    // args are: program name, D1, D2, D3, discounted-counts-filename,
-    // discount-counts-filename.
-    assert(argc == 6);
+    // args are: program name, D1, D2, D3, counts-input-filename,
+    // discounted-float-counts-filename, discount-counts-filename.
+    assert(argc == 7);
     ReadArgs(argv);
     ProcessInput();
   }
 
   ~CountDiscounter() {
     discounted_output_.close();
-    discount_output_.close();
-    if (discounted_output_.fail() || discount_output_.fail()) {
+    backoff_output_.close();
+    if (discounted_output_.fail() || backoff_output_.fail()) {
       std::cerr << "discount-counts: failed to close output (disk full?)\n";
+      exit(1);
     }
   }
  private:
@@ -70,10 +71,10 @@ class CountDiscounter {
     bool first_time = true;
     GeneralLmState input_lm_state;
     while (true) {
-      std::cin.peek();
-      if (std::cin.eof())
+      input_.peek();
+      if (input_.eof())
         break;
-      input_lm_state.Read(std::cin);
+      input_lm_state.Read(input_);
       ProcessLmState(first_time, input_lm_state);
       first_time = false;
     }
@@ -90,15 +91,15 @@ class CountDiscounter {
 
   void ProcessLmState(bool first_time, const GeneralLmState &lm_state) {
     num_lm_states_processed_++;
-    if (discount_history_.size() + 1 != lm_state.history.size()) {
+    if (backoff_history_.size() + 1 != lm_state.history.size()) {
       if (first_time) {
         assert(lm_state.history.size() > 0 && "discount-counts should not be "
                "applied to 1-gram input");
         size_t backoff_history_size = lm_state.history.size() - 1;
-        discount_history_.resize(backoff_history_size);
+        backoff_history_.resize(backoff_history_size);
         std::copy(lm_state.history.begin(),
                   lm_state.history.begin() + backoff_history_size,
-                  discount_history_.begin());
+                  backoff_history_.begin());
       } else {
         std::cerr << "discount-counts: input seems to have differing "
                   << "n-gram orders\n";
@@ -111,17 +112,17 @@ class CountDiscounter {
     discounted_state.history = lm_state.history;
     discounted_state.counts.resize(lm_state.counts.size());
 
-    if (!std::equal(discount_history_.begin(), discount_history_.end(),
+    if (!std::equal(backoff_history_.begin(), backoff_history_.end(),
                     lm_state.history.begin())) {
       // the history of the backoff state has changed.
       // (remember that histories are reversed in these vectors, so
       // to back the history off we remove the right-most element.)
       OutputDiscountStats();
-      size_t backoff_history_size = discount_history_.size();
+      size_t backoff_history_size = backoff_history_.size();
       // update the backoff history to corresond to the current input.
       std::copy(lm_state.history.begin(),
                 lm_state.history.begin() + backoff_history_size,
-                discount_history_.begin());
+                backoff_history_.begin());
     }
 
 
@@ -135,11 +136,14 @@ class CountDiscounter {
       int32 word = in_iter->first;
       const Count &count = in_iter->second;
       out_iter->first = word;
-      float d1 = d1_ * count.top1, d2 = d2_ * count.top2, d3 = d3_ * count.top3,
+      // mark these quantities volatile to avoid compiler optimization, so that
+      // we can ensure they will be exactly the same value in discount-counts
+      // and discount-counts-backward (since the backprop relies on exact
+      // floating-point comparisons).
+      volatile float d1 = d1_ * count.top1, d2 = d2_ * count.top2, d3 = d3_ * count.top3,
           d = d1 + d2 + d3;
       // we can set separate_counts to true or false.. it's a design decision.
-      bool separate_counts = true;
-      if (separate_counts) {
+      if (POCOLM_SEPARATE_COUNTS) {
         // the up to 3 discounted pieces will remain separate in the lower-order
         // state..  I think this will likely perform better, but we can try both
         // ways.
@@ -148,11 +152,11 @@ class CountDiscounter {
         discount.top2 = d2;
         discount.top3 = d3;
         discount.total = d;
-        discount_builder_.AddCount(word, discount);
+        backoff_builder_.AddCount(word, discount);
       } else {
         // the up to 3 discounted pieces will be merged at the time we discount
         // them.
-        discount_builder_.AddCount(word, d);
+        backoff_builder_.AddCount(word, d);
       }
       lm_state_total += count.total;
       discount_total += d;
@@ -167,16 +171,16 @@ class CountDiscounter {
 
   void OutputDiscountStats() {
     // calling this function causes the history and stats in
-    // (discount_history_, discount_builder_) to be written to
-    // discount_output_.
+    // (backoff_history_, backoff_builder_) to be written to
+    // backoff_output_.
 
     GeneralLmState backoff_state;
-    backoff_state.history = discount_history_;
-    discount_builder_.Output(&backoff_state.counts);
-    backoff_state.Write(discount_output_);
+    backoff_state.history = backoff_history_;
+    backoff_builder_.Output(&backoff_state.counts);
+    backoff_state.Write(backoff_output_);
     // clear the stats that we just wrote.  We'll later modify the history from
     // outside this function.
-    discount_builder_.Clear();
+    backoff_builder_.Clear();
   }
 
   void ReadArgs(const char **argv) {
@@ -197,16 +201,24 @@ class CountDiscounter {
       exit(1);
     }
     assert(1.0 > d1_ && d1_ >= d2_ && d2_ >= d3_ && d3_ > 0);
-    discounted_output_.open(argv[4], std::ios_base::binary|std::ios_base::out);
-    if (discounted_output_.fail()) {
+
+    input_.open(argv[4], std::ios_base::binary|std::ios_base::in);
+    if (input_.fail()) {
       std::cerr << "discount-counts: failed to open '"
-                << argv[4] << "' for writing.\n";
+                << argv[4] << "' for reading.\n";
       exit(1);
     }
-    discount_output_.open(argv[5], std::ios_base::binary|std::ios_base::out);
-    if (discount_output_.fail()) {
+
+    discounted_output_.open(argv[5], std::ios_base::binary|std::ios_base::out);
+    if (discounted_output_.fail()) {
       std::cerr << "discount-counts: failed to open '"
                 << argv[5] << "' for writing.\n";
+      exit(1);
+    }
+    backoff_output_.open(argv[6], std::ios_base::binary|std::ios_base::out);
+    if (backoff_output_.fail()) {
+      std::cerr << "discount-counts: failed to open '"
+                << argv[6] << "' for writing.\n";
       exit(1);
     }
   }
@@ -216,15 +228,16 @@ class CountDiscounter {
   float d2_;
   float d3_;
 
+  std::ifstream input_;
   std::ofstream discounted_output_;
-  std::ofstream discount_output_;
+  std::ofstream backoff_output_;
 
 
-  // discount_builder_ and discount_history_ keep track of the
+  // backoff_builder_ and backoff_history_ keep track of the
   // stats that we discounted from the input, and aggregates them
   // over the lower-order history state.
-  std::vector<int32> discount_history_;
-  GeneralLmStateBuilder discount_builder_;
+  std::vector<int32> backoff_history_;
+  GeneralLmStateBuilder backoff_builder_;
 
   int64 num_lm_states_processed_;
 };
@@ -232,11 +245,12 @@ class CountDiscounter {
 }
 
 int main (int argc, const char **argv) {
-  if (argc != 6) {
-    std::cerr << "discount-counts: expected usage:  discount-counts <D1> <D2> <D3> <discounted-counts-out> <discount-counts-out>  <counts>a\n"
-              << "e.g.: discount-counts 0.8 0.5 0.2 dir/discounted/3.fngram dir/discounts/3.ngram <dir/merged.3.ngram\n"
-              << "(note: <discounted-counts-out> are written as float-counts, <discount-counts-out> are written as\n"
+  if (argc != 7) {
+    std::cerr << "discount-counts: expected usage: discount-counts <D1> <D2> <D3> <counts-in> <discounted-float-counts-out> <backoff-counts-out>\n"
+              << "e.g.: discount-counts 0.8 0.5 0.2 dir/merged/3.ngram dir/discounted/3.ngram dir/discounts/3.ngram\n"
+              << "(note: <discounted-float-counts-out> are written as float-counts, <backoff-counts-out> are written as\n"
               << "general counts (where we keep track of top1, top2, top3)\n";
+    exit(1);
   }
 
   // everything happens in the constructor.
@@ -249,7 +263,7 @@ int main (int argc, const char **argv) {
 
   some testing:
   # print the counts after discounting.
-( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/null /dev/stdout | merge-counts /dev/stdin,0.5 | discount-counts 0.8 0.7 0.6 /dev/stdout /dev/null | print-float-counts
+( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/null /dev/stdout | merge-counts /dev/stdin,0.5 | discount-counts 0.8 0.7 0.6 /dev/stdin /dev/stdout /dev/null | print-float-counts
 
 get-int-counts: processed 5 LM states, with 6 individual n-grams.
 merge-counts: wrote 4 LM states.
@@ -261,7 +275,7 @@ print-float-counts: printed 4 LM states, with 5 individual n-grams.
 
 # print the lower-order, discounted part.
 
-( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/null /dev/stdout | merge-counts /dev/stdin,0.5 | discount-counts 0.8 0.7 0.6 /dev/null /dev/stdout | print-counts
+( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/null /dev/stdout | merge-counts /dev/stdin,0.5 | discount-counts 0.8 0.7 0.6 /dev/stdin /dev/null /dev/stdout | print-counts
 get-int-counts: processed 5 LM states, with 6 individual n-grams.
 merge-counts: wrote 4 LM states.
  [ 11 ]: 12->(0.75,0.4,0.35)
