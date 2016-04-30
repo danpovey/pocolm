@@ -87,6 +87,7 @@ class FloatLmStateDerivs: public FloatLmState {
     std::swap(discount_deriv, other->discount_deriv);
     count_derivs.swap(other->count_derivs);
   }
+
  private:
   // called from Write, this adds total_deriv to discount_deriv
   // and each member of count_derivs, then zeroes it.

@@ -106,11 +106,11 @@ class CountMerger {
     std::vector<int32> hist = hist_to_sources_.begin()->first,
         sources = hist_to_sources_.begin()->second;
     hist_to_sources_.erase(hist_to_sources_.begin());
+    num_lm_states_written_++;
     if (sources.size() == 1 &&
         scales_[sources[0]] == -1) {
       GeneralLmState &input = general_lm_states_[sources[0]];
       input.Write(std::cout);
-      num_lm_states_written_++;
     } else {
       GeneralLmStateBuilder &builder = builder_;
       builder.Clear();
@@ -126,7 +126,6 @@ class CountMerger {
       builder.Output(&(output_lm_state.counts));
       output_lm_state.history = hist;
       output_lm_state.Write(std::cout);
-      num_lm_states_written_++;
     }
     for (std::vector<int32>::const_iterator iter = sources.begin();
          iter != sources.end(); ++iter) {

@@ -130,17 +130,37 @@ class Count {
 
   /*
     The backwards-differentiation counterpart of Add(float f);
-      @param [in]      f              The float that we originally added to *this.
-      @param [in,out]  this_deriv     The derivative of the objective function w.r.t. *this.
-                                      This is primarily an input but it needs to be writable
-                                      so that we can zero components of the derivative
-                                      when used, so they're not 'used twice' in case of ties.
-      @param [in,out]  f_deriv        The derivative w.r.t. 'f'.  This function *adds* to
-                                      'f_deriv'.
+      @param [in]      f          The float that we originally added to *this.
+      @param [in,out] this_deriv  The derivative of the objective function
+                                  w.r.t.  *this.  This is primarily an input but
+                                  it needs to be writable so that we can zero
+                                  components of the derivative when used, so
+                                  they're not 'used twice' in case of ties.
+      @param [in,out]  f_deriv    The derivative w.r.t. 'f'.  This function *adds* to
+                                  'f_deriv'.
    */
   inline void AddBackward(float f,
                           Count *this_deriv,
                           float *f_deriv) const;
+
+  /*
+    This is the backwards-differentiation counterpart of
+    Add(float scale, int32 num_pieces).
+      @param [in]     scale       The scaling factor we gave to the original Add
+                                  call.
+      @param [in]     num_pieces  The integer number of pieces that we gave to
+                                  the original Add call.
+
+      @param [in,out] this_deriv  The derivative of the objective function
+                                  w.r.t.  *this.  This is primarily an input but
+                                  it needs to be writable so that we can zero
+                                  components of the derivative when used, so
+                                  they're not 'used twice' in case of ties.
+       @para [in,out] scale_deriv The derivative w.r.t. the 'scale' input parameter.
+                                  This function *adds* to scale_deriv.
+   */
+  inline void AddBackward(float scale, int32 num_pieces,
+                          Count *this_deriv, double *scale_deriv) const;
 
   void Write(std::ostream &os, bool binary);
 
