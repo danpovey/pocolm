@@ -68,7 +68,7 @@ class CountMergerBackward {
       OpenStream(count_filename, count_inputs_ + i);
       char *endptr = NULL;
       float scale = strtod(scale_or_deriv_filename, &endptr);
-      if (*endptr == '\0') {
+      if (*endptr != '\0') {
         // not a valid floating-point value: assume it was the filename of a
         // derivative.
         scales_[i] = -1;

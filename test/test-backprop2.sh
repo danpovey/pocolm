@@ -54,6 +54,8 @@ compute-probs float.all dev.int /dev/null /dev/null
 print-derivs merged.2gram derivs_merged.2gram | awk '{for (n=1;n<=NF;n++) print $n;}' | \
   perl -ane 'if (m/\((.+)\),d=\((.+)\)/) { @A = split(",", $1); @B = split(",", $2); $tot = 0; for ($n = 0; $n < 4; $n++) { $tot += $A[$n] * $B[$n]; } print "$tot\n"; } ' | \
     awk '{x+=$1; } END{print x;}'
-# -0.79616
-# .. this is not right, it should be zero.
+# 4.6e-06
+
+
+merge-counts-backward merged.2gram derivs_merged.2gram  int.2gram 1.0
 

@@ -136,7 +136,7 @@ void Count::AddBackward(float f,
 
 void Count::AddBackward(float scale, int32 num_pieces,
                         Count *this_deriv, double *scale_deriv) const {
-  *scale_deriv += this_deriv->total + num_pieces;
+  *scale_deriv += this_deriv->total * num_pieces;
   for (int32 n = 0; n < num_pieces && n < 3; n++) {
     // this code is the same as in AddBackwardInternal, except we add the final
     // 'else break;' as an optimization.

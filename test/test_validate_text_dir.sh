@@ -4,6 +4,7 @@
 rm -rf foo
 mkdir -p foo
 echo "hi now then" > foo/dev.txt
+echo "now and then" >> foo/dev.txt
 
 # the following should fail
 echo "Ignore the following error:"
@@ -25,6 +26,7 @@ echo "there there" > foo/train1.txt
 echo "now now then" >> foo/train1.txt
 
 echo "hi" > foo/train2.txt
+echo "hi lo" >> foo/train2.txt
 
 ../scripts/validate_text_dir.py foo || exit 1;
 
@@ -33,9 +35,11 @@ rm -rf bar
 
 ../scripts/get_unigram_weights.py --verbose=true bar > weights || exit 1
 
+../scripts/make_vocab.py --weights=weights bar > words.txt
+
+../scripts/validate_vocab.py words.txt
 
 echo "Success"
-
 
 
 exit 0;

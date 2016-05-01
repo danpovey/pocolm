@@ -117,6 +117,24 @@ while True:
         break;
     iter += 1
 
+
+# Now we renormalize the weights so that instead of weighting the unigram
+# probabilities, they weight the actual counts.  If the datasets have different
+# total numbers of words, the weights will be different.
+for i in range(num_train_files):
+    current_weights[i] *= tot_counts[i]
+# the scalar constant actually makes no difference to any valid use of these
+# weights, and we set the largest weight to 1 by dividing by the max instead of
+# by the total, partly in order to point out that these aren't the kind of
+# weights that inherently sum to one.
+m = max(current_weights)
+for i in range(num_train_files):
+    current_weights[i] /= m;
+
+print("Final weights after renormalizing so they can be applied to the "
+      "raw counts, are: " + str(next_weights), file=sys.stderr)
+
+
 for i in range(num_train_files):
     print(train_keys[i], current_weights[i])
 
