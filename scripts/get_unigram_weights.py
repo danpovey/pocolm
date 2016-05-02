@@ -82,7 +82,7 @@ if len(all_counts) == 0:
 
 current_weights = [ 1.0 / num_train_files ] * num_train_files
 
-threshold = 1.0e-05
+threshold = 1.0e-03
 iter = 0
 while True:
     # this is an E-M procedure to re-estimate the weights.

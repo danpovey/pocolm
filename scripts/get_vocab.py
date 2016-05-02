@@ -62,16 +62,16 @@ if args.weights != None:
                                   # wanted, even if some weights were estimated
                                   # as zero.
                 weight = 1.0e-10
-                print('make_vocab.py: warning: flooring weight for {0} to {1}'.format(
+                print('get_vocab.py: warning: flooring weight for {0} to {1}'.format(
                         name, weight), file=sys.stderr)
             name_to_weight[name] = weight
         except Exception as e:
             print(str(e), file=sys.stderr)
-            sys.exit('make_vocab.py: bad line {0} in weights file {1}'.format(
+            sys.exit('get_vocab.py: bad line {0} in weights file {1}'.format(
                     line[0:-1], args.weights))
         num_weights_read += 1
     if num_weights_read == 0:
-        sys.exit('make_vocab.py: empty weights file ' + args.weights)
+        sys.exit('get_vocab.py: empty weights file ' + args.weights)
     f.close()
 
 # map from word to weighted count.
@@ -108,7 +108,7 @@ for name in os.listdir(args.count_dir):
                 word_to_weighted_count[word] += count * weight
             except Exception as e:
                 print(str(e), file=sys.stderr)
-                sys.exit('make_vocab.py: bad line in counts file {0}: {1}'.format(
+                sys.exit('get_vocab.py: bad line in counts file {0}: {1}'.format(
                         counts_path, line[:-1]))
         f.close()
 
@@ -116,7 +116,7 @@ for name in os.listdir(args.count_dir):
 # number of weights, due to the 'dev.counts'.
 if ((saw_counts_with_weight and saw_counts_without_weight) or
     ((args.weights != None) and (num_counts_files != len(name_to_weight) + 1))):
-    sys.exit('make_vocab.py: it looks like the names in the weights file {0} '
+    sys.exit('get_vocab.py: it looks like the names in the weights file {0} '
              'do not match the files in the counts directory {1}'.format(
             args.weights, args.count_dir))
 
@@ -127,25 +127,25 @@ if ((saw_counts_with_weight and saw_counts_without_weight) or
 max_weighted_count = max(word_to_weighted_count.values())
 
 if args.epsilon_symbol in word_to_weighted_count:
-    print('make_vocab.py: warning: epsilon symbol {0} appears in the text. '
+    print('get_vocab.py: warning: epsilon symbol {0} appears in the text. '
           ' It will be replaced by {1} during data preparation.'.format(
             args.epsilon_symbol, args.unk_symbol), file=sys.stderr)
 word_to_weighted_count[args.epsilon_symbol] = 5.0 * max_weighted_count;
 
 if args.bos_symbol in word_to_weighted_count:
-    print('make_vocab.py: severe warning: beginning-of-sentence symbol {0}'
+    print('get_vocab.py: severe warning: beginning-of-sentence symbol {0}'
           ' appears in the text. It will be replaced by {1} during data '
           'preparation.'.format(args.bos_symbol, args.unk_symbol), file=sys.stderr)
 word_to_weighted_count[args.bos_symbol] = 4.0 * max_weighted_count;
 
 if args.eos_symbol in word_to_weighted_count:
-    print('make_vocab.py: severe warning: end-of-sentence symbol {0}'
+    print('get_vocab.py: severe warning: end-of-sentence symbol {0}'
           ' appears in the text. It will be replaced by {1} during data '
           'preparation.'.format(args.eos_symbol, args.unk_symbol), file=sys.stderr)
 word_to_weighted_count[args.eos_symbol] = 3.0 * max_weighted_count;
 
 if args.unk_symbol in word_to_weighted_count:
-    print('make_vocab.py: mild warning: unknown-word symbol {0} appears in the text. '
+    print('get_vocab.py: mild warning: unknown-word symbol {0} appears in the text. '
           'Make sure you know what you are doing.'.format(args.unk_symbol))
 word_to_weighted_count[args.unk_symbol] = 2.0 * max_weighted_count;
 
@@ -163,6 +163,6 @@ for [word,count] in sorted_list:
     print(word, index)
     index += 1
 
-print('make_vocab.py: created vocabulary with {0} entries'.format(len(sorted_list)),
+print('get_vocab.py: created vocabulary with {0} entries'.format(len(sorted_list)),
       file=sys.stderr)
 

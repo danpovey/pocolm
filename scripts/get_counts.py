@@ -4,6 +4,10 @@
 from __future__ import print_function
 import re, os, argparse, sys, math, warnings
 from collections import defaultdict
+try:              # since gzip will only be needed if there are gzipped files, accept
+    import gzip   # failure to import it.
+except:
+    pass
 
 parser = argparse.ArgumentParser(description="Extracts word counts from a data directory "
                                  "and creates a count directory with similar structure. "
@@ -31,9 +35,13 @@ if not os.path.exists(args.count_dir):
 
 def ProcessFile(text_file, counts_file):
     try:
-        f = open(text_file, "r");
-    except:
-        sys.exit("Failed to open {0} for reading".format(text_file))
+        if text_file.endswith(".gz"):
+            f = gzip.open(text_file, 'r')
+        else:
+            f = open(text_file, 'r')
+    except Exception as e:
+        sys.exit("Failed to open {0} for reading: {1}".format(
+                text_file, str(e)))
     word_to_count = defaultdict(int)
     for line in f:
         for word in line.split():
@@ -50,11 +58,17 @@ def ProcessFile(text_file, counts_file):
 num_files_processed = 0;
 
 for f in os.listdir(args.text_dir):
+    num_files_processed += 1
+    text_path = args.text_dir + os.sep + f
     if f.endswith(".txt"):
-        text_path = args.text_dir + os.sep + f
         counts_path = args.count_dir + os.sep + f[:-4] + ".counts"
         ProcessFile(text_path, counts_path)
-        num_files_processed += 1
+    elif f.endswith(".txt.gz"):
+        counts_path = args.count_dir + os.sep + f[:-7] + ".counts"
+        ProcessFile(text_path, counts_path)
+    else:
+        sys.exit("get_counts.py: did not expect to find file {0}/{1} in "
+                 "text directory".format(args.text_dir, f))
 
 num_files_in_dest = 0;
 for f in os.listdir(args.count_dir):

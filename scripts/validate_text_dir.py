@@ -3,6 +3,11 @@
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
 import re, os, argparse, sys, math, warnings
+try:              # since gzip will only be needed if there are gzipped files, accept
+    import gzip   # failure to import it.
+except:
+    pass
+
 
 parser = argparse.ArgumentParser(description="Validates input directory containing text "
                                  "files from one or more data sources, including dev.txt.",
@@ -17,17 +22,22 @@ args = parser.parse_args()
 if not os.path.exists(args.text_dir):
     sys.exit("validate_text_dir.py: Expected directory {0} to exist".format(args.text_dir))
 
-if not os.path.exists("{0}/dev.txt".format(args.text_dir)):
-    sys.exit("validate_text_dir.py: Expected file {0}/dev.txt to exist")
+if (not os.path.exists("{0}/dev.txt".format(args.text_dir)) and
+    not os.path.exists("{0}/dev.txt.gz".format(args.text_dir))):
+    sys.exit("validate_text_dir.py: Expected file {0}/dev.txt (or {0}/dev.txt.gz) to exist".format(args.text_dir))
 
 
 num_text_files = 0;
 
 def SpotCheckTextFile(text_file):
     try:
-        f = open(text_file, "r")
-    except:
-        sys.exit("validate_text_dir.py: Failed to open {0} for reading".format(text_file))
+        if text_file.endswith(".gz"):
+            f = gzip.open(text_file, 'r')
+        else:
+            f = open(text_file, 'r')
+    except Exception as e:
+        sys.exit("validate_text_dir.py: Failed to open {0} for reading: {1}".format(
+                text_file, str(e)))
     found_nonempty_line = False
     for x in range(1,10):
         line = f.readline().strip("\n");
@@ -47,7 +57,10 @@ def SpotCheckTextFile(text_file):
     # first field is always unique, which would be the case if the lines started
     # with some kind of utterance-id
     f.close();
-    f = open(text_file, "r")
+    if text_file.endswith(".gz"):
+        f = gzip.open(text_file, 'r')
+    else:
+        f = open(text_file, 'r')
     first_field_set = set()
     other_fields_set = set()
     for line in f:
@@ -73,8 +86,10 @@ def SpotCheckTextFile(text_file):
 
 
 for f in os.listdir(args.text_dir):
-    if f.endswith(".txt"):
+    if f.endswith(".txt") or f.endswith(".txt.gz"):
         full_path = args.text_dir + "/" + f
+        if f.endswith(".txt") and os.path.isfile(full_path + ".gz"):
+            sys.exit("validate_text_dir.py: both {0} and {0}.gz exist.".format(full_path))
         if not os.path.isfile(full_path):
             sys.exit("validate_text_dir.py: Expected {0} to be a file.".format(full_path))
         SpotCheckTextFile(full_path)
