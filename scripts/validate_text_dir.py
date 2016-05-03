@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(description="Validates input directory containi
                                  epilog="E.g. validate_test_dir.py data/text");
 
 parser.add_argument("text_dir",
-                    help="Directory in which to look for text data\n");
+                    help="Directory in which to look for text data");
 
 args = parser.parse_args()
 

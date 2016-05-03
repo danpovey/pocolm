@@ -48,6 +48,8 @@ rm -r bar
 
 ../scripts/prepare_int_data.sh foo words.txt int || exit 1
 
+../scripts/validate_int_dir.py int || exit 1
+
 echo "Success"
 
 
