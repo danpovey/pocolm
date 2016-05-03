@@ -13,9 +13,8 @@ parser.add_argument("vocab_file",
 
 args = parser.parse_args()
 
-
 if not os.path.exists(args.vocab_file):
-    sys.exit("validate_vocab.py: Expected file {0} to exist".format(args.text_dir))
+    sys.exit("validate_vocab.py: Expected file {0} to exist".format(args.vocab_file))
 
 # likely_special_indexes is a set of pairs like [0, <eps>]
 # these additions to the set just affect warnings being printed, it's

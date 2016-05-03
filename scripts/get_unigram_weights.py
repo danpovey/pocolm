@@ -131,8 +131,9 @@ m = max(current_weights)
 for i in range(num_train_files):
     current_weights[i] /= m;
 
-print("Final weights after renormalizing so they can be applied to the "
-      "raw counts, are: " + str(next_weights), file=sys.stderr)
+if args.verbose == "true":
+    print("Final weights after renormalizing so they can be applied to the "
+          "raw counts, are: " + str(next_weights), file=sys.stderr)
 
 
 for i in range(num_train_files):

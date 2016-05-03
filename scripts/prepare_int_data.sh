@@ -80,7 +80,7 @@ mkdir -p $dir/log
 
 num_train_sets=$(cat $dir/names | wc -l)
 echo $num_train_sets > $dir/num_train_sets
-cp $vocab $dir/
+cp $vocab $dir/words.txt
 
 # we can include the preparation of the dev data in the following
 # by adding "0 dev" to the contents of $dir/names using cat.
