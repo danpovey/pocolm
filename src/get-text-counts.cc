@@ -75,10 +75,12 @@ int main (int argc, char **argv) {
     exit(1);
   }
 
+  long int num_lines_processed = 0, num_words_processed = 0;
   std::string line;
   std::vector<int> line_ints;
 
   while (std::getline(std::cin, line)) {
+    num_lines_processed++;
     std::istringstream str(line);
     line_ints.clear();
     line_ints.push_back(1);  // <-- 1 is a special symbol representing
@@ -91,6 +93,7 @@ int main (int argc, char **argv) {
     line_ints.push_back(2);  // <-- 2 is a special symbol representing
                              // ebd-of-sentence (EOS, or <s>)
     int size = line_ints.size();
+    num_words_processed += size;
     // 'count' will contain the reversed history and then the predicted word.
 
     // the '<< std::setfill(' ') << setw(7)' is to left pad with spaces.
@@ -106,5 +109,9 @@ int main (int argc, char **argv) {
              "or more.");
     }
   }
-
+  std::cerr << "get-text-counts: processed " << num_lines_processed
+            << " lines, with (on average) "
+            << (num_words_processed * 1.0 / num_lines_processed)
+            << " words per line.";
+  return (num_lines_processed > 0 ? 0 : 1);
 }

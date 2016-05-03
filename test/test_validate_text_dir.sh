@@ -42,9 +42,11 @@ rm -r bar
 
 ../scripts/get_vocab.py --weights=weights bar > words.txt
 
-../scripts/validate_vocab.py words.txt
+../scripts/validate_vocab.py words.txt || exit 1
 
-echo hi hello there | ../scripts/text_to_int.py words.txt
+(echo hi hello there; echo fdasf; echo '<s>') | ../scripts/text_to_int.py words.txt || exit 1
+
+../scripts/prepare_int_data.sh foo words.txt int || exit 1
 
 echo "Success"
 

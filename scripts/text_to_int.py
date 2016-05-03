@@ -58,7 +58,7 @@ for line in sys.stdin:
 
 
 print("text_to_int.py: converted {0} words, {1}% of which were OOV".format(
-        num_words_total, (100.0*num_words_oov)/num_words_total))
+        num_words_total, (100.0*num_words_oov)/num_words_total), file=sys.stderr)
 
 forbidden_words = []
 if (num_words_forbidden != 0):
