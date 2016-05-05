@@ -67,7 +67,7 @@ for f in os.listdir(args.text_dir):
         counts_path = args.count_dir + os.sep + f[:-7] + ".counts"
         ProcessFile(text_path, counts_path)
     else:
-        sys.exit("get_counts.py: did not expect to find file {0}/{1} in "
+        sys.exit("get_word_counts.py: did not expect to find file {0}/{1} in "
                  "text directory".format(args.text_dir, f))
 
 num_files_in_dest = 0;

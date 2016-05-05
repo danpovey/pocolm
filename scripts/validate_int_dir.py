@@ -41,13 +41,25 @@ try:
 except Exception as e:
     sys.exit("validate_int_dir.py: Expected file {0}/num_train_sets to contain "
              "an integer >0: {1}".format(args.int_dir, str(e)))
-
 f.close()
 
-# call validate_vocab.py to check the vocab.
-if os.system("validate_vocab.py {0}/words.txt".format(args.int_dir)) != 0:
-    sys.exit(1)
+# the following code checks num_words.
+f = open("{0}/num_words".format(args.int_dir))
+line = f.readline()
+try:
+    num_words = int(line)
+    assert num_words > 0 and len(line.split()) == 1
+    assert f.readline() == ''
+except Exception as e:
+    sys.exit("validate_int_dir.py: Expected file {0}/num_words to contain "
+             "an integer >0: {1}".format(args.int_dir, str(e)))
+f.close()
 
+
+# call validate_vocab.py to check the vocab.
+if os.system("validate_vocab.py --num-words={0} {1}/words.txt".format(
+        num_words, args.int_dir)) != 0:
+    sys.exit(1)
 
 num_words = subprocess.check_output("cat {0}/words.txt | wc -l".format(args.int_dir), shell=True)
 try:

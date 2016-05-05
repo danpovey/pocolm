@@ -153,12 +153,12 @@ word_to_weighted_count[args.unk_symbol] = 2.0 * max_weighted_count;
 sorted_list = sorted(word_to_weighted_count.items(),
                      key=operator.itemgetter(1), reverse=True)
 
-if args.num_words != None and len(sorted_list) > args.num_words:
+if args.num_words != None and len(sorted_list) > args.num_words + 1:
     print('get_vocab.py: you specified --num-words={0} so limiting the '
           'vocabulary from {1} to {0} words based on {3}count.'.format(
-            args.num_words, len(sorted_list), args.num_words,
+            args.num_words, len(sorted_list) - 1, args.num_words,
             ("weighted " if args.weights != None else "")), file=sys.stderr)
-    sorted_list = sorted_list[0:args.num_words]
+    sorted_list = sorted_list[0:args.num_words + 1]
 
 # Here is where we produce the output of this program; it goes to the standard
 # output.
@@ -167,5 +167,5 @@ for [word,count] in sorted_list:
     print(word, index)
     index += 1
 
-print('get_vocab.py: created vocabulary with {0} entries'.format(len(sorted_list)),
+print('get_vocab.py: created vocabulary with {0} entries'.format(len(sorted_list) - 1),
       file=sys.stderr)

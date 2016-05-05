@@ -50,8 +50,8 @@ int main (int argc, const char **argv) {
   int num_outputs = argc - 1;
   if (num_outputs <= 0) {
     std::cerr << "get-int-counts: expected usage:\n"
-              << "get-int-counts <order1-output> <order2-output> ... <text-counts\n"
-              << " or: get-int-counts <text-counts <all-output>\n"
+              << "get-int-counts <order1-output> <order2-output> ... < <text-counts>\n"
+              << " or: get-int-counts <all-output> < <text-counts>\n"
               << "(the first method gives you counts divided by order, the second\n"
               << "gives you all orders of counts together.. note that typically\n"
               << "the only reason there are multiple orders is end effects.\n"

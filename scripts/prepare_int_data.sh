@@ -82,6 +82,9 @@ num_train_sets=$(cat $dir/names | wc -l)
 echo $num_train_sets > $dir/num_train_sets
 cp $vocab $dir/words.txt
 
+num_words=$(tail -n 1 $vocab | awk '{print $2}') || exit 1
+echo $num_words >$dir/num_words
+
 # we can include the preparation of the dev data in the following
 # by adding "0 dev" to the contents of $dir/names using cat.
 

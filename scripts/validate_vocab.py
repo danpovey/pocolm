@@ -6,10 +6,14 @@ import re, os, argparse, sys, math, warnings
 
 parser = argparse.ArgumentParser(description="Validates vocabulary file in OpenFst symbol "
                                  "table format",
-                                 epilog="e.g. validate_vocab.py words.txt");
+                                 epilog="e.g. validate_vocab.py words.txt")
+
+parser.add_argument("--num-words", type=int,
+                    help="Number of words to expect in vocabulary (not counting epsilon), "
+                    "should equal highest-numbered word.")
 
 parser.add_argument("vocab_file",
-                    help="Filename of vocabulary file");
+                    help="Filename of vocabulary file")
 
 args = parser.parse_args()
 
@@ -55,7 +59,12 @@ for line in f:
 if num_lines < 5:
     sys.exit("validate_vocab.py: file {0} is too short.".format(args.vocab_file))
 
+if args.num_words != None and num_lines - 1 != args.num_words:
+    sys.exit("validate_vocab.py: expected {0} words (--num-words={0} option, "
+             "found {1} words, in {2}".format(args.num_words, num_lines - 1,
+                                              args.vocab_file))
 
 print("validate_vocab.py: validated file {0} with {1} entries.".format(
-        args.vocab_file, num_lines), file=sys.stderr)
+        args.vocab_file, num_lines - 1), file=sys.stderr)
+
 
