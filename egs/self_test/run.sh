@@ -29,6 +29,11 @@ get_initial_metaparameters.py --weights=data/weights \
    --names=data/counts_500/names \
    --num-train-sets=$(cat data/counts_500/num_train_sets) > data/optimize/0.metaparams
 
+validate_metaparameters.py \
+   --ngram-order=$ngram_order \
+  --num-train-sets=$(cat data/counts_500/num_train_sets) \
+   data/optimize/0.metaparams
+
 
 
 
