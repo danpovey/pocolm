@@ -46,6 +46,10 @@ validate_metaparameters.py \
 get_objf_and_derivs.py --derivs-out=$datasub/optimize/0.derivs \
   $datasub/counts  $datasub/optimize/0.{metaparams,objf} $datasub/work.0
 
+validate_metaparameter_derivs.py \
+   --ngram-order=$ngram_order \
+  --num-train-sets=$(cat $datasub/counts/num_train_sets) \
+   $datasub/optimize/0.{metaparams,derivs}
 
 #mkdir -p data/optimize
 
