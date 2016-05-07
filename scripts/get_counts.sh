@@ -76,7 +76,12 @@ for n in $(seq $num_train_sets) dev; do
   # the highest possible order for each word, which is normally $ngram_order,
   # but can be as low as 2 for the 1st word of the sentence). So just put the
   # output for order 1 in /dev/null.
-  args="/dev/null $(for o in $(seq 2 $ngram_order); do echo -n $dir/int.$n.$o ''; done)"
+
+  if [ $n == dev ]; then
+    args=$dir/int.dev  # we write all the orders as one file for the dev data.
+  else
+    args="/dev/null $(for o in $(seq 2 $ngram_order); do echo -n $dir/int.$n.$o ''; done)"
+  fi
 
   echo "# gunzip -c $int/$n.txt.gz | get-text-counts $ngram_order | sort | uniq -c | get-int-counts $args " \
      > $dir/log/get_counts.$n.log

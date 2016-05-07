@@ -107,13 +107,18 @@ names = ['dev']
 for n in range(1, num_train_sets + 1):
     names.append(str(n))
 
-for name in names:
-    for n in range(2, ngram_order +1):
-        filename = "{0}/int.{1}.{2}".format(args.count_dir, name, n)
+for n in range(1, num_train_sets + 1):
+    for o in range(2, ngram_order +1):
+        filename = "{0}/int.{1}.{2}".format(args.count_dir, n, o)
         if not os.path.exists(filename):
             sys.exit("validate_count_dir.py: Expected file {0} to exist".format(filename))
         if not os.path.getsize(filename) > 0:
             sys.exit("validate_count_dir.py: Expected file {0} to be nonempty".format(filename))
+
+if not os.path.exists("{0}/int.dev".format(args.count_dir)):
+    sys.exit("validate_count_dir.py: Expected file {0}/int.dev "
+             "to exist".format(args.count_dir))
+
 
 print("validate_count_dir.py: validated counts directory " + args.count_dir,
       file=sys.stderr)

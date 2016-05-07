@@ -106,7 +106,7 @@ class CountMergerBackward {
                   std::ifstream *stream) {
     stream->open(filename, std::ios_base::binary|std::ios_base::in);
     if (!stream->is_open()) {
-      std::cerr << "discount-counts-backward: failed to open '"
+      std::cerr << "merge-counts-backward: failed to open '"
                 << filename << "' for reading\n";
       exit(1);
     }
@@ -249,8 +249,8 @@ class CountMergerBackward {
         // undefined.
         word_map_size = word + 1;
         word_map_.resize(word_map_size);
-        word_map_[word] = pos;
       }
+      word_map_[word] = pos;
     }
   }
 

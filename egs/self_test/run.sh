@@ -2,6 +2,7 @@
 
 # this script tests pocolm on its own code.
 
+set -e
 export POCOLM_ROOT=$(cd ../..; pwd -P)
 export PATH=$PATH:$POCOLM_ROOT/scripts
 
@@ -12,31 +13,40 @@ get_word_counts.py data/text data/word_counts
 
 get_unigram_weights.py data/word_counts > data/weights
 
-get_vocab.py --num-words=500 --weights=data/weights data/word_counts  > data/words_500.txt
-
-prepare_int_data.sh data/text data/words_500.txt data/int_500
-
-# note, get_counts.sh may later be called by another script.
+num_words=500
 ngram_order=3
 
-get_counts.sh data/int_500 $ngram_order data/counts_500
+mkdir -p data/${num_words}_${ngram_order}
 
-validate_count_dir.py data/counts_500
+datasub=data/${num_words}_${ngram_order}
+mkdir -p $datasub
 
-mkdir -p data/optimize
+get_vocab.py --num-words=$num_words --weights=data/weights data/word_counts  > $datasub/words.txt
+
+prepare_int_data.sh data/text $datasub/words.txt $datasub/int
+
+# note, get_counts.sh may later be called by another script.
+
+get_counts.sh $datasub/int $ngram_order $datasub/counts
+
+validate_count_dir.py $datasub/counts
+
+mkdir -p $datasub/optimize
+
 get_initial_metaparameters.py --weights=data/weights \
    --ngram-order=$ngram_order \
-   --names=data/counts_500/names \
-   --num-train-sets=$(cat data/counts_500/num_train_sets) > data/optimize/0.metaparams
+   --names=$datasub/counts/names \
+   --num-train-sets=$(cat $datasub/counts/num_train_sets) > $datasub/optimize/0.metaparams
 
 validate_metaparameters.py \
    --ngram-order=$ngram_order \
-  --num-train-sets=$(cat data/counts_500/num_train_sets) \
-   data/optimize/0.metaparams
+  --num-train-sets=$(cat $datasub/counts/num_train_sets) \
+   $datasub/optimize/0.metaparams
+
+get_objf_and_derivs.py --derivs-out=$datasub/optimize/0.derivs \
+  $datasub/counts  $datasub/optimize/0.{metaparams,objf} $datasub/work.0
 
 
-
-
-mkdir -p data/optimize
+#mkdir -p data/optimize
 
 
