@@ -51,6 +51,11 @@ validate_metaparameter_derivs.py \
   --num-train-sets=$(cat $datasub/counts/num_train_sets) \
    $datasub/optimize/0.{metaparams,derivs}
 
+test_metaparameter_derivs.py \
+  $datasub/optimize/0.metaparams \
+  $datasub/counts $datasub/temp
+
+
 #mkdir -p data/optimize
 
 

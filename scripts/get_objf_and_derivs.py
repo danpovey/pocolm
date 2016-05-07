@@ -29,7 +29,7 @@ args = parser.parse_args()
 
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + ":" +
+                      os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) +
                       os.pathsep + "src");
 
@@ -78,7 +78,7 @@ def RunCommand(command):
     # print the command for logging
     print(command, file=sys.stderr)
     if os.system(command) != 0:
-        sys.exit("get_objf_and_derivs.py: error running command: " + command, file=sys.stderr)
+        sys.exit("get_objf_and_derivs.py: error running command: " + command)
 
 def GetCommandStdout(command):
     # print the command for logging
