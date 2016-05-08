@@ -120,8 +120,8 @@ for i in range(num_metaparameters):
     disagreement_sumsq += disagreement * disagreement
 f.close()
 
-percentage_agreement = (100.0 * (analytical_sumsq - disagreement_sumsq) /
-                        analytical_sumsq)
+percentage_agreement = (100.0 * (math.sqrt(analytical_sumsq) - math.sqrt(disagreement_sumsq)) /
+                        math.sqrt(analytical_sumsq))
 print("test_metaparameter_derivs.py: analytical and difference-method "
       "derivatives agree {0}%".format(percentage_agreement), file=sys.stderr)
 if percentage_agreement < 98.0:
