@@ -18,6 +18,9 @@
 // limitations under the License.
 
 #include <cassert>
+#include <stdlib.h>
+#include <math.h>
+#include <algorithm>
 #include "lm-state.h"
 
 namespace pocolm {
@@ -25,10 +28,11 @@ namespace pocolm {
 
 void IntLmState::Print(std::ostream &os) const {
   os << " [ ";
-  for (int32 i = 0; i < history.size(); i++)
+  int32 hist_size = history.size();
+  for (int32 i = 0; i < hist_size; i++)
     os << history[i] << " ";
   os << "]: ";
-  for (int32 i = 0; i < counts.size(); i++)
+  for (size_t i = 0; i < counts.size(); i++)
     os << counts[i].first << "->" << counts[i].second << " ";
   os << "\n";
   Check();
@@ -181,11 +185,13 @@ void FloatLmState::Check() const {
 
 void FloatLmState::Print(std::ostream &os) const {
   os << " [ ";
-  for (int32 i = 0; i < history.size(); i++)
+  int32 hist_size = history.size();
+  for (int32 i = 0; i < hist_size; i++)
     os << history[i] << " ";
   os << "]: ";
   os << "total=" << total << " discount=" << discount << " ";
-  for (int32 i = 0; i < counts.size(); i++)
+  int32 counts_size = counts.size();
+  for (int32 i = 0; i < counts_size; i++)
     os << counts[i].first << "->" << counts[i].second << " ";
   os << "\n";
 }
@@ -200,10 +206,12 @@ void FloatLmState::ComputeTotal() {
 
 void GeneralLmState::Print(std::ostream &os) const {
   os << " [ ";
-  for (int32 i = 0; i < history.size(); i++)
+  int32 hist_size = history.size();
+  for (int32 i = 0; i < hist_size; i++)
     os << history[i] << " ";
   os << "]: ";
-  for (int32 i = 0; i < counts.size(); i++)
+  int32 counts_size = counts.size();
+  for (int32 i = 0; i < counts_size; i++)
     os << counts[i].first << "->" << counts[i].second << " ";
   os << "\n";
 }

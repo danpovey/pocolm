@@ -23,9 +23,12 @@
 #include <fstream>
 #include <vector>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include "pocolm-types.h"
 #include "lm-state.h"
-#include "errno.h"
+
+
 
 /*
    This program is used to compile text-form counts into binary integer counts.

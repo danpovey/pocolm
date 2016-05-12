@@ -18,13 +18,14 @@
 // limitations under the License.
 
 #include <cassert>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <fstream>
 #include <vector>
 #include <map>
+#include <math.h>
 #include <stdlib.h>
-#include <iomanip>
 #include "pocolm-types.h"
 #include "lm-state.h"
 #include "lm-state-derivs.h"
@@ -124,7 +125,7 @@ class ProbComputer {
         // to clear it, but first we must write any derivatives
         // (if we're writing derivatives).
         if (train_deriv_outputs_ != NULL) {
-          assert(num_train_deriv_outputs_ > hist_size);
+          assert(size_t(num_train_deriv_outputs_) > hist_size);
           next_discounted_state_.WriteDerivs(train_deriv_outputs_[hist_size]);
         }
         next_discounted_state_.history.clear();
@@ -206,7 +207,7 @@ class ProbComputer {
         // of how discount-counts-1gram works.  This saves us having to do
         // a logarithmic-time lookup.
         assert(word >= kEosSymbol &&
-               lm_state.counts.size() >= word &&
+               static_cast<int32>(lm_state.counts.size()) >= word &&
                lm_state.counts[word - kEosSymbol].first ==
                word);
         double unigram_count = lm_state.counts[word - kEosSymbol].second,
@@ -329,7 +330,8 @@ class ProbComputer {
     if (train_deriv_outputs_ != NULL) {
       while (!train_input_.eof())
         ReadNextDiscountedState();
-      for (size_t i = 0; i < discounted_state_.size(); i++) {
+      int32 discounted_state_size = discounted_state_.size();
+      for (int32 i = 0; i < discounted_state_size; i++) {
         if (!discounted_state_[i].counts.empty()) {
           assert(i < num_train_deriv_outputs_);
           discounted_state_[i].WriteDerivs(train_deriv_outputs_[i]);

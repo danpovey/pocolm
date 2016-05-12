@@ -18,6 +18,7 @@
 // limitations under the License.
 
 #include <cassert>
+#include <stdlib.h>
 #include "lm-state-derivs.h"
 
 namespace pocolm {
@@ -94,12 +95,14 @@ void FloatLmStateDerivs::WriteDerivs(std::ostream &os) {
 void FloatLmStateDerivs::Print(std::ostream &os) const {
   assert(counts.size() == count_derivs.size());
   os << " [ ";
-  for (int32 i = 0; i < history.size(); i++)
+  int32 hist_size = history.size();
+  for (int32 i = 0; i < hist_size; i++)
     os << history[i] << " ";
   os << "]: ";
   os << "total=" << total << ",d=" << total_deriv
      << " discount=" << discount << ",d=" << discount_deriv << " ";
-  for (int32 i = 0; i < counts.size(); i++)
+  int32 counts_size = counts.size();
+  for (int32 i = 0; i < counts_size; i++)
     os << counts[i].first << "->" << counts[i].second
        << ",d=" << count_derivs[i] << " ";
   os << "\n";
@@ -163,10 +166,12 @@ void GeneralLmStateDerivs::WriteDerivs(std::ostream &os) const {
 
 void GeneralLmStateDerivs::Print(std::ostream &os) const {
   os << " [ ";
-  for (int32 i = 0; i < history.size(); i++)
+  int32 hist_size = history.size();
+  for (int32 i = 0; i < hist_size; i++)
     os << history[i] << " ";
   os << "]: ";
-  for (int32 i = 0; i < counts.size(); i++)
+  int32 counts_size = counts.size();
+  for (int32 i = 0; i < counts_size; i++)
     os << counts[i].first << "->" << counts[i].second
        << ",d=" << count_derivs[i] << " ";
   os << "\n";

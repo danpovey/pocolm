@@ -22,7 +22,7 @@
 #include <sstream>
 #include <vector>
 #include <iomanip>
-
+#include <stdlib.h>
 
 /*
    This standalone C++ program is intended to turn integerized text into
