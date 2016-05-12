@@ -26,11 +26,9 @@ parser.add_argument("optimize_dir",
 
 args = parser.parse_args()
 
-# Add the script dir and the src dir to the path.
+# Add the script dir to the path
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) +
-                      os.pathsep + "src");
+                      os.path.abspath(os.path.dirname(sys.argv[0])));
 
 if os.system("validate_count_dir.py " + args.count_dir) != 0:
     sys.exit("optimize_metaparameters.py: validate_count_dir.py failed")

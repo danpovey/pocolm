@@ -309,7 +309,7 @@ int main (int argc, const char **argv) {
   if (argc != 10) {
     std::cerr << "discount-counts-backward: expected usage:\n"
               << "discount-counts-backward <D1> <D2> <D3> <counts-in>\\\n"
-              << "  <discounted-float-counts-in> <discounted-floa-derivs-in> \\\n"
+              << "  <discounted-float-counts-in> <discounted-float-derivs-in> \\\n"
               << "  <backoff-counts-in> <backoff-derivs-in> <derivs-out>\n"
               << "This program prints to its stdout the derivatives w.r.t. D1, D2 and D3.\n";
     exit(1);

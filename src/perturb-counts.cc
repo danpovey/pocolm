@@ -111,7 +111,7 @@ int main (int argc, char **argv) {
   }
 
   // delta controls how much we perturb the counts.  It's hard-coded.
-  const float delta = 5.0e-03;
+  const float delta = 1.0e-03;
 
   int64 num_lm_states = 0;
   int64 num_counts = 0;

@@ -30,8 +30,7 @@ args = parser.parse_args()
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) +
-                      os.pathsep + "src");
+                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
 
 if not os.path.exists(args.work_dir):
     os.makedirs(args.work_dir)

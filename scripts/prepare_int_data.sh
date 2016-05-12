@@ -44,7 +44,7 @@ set -e
 scriptdir=$(cd $(dirname $0); pwd -P)
 PATH=$PATH:$scriptdir
 
-if ! which -s text_to_int.py; then # >&/dev/null; then
+if ! command -v text_to_int.py; then # >&/dev/null; then
   echo "$0: expected text_to_int.py to be on the path"
   exit 1
 fi
