@@ -240,11 +240,13 @@ print("result is ", result, file=sys.stderr)
 WriteMetaparameters("{0}/final.metaparams".format(args.optimize_dir),
                     result.x)
 
-print("optimize_metaparameters.py: log-prob on training data increased "
-      "from {0} to {1} over {2} passes of derivative estimation".format(
-        ReadObjf("{0}/0.objf".format(args.optimize_dir)),
-        ReadObjf("{0}/{1}.objf".format(args.optimize_dir, iteration - 1)),
-        iteration), file=sys.stderr)
+old_objf = ReadObjf("{0}/0.objf".format(args.optimize_dir))
+new_objf = ReadObjf("{0}/{1}.objf".format(args.optimize_dir, iteration - 1))
+
+print("optimize_metaparameters.py: log-prob on dev data increased "
+      "from {0} to {1} over {2} passes of derivative estimation (perplexity: {3}->{4}".format(
+                old_objf, new_objf, iteration, math.exp(-old_objf), math.exp(-new_objf)),
+      file=sys.stderr)
 
 print("optimize_metaparameters.py: do `diff -y {0}/{{0,final}}.metaparams` "
       "to see change in metaparameters.".format(args.optimize_dir),
