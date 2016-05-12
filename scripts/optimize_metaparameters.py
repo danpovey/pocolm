@@ -231,9 +231,24 @@ x0 = ReadMetaparametersOrDerivs(args.optimize_dir + "/0.metaparams")
 # and derivatives.
 iteration = 0
 
-print("x0 is ", x0)
-
 result = minimize(GetObjfAndDeriv, x0, method='BFGS', jac=True,
                   options={'disp': True, 'gtol': args.gradient_tolerance, 'mls':50})
 
-print("result is ", result)
+print("result is ", result, file=sys.stderr)
+
+WriteMetaparameters("{0}/final.metaparams".format(args.optimize_dir),
+                    result.x)
+
+print("optimize_metaparameters.py: log-prob on training data increased "
+      "from {0} to {1} over {2} passes of derivative estimation".format(
+        ReadObjf("{0}/0.objf".format(args.optimize_dir)),
+        ReadObjf("{0}/{1}.objf".format(args.optimize_dir, iteration - 1)),
+        iteration), file=sys.stderr)
+
+print("optimize_metaparameters.py: do `diff -y {0}/{{0,final}}.metaparams` "
+      "to see change in metaparameters.".format(args.optimize_dir),
+      file=sys.stderr)
+
+print("optimize_metaparameters.py: Wrote final metaparameters to "
+      "{0}/final.metaparams".format(args.optimize_dir),
+      file=sys.stderr)
