@@ -20,8 +20,13 @@ all: $(TESTFILES) $(BINFILES)
 clean:
 	-rm *.o $(BINFILES) $(TESTFILES)
 
-CXXFLAGS += -Wall -g -stdlib=libstdc++
-LDFLAGS += -g -stdlib=libstdc++
+CXXFLAGS += -Wall -g
+LDFLAGS += -g
+
+ifeq ($(shell uname), Darwin)
+ CXXFLAGS += -stdlib=libstdc++
+ LDFLAGS += -stdlib=libstdc++
+endif
 
 LDLIBS =
 CXX = g++
