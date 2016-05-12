@@ -188,8 +188,11 @@ def GetObjfAndDeriv(x):
                             deriv_file)
             shutil.copyfile("{0}/{1}.objf".format(args.optimize_dir, iteration - 1),
                             objf_file)
-            shutil.copyfile("{0}/{1}.log".format(args.optimize_dir, iteration - 1),
-                            log_file)
+            try:
+                shutil.copyfile("{0}/{1}.log".format(args.optimize_dir, iteration - 1),
+                                log_file)
+            except:
+                pass
         else:
             # we need to call get_objf_and_derivs.py
             command = ("get_objf_and_derivs.py --derivs-out={derivs} {counts} {metaparams} "
