@@ -51,27 +51,22 @@ for n in range(1, args.num_train_sets + 1):
                                                      args.metaparameter_file))
 
 for o in range(2, args.ngram_order + 1):
-    line1 = f.readline()
-    line2 = f.readline()
-    line3 = f.readline()
+    lines = []
+    values = []
+    for n in range(4):
+        lines.append(f.readline())
     try:
-        [ name1, value1 ] = line1.split()
-        [ name2, value2 ] = line2.split()
-        [ name3, value3 ] = line3.split()
-        value1 = float(value1)
-        value2 = float(value2)
-        value3 = float(value3)
-        assert name1 == "order{0}_D1".format(o)
-        assert name2 == "order{0}_D2".format(o)
-        assert name3 == "order{0}_D3".format(o)
-        assert 1.0 > value1 and value1 > value2 and value2 > value3 and value3 > 0.0
-    except:
+        for n in range(4):
+            [ name, value ] = lines[n].split()
+            assert name == "order{0}_D{1}".format(o, n + 1)
+            value = float(value)
+            values.append(value)
+            assert 1.0 > value and value > 0.0 and (n == 0 or value < values[n-1])
+    except Exception as e:
         sys.exit("validate_metaparameters.py: bad values for {0}'th order "
-                 "n-gram discounting parameters: '{1}', '{2}', '{3}',"
-                 " in file {4}".format(o, line1[0:-1], line2[0:-1], line3[0:-1],
-                                       args.metaparameter_file))
+                 "n-gram discounting parameters: in file {1}: {2}".format(
+                o, args.metaparameter_file, str(e)))
 
 if f.readline() != '':
     sys.exit("validate_metaparameters.py: junk at end of "
              "metaparameters file {0}".format(args.metaparameter_file))
-

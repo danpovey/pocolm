@@ -33,16 +33,18 @@
 
    The discounting method is a generalization of modified Kneser-Ney discounting (see
    Goodman, "A Bit of Progress in Language Modeling"), in which we discount a
-   specified proportion of the (first, second and third) counts, according to
-   three values 0 < D1 < 1, 0 < D2 < 1, and 0 < D3 < 1.  Normally we'll have D1
-   > D2 > D3, but this is not required.
+   specified proportion of the (first, second and third, and 4+) counts, according to
+   three values 1 > D1 > D2 > D3 > D4 > 0.  Note, D4 would be zero in standard
+   modified Kneser-Ney, but in our method we allow it to be nonzero (in standard Kneser-Ney
+  there would be no way to estimate it, but in our framework it's possible to do so based
+   on dev-data probabilities.).
 
    Our method is a generalization of modified Kneser-Ney because in our
    framework, these counts are not automatically equal to one.  I.e. instead of
    dealing with counts-of-counts, we keep track of the discounted pieces and
    their exact magnitudes.  Note, be careful because our values D1, D2 and D3
-   are defined differently than in the original modified Kneser-Ney.
-*/
+   (and D4) are defined differently than in the original modified Kneser-Ney.
+   */
 
 
 namespace pocolm {
@@ -51,9 +53,9 @@ class CountDiscounter {
  public:
   CountDiscounter(int argc,
                   const char **argv): num_lm_states_processed_(0) {
-    // args are: program name, D1, D2, D3, counts-input-filename,
+    // args are: program name, D1, D2, D3, D4, counts-input-filename,
     // discounted-float-counts-filename, discount-counts-filename.
-    assert(argc == 7);
+    assert(argc == 8);
     ReadArgs(argv);
     ProcessInput();
   }
@@ -125,7 +127,6 @@ class CountDiscounter {
                 backoff_history_.begin());
     }
 
-
     std::vector<std::pair<int32, Count> >::const_iterator in_iter =
         lm_state.counts.begin(), in_end = lm_state.counts.end();
     std::vector<std::pair<int32, float> >::iterator out_iter =
@@ -140,8 +141,9 @@ class CountDiscounter {
       // we can ensure they will be exactly the same value in discount-counts
       // and discount-counts-backward (since the backprop relies on exact
       // floating-point comparisons).
-      volatile float d1 = d1_ * count.top1, d2 = d2_ * count.top2, d3 = d3_ * count.top3,
-          d = d1 + d2 + d3;
+      volatile float top4plus = count.total - count.top1 - count.top2 - count.top3,
+          d1 = d1_ * count.top1, d2 = d2_ * count.top2, d3 = d3_ * count.top3,
+          d4 = d4_ * top4plus, d = d1 + d2 + d3 + d4;
       // we can set separate_counts to true or false.. it's a design decision.
       if (POCOLM_SEPARATE_COUNTS) {
         // the up to 3 discounted pieces will remain separate in the lower-order
@@ -184,49 +186,52 @@ class CountDiscounter {
   }
 
   void ReadArgs(const char **argv) {
-    char *end;
-    d1_ = strtod(argv[1], &end);
-    if (!(d1_ > 0.0 && d1_ < 1.0 && *end == '\0')) {
-      std::cerr << "discount-counts: d1 must be >0.0 and <1.0\n";
-      exit(1);
-    }
-    d2_ = strtod(argv[2], &end);
-    if (!(d2_ > 0.0 && d2_ < 1.0 && *end == '\0')) {
-      std::cerr << "discount-counts: d2 must be >0.0 and <1.0\n";
-      exit(1);
-    }
-    d3_ = strtod(argv[3], &end);
-    if (!(d3_ > 0.0 && d3_ < 1.0 && *end == '\0')) {
-      std::cerr << "discount-counts: d3 must be >0.0 and <1.0\n";
-      exit(1);
-    }
-    assert(1.0 > d1_ && d1_ >= d2_ && d2_ >= d3_ && d3_ > 0);
+    d1_ = ConvertToFloat(argv[1]);
+    d2_ = ConvertToFloat(argv[2]);
+    d3_ = ConvertToFloat(argv[3]);
+    d4_ = ConvertToFloat(argv[4]);
+    assert(1.0 > d1_ && d1_ >= d2_ && d2_ >= d3_ && d3_ >= d4_ && d4_ >= 0);
 
-    input_.open(argv[4], std::ios_base::binary|std::ios_base::in);
+    input_.open(argv[5], std::ios_base::binary|std::ios_base::in);
     if (input_.fail()) {
       std::cerr << "discount-counts: failed to open '"
-                << argv[4] << "' for reading.\n";
+                << argv[5] << "' for reading.\n";
       exit(1);
     }
 
-    discounted_output_.open(argv[5], std::ios_base::binary|std::ios_base::out);
+    discounted_output_.open(argv[6], std::ios_base::binary|std::ios_base::out);
     if (discounted_output_.fail()) {
-      std::cerr << "discount-counts: failed to open '"
-                << argv[5] << "' for writing.\n";
-      exit(1);
-    }
-    backoff_output_.open(argv[6], std::ios_base::binary|std::ios_base::out);
-    if (backoff_output_.fail()) {
       std::cerr << "discount-counts: failed to open '"
                 << argv[6] << "' for writing.\n";
       exit(1);
     }
+    backoff_output_.open(argv[7], std::ios_base::binary|std::ios_base::out);
+    if (backoff_output_.fail()) {
+      std::cerr << "discount-counts: failed to open '"
+                << argv[7] << "' for writing.\n";
+      exit(1);
+    }
+  }
+
+  float ConvertToFloat(const char *str) const {
+    char *end;
+    float ans = strtod(str, &end);
+    if (!(*end == 0.0)) {
+      std::cerr << "discount-counts: expected float, got '" << str << "'\n";
+    }
+    if (!(ans >= 0.0 and ans < 1.0)) {
+      std::cerr << "discount-counts: discounting values must be "
+                << ">=0.0 and <1.0: " << str << "\n";
+      exit(1);
+    }
+    return ans;
   }
 
 
   float d1_;
   float d2_;
   float d3_;
+  float d4_;
 
   std::ifstream input_;
   std::ofstream discounted_output_;
@@ -245,9 +250,9 @@ class CountDiscounter {
 }
 
 int main (int argc, const char **argv) {
-  if (argc != 7) {
-    std::cerr << "discount-counts: expected usage: discount-counts <D1> <D2> <D3> <counts-in> <discounted-float-counts-out> <backoff-counts-out>\n"
-              << "e.g.: discount-counts 0.8 0.5 0.2 dir/merged/3.ngram dir/discounted/3.ngram dir/discounts/3.ngram\n"
+  if (argc != 8) {
+    std::cerr << "discount-counts: expected usage: discount-counts <D1> <D2> <D3> <D4> <counts-in> <discounted-float-counts-out> <backoff-counts-out>\n"
+              << "e.g.: discount-counts 0.8 0.5 0.2 0.1 dir/merged/3.ngram dir/discounted/3.ngram dir/discounts/3.ngram\n"
               << "(note: <discounted-float-counts-out> are written as float-counts, <backoff-counts-out> are written as\n"
               << "general counts (where we keep track of top1, top2, top3)\n";
     exit(1);

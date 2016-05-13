@@ -63,7 +63,7 @@ for n in range(1, args.num_train_sets + 1):
                                                             deriv_line[0:-1]))
 
 for o in range(2, args.ngram_order + 1):
-    for n in range(3):
+    for n in range(4):
         line = f.readline()
         deriv_line = deriv_f.readline()
         try:

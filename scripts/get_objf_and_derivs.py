@@ -61,15 +61,17 @@ f = open(args.metaparameters, "r")
 train_set_scale = {}
 for n in range(1, num_train_sets + 1):
     train_set_scale[n] = float(f.readline().split()[1])
-# the discounting constants will be stored as maps d1,d2,d3 from integer order
+# the discounting constants will be stored as maps d1,d2,d3,d4 from integer order
 # to discounting constant.
 d1 = {}
 d2 = {}
 d3 = {}
+d4 = {}
 for o in range(2, ngram_order + 1):
     d1[o] = float(f.readline().split()[1])
     d2[o] = float(f.readline().split()[1])
     d3[o] = float(f.readline().split()[1])
+    d4[o] = float(f.readline().split()[1])
 f.close()
 
 
@@ -149,27 +151,28 @@ def MergeCountsBackward(order):
 def DiscountCounts(order):
     # discount counts of the specified order > 1.
     assert order > 1
-    command = "discount-counts {d1} {d2} {d3} {work}/merged.{order} {work}/float.{order} {work}/discounted.{orderm1} ".format(
-        d1 = d1[order], d2 = d2[order], d3 = d3[order], work = args.work_dir,
-        order = order, orderm1 = order - 1)
+    command = "discount-counts {d1} {d2} {d3} {d4} {work}/merged.{order} {work}/float.{order} {work}/discounted.{orderm1} ".format(
+        d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
+        work = args.work_dir, order = order, orderm1 = order - 1)
     RunCommand(command)
 
 def DiscountCountsBackward(order):
     # discount counts of the specified order > 1; backprop version.
     assert order > 1
-    command = ("discount-counts-backward {d1} {d2} {d3} {work}/merged.{order} {work}/float.{order} "
+    command = ("discount-counts-backward {d1} {d2} {d3} {d4} {work}/merged.{order} {work}/float.{order} "
                "{work}/float_derivs.{order} {work}/discounted.{orderm1} {work}/discounted_derivs.{orderm1} "
                "{work}/merged_derivs.{order}".format(
-            d1 = d1[order], d2 = d2[order], d3 = d3[order], work = args.work_dir,
-            order = order, orderm1 = order - 1))
+            d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
+            work = args.work_dir, order = order, orderm1 = order - 1))
     output = GetCommandStdout(command);
     try:
-        [ deriv1, deriv2, deriv3 ] = output.split()
+        [ deriv1, deriv2, deriv3, deriv4 ] = output.split()
     except:
         sys.exit("get_objf_and_derivs.py: could not parse output of command: " + output)
     d1_deriv[order] = float(deriv1) / num_dev_set_words
     d2_deriv[order] = float(deriv2) / num_dev_set_words
     d3_deriv[order] = float(deriv3) / num_dev_set_words
+    d4_deriv[order] = float(deriv4) / num_dev_set_words
 
 
 def DiscountCountsOrder1():
@@ -226,6 +229,7 @@ def WriteDerivs():
         print("order{0}_D1 {1}".format(o, d1_deriv[o]), file=f)
         print("order{0}_D2 {1}".format(o, d2_deriv[o]), file=f)
         print("order{0}_D3 {1}".format(o, d3_deriv[o]), file=f)
+        print("order{0}_D4 {1}".format(o, d4_deriv[o]), file=f)
     f.close()
 
 # for n-gram orders down to 2, do the merging and discounting.
@@ -247,6 +251,7 @@ scale_derivs = [ 0 ] * num_train_sets
 d1_deriv = {}
 d2_deriv = {}
 d3_deriv = {}
+d4_deriv = {}
 
 # Now comes the backprop code.
 

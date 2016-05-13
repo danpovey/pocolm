@@ -99,16 +99,17 @@ def WriteMetaparameters(file, array):
 # d3 > 0.  Otherwise it returns false.
 def MetaparametersAreAllowed(x):
     global num_train_sets, ngram_order
-    assert len(x) == num_train_sets + 3 * (ngram_order - 1)
+    assert len(x) == num_train_sets + 4 * (ngram_order - 1)
     for i in range(num_train_sets):
         if x[i] <= 0.0 or x[i] >= 1.0:
             return False
     for o in range(2, ngram_order + 1):
-        dim_offset = num_train_sets + 3 * (o-2)
+        dim_offset = num_train_sets + 4 * (o-2)
         d1 = x[dim_offset]
         d2 = x[dim_offset + 1]
         d3 = x[dim_offset + 2]
-        if not (1.0 > d1 and d1 > d2 and d2 > d3 and d3 > 0.0):
+        d4 = x[dim_offset + 3]
+        if not (1.0 > d1 and d1 > d2 and d2 > d3 and d3 > d4 and d4 > 0.0):
             return False
     return True
 
@@ -124,7 +125,7 @@ def ModifyWithBarrierFunction(x, objf, derivs):
     epsilon = args.barrier_epsilon
     derivs = derivs.copy() # don't overwrite the object.
     global num_train_sets, ngram_order
-    assert len(x) == num_train_sets + 3 * (ngram_order - 1)
+    assert len(x) == num_train_sets + 4 * (ngram_order - 1)
     for i in range(num_train_sets):
         xi = x[i]
         # the constraints are: xi > 0.0, and 1.0 - xi > 0.0
@@ -132,22 +133,27 @@ def ModifyWithBarrierFunction(x, objf, derivs):
         derivs[i] += epsilon * ((1.0 / xi) + (-1.0 / (1.0 - xi)))
 
     for o in range(2, ngram_order + 1):
-        dim_offset = num_train_sets + 3 * (o-2)
+        dim_offset = num_train_sets + 4 * (o-2)
         d1 = x[dim_offset]
         d2 = x[dim_offset + 1]
         d3 = x[dim_offset + 2]
+        d4 = x[dim_offset + 3]
         # the constraints are:
         # 1.0 - d1 > 0.0
         # d1 - d2 > 0.0
         # d2 - d3 > 0.0
-        #      d3 > 0.0
-        objf += epsilon * (log(1.0 - d1) + log(d1 - d2) + log(d2 - d3) + log(d3))
+        # d3 - d4 > 0.0
+        #      d4 > 0.0
+        objf += epsilon * (log(1.0 - d1) + log(d1 - d2) + log(d2 - d3) +
+                           log(d3 - d4) + log(d4))
         # deriv for d1
         derivs[dim_offset] += epsilon * (-1.0 / (1.0 - d1) + 1.0 / (d1 - d2))
         # deriv for d2
         derivs[dim_offset + 1] += epsilon * (-1.0 / (d1 - d2) + 1.0 / (d2 - d3))
         # deriv for d3
-        derivs[dim_offset + 2] += epsilon * (-1.0 / (d2 - d3) + 1.0 / d3)
+        derivs[dim_offset + 2] += epsilon * (-1.0 / (d2 - d3) + 1.0 / (d3 - d4))
+        # deriv for d4
+        derivs[dim_offset + 3] += epsilon * (-1.0 / (d3 - d4) + 1.0 / d4)
     return (objf, derivs)
 
 

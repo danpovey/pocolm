@@ -28,13 +28,11 @@ namespace pocolm {
 
 /**
    This class is used to store a special type of count that we use in estimating
-   these language models.  You can think of it as a type of 'extended' float that
-   stores the sum of a bunch of individual small counts or parts of counts.
+   these language models.  You can think of it as a type of 'extended' float
+   that stores the sum of a bunch of individual small counts or parts of counts.
    In addition to storing the total count, it also stores the top-1 "part"
-   (i.e. the largest of the component parts), and also the runners up, which
+   (i.e. the largest of the component parts), and also the two runners up, which
    we call top-2 and top-3.
-
-
  */
 class Count {
  public:

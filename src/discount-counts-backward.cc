@@ -38,10 +38,10 @@ class CountDiscounterBackward {
  public:
   CountDiscounterBackward(int argc,
                           const char **argv):
-      d1_deriv_(0.0), d2_deriv_(0.0), d3_deriv_(0.0),
+      d1_deriv_(0.0), d2_deriv_(0.0), d3_deriv_(0.0), d4_deriv_(0.0),
       num_lm_states_processed_(0) {
     // see usage message for expected usage.
-    assert(argc == 10);
+    assert(argc == 11);
     ReadArgs(argv);
     ProcessInput();
   }
@@ -85,7 +85,8 @@ class CountDiscounterBackward {
 
     std::cerr << "discount-counts-backward: processed "
               << num_lm_states_processed_ << " LM states\n";
-    std::cout << d1_deriv_ << " " << d2_deriv_ << " " << d3_deriv_ << "\n";
+    std::cout << d1_deriv_ << " " << d2_deriv_ << " " << d3_deriv_
+              << " " << d4_deriv_ << "\n";
   }
 
 
@@ -133,7 +134,8 @@ class CountDiscounterBackward {
     std::vector<Count>::iterator deriv_iter = lm_state->count_derivs.begin();
     double d1_deriv_part = 0.0,
         d2_deriv_part = 0.0,
-        d3_deriv_part = 0.0;
+        d3_deriv_part = 0.0,
+        d4_deriv_part = 0.0;
     // The derivative of the objective function w.r.t. the 'total backoff count'
     // discounted_lm_state.discount_deriv.
     float total_backoff_count_deriv = discounted_lm_state.discount_deriv;
@@ -157,11 +159,12 @@ class CountDiscounterBackward {
       // we can ensure they will be exactly the same value in discount-counts
       // and discount-counts-backward (since the backprop relies on exact
       // floating-point comparisons).
-      volatile float d1 = d1_ * count.top1, d2 = d2_ * count.top2, d3 = d3_ * count.top3,
-          d = d1 + d2 + d3;
+      volatile float top4plus = count.total - count.top1 - count.top2 - count.top3,
+          d1 = d1_ * count.top1, d2 = d2_ * count.top2, d3 = d3_ * count.top3,
+          d4 = d4_ * top4plus, d = d1 + d2 + d3 + d4;
       // d_deriv is the derivative of the objective function w.r.t. d...
       // this is because we set, in the forward pass,
-      // discounted_count = count.total -d.
+      // discounted_count = count.total - d.
       // The following two statements are doing backprop through the
       // statements
       // "discounted_count = count.total - d".
@@ -182,26 +185,27 @@ class CountDiscounterBackward {
         backoff_count.AddBackward(discount, &backoff_deriv, &discount_deriv);
 
         // after getting discount_deriv we need to bear in mind that
-        // because 'discount' is made out of exactly 3 pieces,
-        // discount.total = discount.top1 + discount.top2 + discount.top3.
-        // plus we already have some unrelated pieces of gradient w.r.t
-        // discount.total, in the form of 'd_deriv'.
-        // We propagate them all back to derivatives w.r.t. the pieces
-        // d1, d2 and d3.
+        // discount.total = d1 + d2 + d3 + d4, so the derivative w.r.t.
+        // discount.total (==discount_deriv.total + d_deriv) has to be
+        // propagated bck to d1, d2, d3 and d4.
         float d1_deriv = discount_deriv.top1 + discount_deriv.total + d_deriv,
             d2_deriv = discount_deriv.top2 + discount_deriv.total + d_deriv,
-            d3_deriv = discount_deriv.top3 + discount_deriv.total + d_deriv;
+            d3_deriv = discount_deriv.top3 + discount_deriv.total + d_deriv,
+            d4_deriv = discount_deriv.total + d_deriv;
 
         // the following backprops through the statements
         // d1 = d1_ * count.top1 (etc.)
         d1_deriv_part += count.top1 * d1_deriv;
         d2_deriv_part += count.top2 * d2_deriv;
         d3_deriv_part += count.top3 * d3_deriv;
+        d4_deriv_part += top4plus * d4_deriv;
 
         // note, 'deriv' is the derivative of the objf w.r.t. 'count'.
-        deriv.top1 = d1_deriv * d1_;
-        deriv.top2 = d2_deriv * d2_;
-        deriv.top3 = d3_deriv * d3_;
+        float top4plus_deriv = d4_deriv * d4_;
+        deriv.top1 = d1_deriv * d1_ - top4plus_deriv;
+        deriv.top2 = d2_deriv * d2_ - top4plus_deriv;
+        deriv.top3 = d3_deriv * d3_ - top4plus_deriv;
+        deriv.total += top4plus_deriv;
       } else {
         // the forward code is just:
         // backoff_count.Add(d);
@@ -211,18 +215,23 @@ class CountDiscounterBackward {
 
         // the following backprops through the statements
         // d1 = d1_ * count.top1 (etc.)
+
         d1_deriv_part += count.top1 * d_deriv;
         d2_deriv_part += count.top2 * d_deriv;
         d3_deriv_part += count.top3 * d_deriv;
+        d4_deriv_part += top4plus * d_deriv;
 
-        deriv.top1 = d_deriv * d1_;
-        deriv.top2 = d_deriv * d2_;
-        deriv.top3 = d_deriv * d3_;
+        float top4plus_deriv = d_deriv * d4_;
+        deriv.top1 = d_deriv * d1_ - top4plus_deriv;
+        deriv.top2 = d_deriv * d2_ - top4plus_deriv;
+        deriv.top3 = d_deriv * d3_ - top4plus_deriv;
+        deriv.total += top4plus_deriv;
       }
     }
     d1_deriv_ += d1_deriv_part;
     d2_deriv_ += d2_deriv_part;
     d3_deriv_ += d3_deriv_part;
+    d4_deriv_ += d4_deriv_part;
   }
 
   // this is the backoff LM-state and its derivatives, both read from disk.
@@ -238,30 +247,32 @@ class CountDiscounterBackward {
 
 
   void ReadArgs(const char **argv) {
-    char *end;
-    d1_ = strtod(argv[1], &end);
-    if (!(d1_ > 0.0 && d1_ < 1.0 && *end == '\0')) {
-      std::cerr << "discount-counts: d1 must be >0.0 and <1.0\n";
-      exit(1);
-    }
-    d2_ = strtod(argv[2], &end);
-    if (!(d2_ > 0.0 && d2_ < 1.0 && *end == '\0')) {
-      std::cerr << "discount-counts: d2 must be >0.0 and <1.0\n";
-      exit(1);
-    }
-    d3_ = strtod(argv[3], &end);
-    if (!(d3_ > 0.0 && d3_ < 1.0 && *end == '\0')) {
-      std::cerr << "discount-counts: d3 must be >0.0 and <1.0\n";
-      exit(1);
-    }
-    assert(1.0 > d1_ && d1_ >= d2_ && d2_ >= d3_ && d3_ > 0);
+    d1_ = ConvertToFloat(argv[1]);
+    d2_ = ConvertToFloat(argv[2]);
+    d3_ = ConvertToFloat(argv[3]);
+    d4_ = ConvertToFloat(argv[4]);
+    assert(1.0 > d1_ && d1_ >= d2_ && d2_ >= d3_ && d3_ >= d4_ && d4_ >= 0);
 
-    OpenStream(argv[4], &count_stream_);
-    OpenStream(argv[5], &discounted_count_stream_);
-    OpenStream(argv[6], &discounted_deriv_stream_);
-    OpenStream(argv[7], &backoff_count_stream_);
-    OpenStream(argv[8], &backoff_deriv_stream_);
-    OpenStream(argv[9], &deriv_stream_);
+    OpenStream(argv[5], &count_stream_);
+    OpenStream(argv[6], &discounted_count_stream_);
+    OpenStream(argv[7], &discounted_deriv_stream_);
+    OpenStream(argv[8], &backoff_count_stream_);
+    OpenStream(argv[9], &backoff_deriv_stream_);
+    OpenStream(argv[10], &deriv_stream_);
+  }
+
+  float ConvertToFloat(const char *str) const {
+    char *end;
+    float ans = strtod(str, &end);
+    if (!(*end == 0.0)) {
+      std::cerr << "discount-counts: expected float, got '" << str << "'\n";
+    }
+    if (!(ans >= 0.0 and ans < 1.0)) {
+      std::cerr << "discount-counts: discounting values must be "
+                << ">=0.0 and <1.0: " << str << "\n";
+      exit(1);
+    }
+    return ans;
   }
 
   void OpenStream(const char *filename,
@@ -286,9 +297,11 @@ class CountDiscounterBackward {
   float d1_;
   float d2_;
   float d3_;
+  float d4_;
   double d1_deriv_;
   double d2_deriv_;
   double d3_deriv_;
+  double d4_deriv_;
 
   std::ifstream count_stream_;  // original counts.
   std::ofstream deriv_stream_;  // the derivatives we write, w.r.t. the original
@@ -306,12 +319,12 @@ class CountDiscounterBackward {
 }
 
 int main (int argc, const char **argv) {
-  if (argc != 10) {
+  if (argc != 11) {
     std::cerr << "discount-counts-backward: expected usage:\n"
-              << "discount-counts-backward <D1> <D2> <D3> <counts-in>\\\n"
+              << "discount-counts-backward <D1> <D2> <D3> <D4> <counts-in>\\\n"
               << "  <discounted-float-counts-in> <discounted-float-derivs-in> \\\n"
               << "  <backoff-counts-in> <backoff-derivs-in> <derivs-out>\n"
-              << "This program prints to its stdout the derivatives w.r.t. D1, D2 and D3.\n";
+              << "This program prints to its stdout the derivatives w.r.t. D1, D2, D3 and D4.\n";
     exit(1);
   }
 

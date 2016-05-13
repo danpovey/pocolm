@@ -30,13 +30,13 @@ echo "hi lo" >> foo/train2.txt
 
 ../scripts/validate_text_dir.py foo || exit 1;
 rm -r bar
-../scripts/get_counts.py foo bar || exit 1
+../scripts/get_word_counts.py foo bar || exit 1
 
 gzip foo/*.txt
 ../scripts/validate_text_dir.py foo || exit 1;
 
-rm -r bar
-../scripts/get_counts.py foo bar || exit 1
+rm -rf bar
+../scripts/get_word_counts.py foo bar || exit 1
 
 ../scripts/get_unigram_weights.py --verbose=true bar > weights || exit 1
 

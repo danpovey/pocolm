@@ -145,4 +145,5 @@ for o in range(2, args.ngram_order + 1):
     print("order{0}_D1 0.8".format(o))
     print("order{0}_D2 0.4".format(o))
     print("order{0}_D3 0.2".format(o))
+    print("order{0}_D4 0.1".format(o))
 

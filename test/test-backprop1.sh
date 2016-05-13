@@ -7,7 +7,7 @@ export PATH=$PATH:../src
 
 ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 2 | sort | uniq -c | get-int-counts int.1gram int.2gram
 merge-counts int.2gram,1.0 > merged.2gram
-discount-counts 0.8 0.7 0.6 merged.2gram float.2gram 1gram
+discount-counts 0.8 0.7 0.6 0.4 merged.2gram float.2gram 1gram
 discount-counts-1gram 20 <1gram >float.1gram
 echo 10 11 12 | get-text-counts 2 | sort | uniq -c | get-int-counts dev.int
 merge-float-counts float.2gram float.1gram > float.all

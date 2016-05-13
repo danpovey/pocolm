@@ -47,9 +47,7 @@ get_initial_metaparameters.py \
 optimize_metaparameters.py --gradient-tolerance=0.005 \
   data/counts_20k_3 data/optimize_20k_3
 
-# optimize_metaparameters.py: log-prob on dev data increased from -4.42783439035
-# to -4.41743853837 over 9 passes of derivative estimation (perplexity:
-# 83.7498508954->82.8837097801
+# log-prob on dev data increased from -4.42278966972 to -4.41127767165 over 6 passes of derivative estimation (perplexity: 83.3284201887->82.3746440442)
 
 
 get_counts.sh data/int_20k 4 data/counts_20k_4
@@ -63,6 +61,6 @@ get_initial_metaparameters.py \
 optimize_metaparameters.py --gradient-tolerance=0.005 \
   data/counts_20k_4 data/optimize_20k_4
 
-# optimize_metaparameters.py: log-prob on dev data increased from -4.42864701686
-# to -4.38964142483 over 13 passes of derivative estimation (perplexity:
-# 83.8179359045->80.6115085121
+# optimize_metaparameters.py: log-prob on dev data increased from -4.4224930661
+# to -4.38089709795 over 13 passes of derivative estimation (perplexity:
+# 83.3037083426->79.909688077
