@@ -102,9 +102,10 @@ if args.weights != None:
                      "{0}'th dataset has a name in the 'names' file and that that name has a "
                      "weight in the 'weights' file.".format(n+1))
 
-# OK, now we need to make sure that all the weights are unique (otherwise
-# the derivative backpropagation gets very arbitrary, due to ties).
-delta = 0.00001
+# OK, now we need to make sure that all the weights are unique (otherwise the
+# derivative backpropagation gets very arbitrary, due to ties).  Note, we want
+# this delta to be larger than the one used in test_metaparameter_derivs.py.
+delta = 0.01
 weights_set = set()
 for n in range(args.num_train_sets):
     if weights[n] in weights_set:
