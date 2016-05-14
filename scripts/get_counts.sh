@@ -5,22 +5,24 @@
 # 'sort' might take up too much memory.
 parallel=false
 
+if [ "$1" == "--parallel" ]; then
+  parallel=$2
+  shift; shift
+fi
+
 
 if [ $# != 3 ]; then
   echo "Usage:"
-  echo "  $0 [options] <source-text-dir> <source-vocab> <dest-int-dir>"
-  echo "e.g.:  $0 data/text data/words_100k.txt data/int_100k"
-  echo "This program uses the vocabulary file to turn the data into"
-  echo "integer form, and to give it a standard format in preparation"
-  echo "for language model training."
+  echo "  $0 [options] <source-int-dir> <ngram-order> <dest-count-dir>"
+  echo "e.g.:  $0 data/int 3 data/counts_3"
+  echo
+  echo "This script computes data-counts of the specified n-gram order"
+  echo "for each data-source in <source-int-dir>, and puts them all in"
+  echo "<dest-counts-dir>."
   echo
   echo "Options"
-  echo "   --fold-dev-into  <train-set-name>"
-  echo "   e.g.  --fold-dev-into switchboard decrees that dev.txt should"
-  echo "                 be folded into switchboard.txt after estimating"
-  echo "                 the meta-parameters.  Default: none."
-  echo "   --parallel <true|false>"
-  echo "      Setting --parallel false will disable the (default) parallel"
+  echo "   --parallel <true|false>  [default: false]"
+  echo "      Setting --parallel true will enable parallel"
   echo "      processing of multiple data sources by this script."
   exit 1
 fi
@@ -33,11 +35,11 @@ set -e
 rootdir=$(cd ../..; pwd -P)
 PATH=$PATH:$rootdir/scripts:$rootdir/src
 
-if ! command -v text_to_int.py; then # >&/dev/null; then
+if ! command -v text_to_int.py  >&/dev/null; then
   echo "$0: expected text_to_int.py to be on the path"
   exit 1
 fi
-if ! command -v get-text-counts; then # >&/dev/null; then
+if ! command -v get-text-counts >&/dev/null; then
   echo "$0: expected get-text-counts to be on the path"
   exit 1
 fi

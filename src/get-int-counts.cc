@@ -162,8 +162,23 @@ int main (int argc, const char **argv) {
 }
 
 /*
-  testing
+  testing:
+( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort -n | uniq -c | get-int-counts /dev/null /dev/null /dev/stdout | split-int-counts /dev/stdout /dev/null | print-int-counts
+get-text-counts: processed 2 lines, with (on average) 5.5 words per line.get-int-counts: processed 5 LM states, with 6 individual n-grams.
+split-int-counts: processed  [ 12 11 ]: 13->2
+ [ 14 13 ]: 2->1
+4 LM states, with the counts for each output respectively as:  2 3
+print-int-counts: printed 2 LM states, with 2 individual n-grams.
 
- ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort -n | uniq -c | get-int-counts /dev/null /dev/null /dev/null
+
+ # ... and a slight modification of the above command-line, in which we print out the counts with
+ # an odd most-recent-history instead:
+
+ ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort -n | uniq -c | get-int-counts /dev/null /dev/null /dev/stdout | split-int-counts /dev/null /dev/stdout | print-int-counts
+get-text-counts: processed 2 lines, with (on average) 5.5 words per line.get-int-counts: processed 5 LM states, with 6 individual n-grams.
+split-int-counts: processed 4 LM states, with the counts for each output respectively as:  2 3
+ [ 11 1 ]: 12->2
+ [ 13 12 ]: 2->1 14->1
+print-int-counts: printed 2 LM states, with 3 individual n-grams.
 
  */

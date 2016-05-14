@@ -22,7 +22,7 @@ if [ $# != 3 ]; then
   echo "  $0 [options] <source-text-dir> <source-vocab> <dest-int-dir>"
   echo "e.g.:  $0 data/text data/words_100k.txt data/int_100k"
   echo "This program uses the vocabulary file to turn the data into"
-  echo "integer form, and to give it a standard format in preparation"
+  echo "ASCII-integer form, and to give it a standard format in preparation"
   echo "for language model training."
   echo
   echo "Options"

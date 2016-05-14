@@ -103,17 +103,15 @@ if line != 'false' and line != 'true':
 f.close()
 
 
-names = ['dev']
-for n in range(1, num_train_sets + 1):
-    names.append(str(n))
-
 for n in range(1, num_train_sets + 1):
     for o in range(2, ngram_order +1):
         filename = "{0}/int.{1}.{2}".format(args.count_dir, n, o)
         if not os.path.exists(filename):
             sys.exit("validate_count_dir.py: Expected file {0} to exist".format(filename))
-        if not os.path.getsize(filename) > 0:
-            sys.exit("validate_count_dir.py: Expected file {0} to be nonempty".format(filename))
+        # commenting the check that the file is nonempty, since in split directories, we
+        # do get empty files.
+        #if not os.path.getsize(filename) > 0:
+        #    sys.exit("validate_count_dir.py: Expected file {0} to be nonempty".format(filename))
 
 if not os.path.exists("{0}/int.dev".format(args.count_dir)):
     sys.exit("validate_count_dir.py: Expected file {0}/int.dev "

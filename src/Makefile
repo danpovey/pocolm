@@ -10,7 +10,8 @@ BINFILES = get-text-counts get-int-counts print-int-counts \
 	merge-counts print-counts discount-counts print-float-counts \
     discount-counts-1gram merge-float-counts compute-probs \
     print-float-derivs perturb-float-counts discount-counts-1gram-backward \
-    print-derivs perturb-counts discount-counts-backward merge-counts-backward
+    print-derivs perturb-counts discount-counts-backward \
+    merge-counts-backward split-int-counts
 
 $(BINFILES): $(OBJFILES)
 
