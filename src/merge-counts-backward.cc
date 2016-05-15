@@ -325,21 +325,3 @@ int main (int argc, const char **argv) {
   return 0;
 }
 
-
-/*
-
-  some testing:
-( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/stdout /dev/null | print-int-counts
-get-int-counts: processed 5 LM states, with 6 individual n-grams.
- [ 1 ]: 11->2
- print-int-counts: printed 1 LM states, with 1 individual n-grams.
-
- ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/null /dev/stdout | print-int-counts
-get-int-counts: processed 5 LM states, with 6 individual n-grams.
- [ 11 1 ]: 12->2
- [ 12 11 ]: 13->2
- [ 13 12 ]: 2->1 14->1
- [ 14 13 ]: 2->1
-print-int-counts: printed 4 LM states, with 5 individual n-grams.
-
- */

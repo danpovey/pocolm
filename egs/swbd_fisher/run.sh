@@ -65,3 +65,10 @@ get_initial_metaparameters.py \
 optimize_metaparameters.py --gradient-tolerance=0.005 \
   data/counts_40k_4 data/optimize_40k_4
 
+# optimize_metaparameters.py: log-prob on dev data increased from -4.40066078407
+# to -4.30905887536 over 45 passes of derivative estimation (perplexity:
+# 81.5047078876->74.3704641182
+
+
+optimize_metaparameters.py --num-splits=5 --gradient-tolerance=0.005 \
+  data/counts_40k_4 data/optimize_40k_4

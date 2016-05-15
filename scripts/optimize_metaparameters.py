@@ -9,7 +9,8 @@ import re, os, argparse, sys, math, warnings, shutil
 from math import log
 
 parser = argparse.ArgumentParser(description="Optimizes metaparameters for LM estimation; "
-                                 "this utility uses derivatives from get_objf_and_derivs.py.");
+                                 "this utility uses derivatives from get_objf_and_derivs.py or "
+                                 "get_objf_and_derivs_split.py");
 
 parser.add_argument("--barrier-epsilon", type=float, default=1.0e-04,
                     help="Scaling factor on logarithmic barrier function to "
@@ -18,6 +19,10 @@ parser.add_argument("--barrier-epsilon", type=float, default=1.0e-04,
 parser.add_argument("--gradient-tolerance", type=float, default=1.0e-07,
                     help="Norm of gradient w.r.t. metaparameters, at which we "
                     "terminate optimization.  Larger->faster, smaller->more accurate.")
+parser.add_argument("--num-splits", type=int, default=1,
+                    help="Controls the number of parallel processes used to "
+                    "get objective functions and derivatives.  If >1, then "
+                    "we split the counts and compute these things in parallel.");
 parser.add_argument("count_dir",
                     help="Directory in which to find counts")
 parser.add_argument("optimize_dir",
@@ -30,8 +35,16 @@ args = parser.parse_args()
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])));
 
+
 if os.system("validate_count_dir.py " + args.count_dir) != 0:
     sys.exit("optimize_metaparameters.py: validate_count_dir.py failed")
+
+if args.num_splits < 1:
+    sys.exit("optimize_metaparameters.py: --num-splits must be >0.")
+if args.num_splits > 1:
+    if (os.system("split_count_dir.sh {0} {1}".format(
+                args.count_dir, args.num_splits))) != 0:
+        sys.exit("optimize_metaparameters.py: failed to create split count-dir.")
 
 if not os.path.exists(args.optimize_dir + "/0.metaparams"):
     sys.exit("optimize_metaparameters.py: expected file {0}/0.metaparams "
@@ -182,7 +195,9 @@ def GetObjfAndDeriv(x):
                                    # previous iteration (if metaparameters are
                                    # the same).
         if enable_caching and (not changed_or_new and os.path.exists(deriv_file) and
-            os.path.getmtime(deriv_file) > os.path.getmtime(metaparameter_file)):
+                               os.path.exists(objf_file) and
+                               os.path.getmtime(deriv_file) >
+                               os.path.getmtime(metaparameter_file)):
             print("optimize_metaparameters.py: using previously computed objf and deriv "
                   "info from {0} and {1} (presumably you are rerunning after a partially "
                   "finished run)".format(deriv_file, objf_file), file=sys.stderr)
@@ -201,9 +216,12 @@ def GetObjfAndDeriv(x):
                 pass
         else:
             # we need to call get_objf_and_derivs.py
-            command = ("get_objf_and_derivs.py --derivs-out={derivs} {counts} {metaparams} "
+            command = ("get_objf_and_derivs{maybe_split}.py {split_opt} --derivs-out={derivs} {counts} {metaparams} "
                        "{objf} {work} 2>{log}".format(derivs = deriv_file, counts = args.count_dir,
                                                       metaparams = metaparameter_file,
+                                                      maybe_split = "_split" if args.num_splits > 1 else "",
+                                                      split_opt= ("--num-splits={0}".format(args.num_splits) if
+                                                                  args.num_splits > 1 else ""),
                                                       objf = objf_file, log = log_file,
                                                       work = args.optimize_dir + "/work"))
             print("optimize_metaparameters.py: getting objf and derivs on "

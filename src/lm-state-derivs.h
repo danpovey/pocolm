@@ -72,6 +72,9 @@ class FloatLmStateDerivs: public FloatLmState {
   // vector is correctly sized.
   void ReadDerivs(std::istream &is);
 
+  // this function reads derivatives and adds them to the existing derivatives..
+  void ReadDerivsAdding(std::istream &is);
+
   // Writes the derivatives.  Note: it's not const because prior to writing,
   // it 'normalizes' the derivatives by adding total_deriv to all the other
   // derivative quantities and then zeroing total_deriv.
@@ -132,6 +135,8 @@ class GeneralLmStateDerivs: public GeneralLmState {
   // number of counts in the derivative.
   void ReadDerivs(std::istream &is);
 
+  // this function reads derivatives and adds them to the existing derivatives..
+  void ReadDerivsAdding(std::istream &is);
 
   void Swap(GeneralLmStateDerivs *other) {
     GeneralLmState::Swap(other);

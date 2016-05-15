@@ -66,6 +66,44 @@ void FloatLmStateDerivs::ReadDerivs(std::istream &is) {
   }
 }
 
+void FloatLmStateDerivs::ReadDerivsAdding(std::istream &is) {
+  total_deriv += 0.0;  // This statement is just for clarification that the
+                       // on-disk format assumes the total_deriv is zero; we
+                       // know that it does nothing.
+  double discount_deriv_part;
+  is.read(reinterpret_cast<char*>(&discount_deriv_part), sizeof(double));
+  discount_deriv += discount_deriv_part;
+  // we only write and read in the size of the counts as a way to double-check
+  // that there is no mismatch.
+  int32 count_size;
+  is.read(reinterpret_cast<char*>(&count_size), sizeof(int32));
+  if (is.fail() || is.eof()) {
+    std::cerr << "Error reading derivatives for counts "
+        "(empty or truncated input?)\n";
+        exit(1);
+  }
+  if (count_size != static_cast<int32>(counts.size())) {
+    std::cerr << "Count size mismatch: expected " << counts.size()
+              << ", got " << count_size
+              << " when reading count derivs (wrong file?)\n";
+    exit(1);
+  }
+  assert(count_derivs.size() == size_t(count_size) && count_size > 0);
+  std::vector<double> temp_derivs(count_size);
+  is.read(reinterpret_cast<char*>(&(temp_derivs[0])),
+          sizeof(double) * count_size);
+  if (is.fail() || is.eof()) {
+    std::cerr << "Error reading derivatives for counts "
+        "(empty or truncated input?)\n";
+    exit(1);
+  }
+  std::vector<double>::const_iterator in_iter = temp_derivs.begin(),
+      in_end = temp_derivs.end();
+  std::vector<double>::iterator out_iter = count_derivs.begin();
+  for (; in_iter != in_end; ++in_iter, ++out_iter)
+    *out_iter += *in_iter;
+}
+
 
 void FloatLmStateDerivs::BackpropFromTotalDeriv() {
   if (total_deriv == 0.0) return;
@@ -145,6 +183,46 @@ void GeneralLmStateDerivs::ReadDerivs(std::istream &is) {
     std::cerr << "Error reading derivatives for counts "
         "(empty or truncated input?)\n";
     exit(1);
+  }
+}
+
+
+void GeneralLmStateDerivs::ReadDerivsAdding(std::istream &is) {
+  // we only write and read in the size of the counts as a way to double-check
+  // that there is no mismatch.
+  int32 count_size;
+  is.read(reinterpret_cast<char*>(&count_size), sizeof(int32));
+  if (is.fail() || is.eof()) {
+    std::cerr << "Error reading derivatives for counts "
+        "(empty or truncated input?)\n";
+        exit(1);
+  }
+  if (count_size != static_cast<int32>(counts.size())) {
+    std::cerr << "Count size mismatch: expected " << counts.size()
+              << ", got " << count_size
+              << " when reading count derivs (wrong file?)\n";
+    exit(1);
+  }
+  assert(count_derivs.size() == size_t(count_size) && count_size > 0);
+  std::vector<Count> temp_derivs(count_size);
+  is.read(reinterpret_cast<char*>(&(temp_derivs[0])),
+          sizeof(Count) * count_size);
+  if (is.fail() || is.eof()) {
+    std::cerr << "Error reading derivatives for counts "
+        "(empty or truncated input?)\n";
+    exit(1);
+  }
+  std::vector<Count>::const_iterator in_iter = temp_derivs.begin(),
+      in_end = temp_derivs.end();
+  std::vector<Count>::iterator out_iter = count_derivs.begin();
+  for (; in_iter != in_end; ++in_iter, ++out_iter) {
+    // we want to add up the individual components of the derivative.
+    // We can't use the Add() function of class Count, because that doesn't
+    // do componentwise addition.
+    out_iter->total += in_iter->total;
+    out_iter->top1 += in_iter->top1;
+    out_iter->top2 += in_iter->top2;
+    out_iter->top3 += in_iter->top3;
   }
 }
 
