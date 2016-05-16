@@ -3,10 +3,14 @@
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
 import numpy as np
-from scipy.optimize import minimize
 
 import re, os, argparse, sys, math, warnings, shutil
 from math import log
+
+# we need to add the ./internal/ subdirectory to the pythonpath before importing
+# 'bfgs'.
+sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys.path
+import bfgs
 
 parser = argparse.ArgumentParser(description="Optimizes metaparameters for LM estimation; "
                                  "this utility uses derivatives from get_objf_and_derivs.py or "
@@ -171,7 +175,8 @@ def ModifyWithBarrierFunction(x, objf, derivs):
 
 
 # this will return a 2-tuple (objf, deriv).  note, the objective function and
-# derivative are both negated because scipy only supports minimization.
+# derivative are both negated because conventionally optimization problems are
+# framed as minimization problems.
 def GetObjfAndDeriv(x):
     global iteration
     if not MetaparametersAreAllowed(x):
@@ -242,10 +247,8 @@ def GetObjfAndDeriv(x):
     print("Iteration {0}: objf={1}, deriv-magnitude={2} (with barrier function)".format(
             iteration, objf, math.sqrt(np.vdot(derivs, derivs))), file=sys.stderr)
 
-    # we need to negate the objective function and derivatives, since
-    # scipy only supports minimizing functions and we want to maximize.
-    # we actually apply a negative scale not equal to -1.0, as otherwise
-    # the first step is too small.
+    # we need to negate the objective function and derivatives, since we are
+    # minimizing.
     scale = -1.0
     return (objf * scale, derivs * scale)
 
@@ -256,20 +259,23 @@ x0 = ReadMetaparametersOrDerivs(args.optimize_dir + "/0.metaparams")
 # and derivatives.
 iteration = 0
 
-result = minimize(GetObjfAndDeriv, x0, method='BFGS', jac=True,
-                  options={'disp': True, 'gtol': args.gradient_tolerance, 'mls':50})
 
-print("result is ", result, file=sys.stderr)
+(x, value, deriv, inv_hessian) = bfgs.Bfgs(x0, GetObjfAndDeriv, MetaparametersAreAllowed)
 
-WriteMetaparameters("{0}/final.metaparams".format(args.optimize_dir),
-                    result.x)
+
+#result = minimize(GetObjfAndDeriv, x0, method='BFGS', jac=True,
+#                  options={'disp': True, 'gtol': args.gradient_tolerance, 'mls':50})
+
+print("optimize_metaparameters: final x value is ", x, file=sys.stderr)
+
+WriteMetaparameters("{0}/final.metaparams".format(args.optimize_dir), x)
 
 old_objf = ReadObjf("{0}/0.objf".format(args.optimize_dir))
-new_objf = ReadObjf("{0}/{1}.objf".format(args.optimize_dir, iteration - 1))
+new_objf = -1.0 * value
 
 print("optimize_metaparameters.py: log-prob on dev data increased "
       "from {0} to {1} over {2} passes of derivative estimation (perplexity: {3}->{4}".format(
-                old_objf, new_objf, iteration, math.exp(-old_objf), math.exp(-new_objf)),
+        old_objf, new_objf, iteration, math.exp(-old_objf), math.exp(-new_objf)),
       file=sys.stderr)
 
 print("optimize_metaparameters.py: do `diff -y {0}/{{0,final}}.metaparams` "
