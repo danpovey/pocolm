@@ -70,5 +70,34 @@ optimize_metaparameters.py --gradient-tolerance=0.005 \
 # 81.5047078876->74.3704641182
 
 
-optimize_metaparameters.py --num-splits=5 --gradient-tolerance=0.005 \
-  data/counts_40k_4 data/optimize_40k_4
+
+split_count_dir.sh data/counts_40k_4 10
+
+
+mkdir -p data/optimize_40k_4/split
+
+get_initial_metaparameters.py \
+   --ngram-order=4 \
+   --names=data/counts_40k_4/names \
+   --num-train-sets=$(cat data/counts_40k_4/num_train_sets) > data/optimize_40k_4/split/0.metaparams
+
+# optimize metaparameters using one tenth of the history words;
+# we'll use the resulting Hessian and parameters as a starting point for
+# optimization on all the data.  note, the --num-splits=5 means
+# we use 5 parallel jobs.
+
+# caution, we need to use a num-splits that's coprime with the
+# previous split of 10.
+
+
+optimize_metaparameters.py --num-splits=3 --progress-tolerance=1.0e-04 \
+   --write-inv-hessian=data/optimize_40k_4/split/inv_hessian \
+    data/counts_40k_4/split10/1 data/optimize_40k_4/split
+
+mkdir -p data/optimize_40k_4
+cp data/optimize_40k_4/split/final.metaparams data/optimize_40k_4/0.metaparams
+
+optimize_metaparameters.py --num-splits=5 --progress-tolerance=1.0e-05 \
+   --read-inv-hessian=data/optimize_40k_4/split/inv_hessian \
+    data/counts_40k_4 data/optimize_40k_4/split
+

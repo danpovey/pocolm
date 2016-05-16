@@ -14,19 +14,31 @@ import bfgs
 
 parser = argparse.ArgumentParser(description="Optimizes metaparameters for LM estimation; "
                                  "this utility uses derivatives from get_objf_and_derivs.py or "
-                                 "get_objf_and_derivs_split.py");
-
+                                 "get_objf_and_derivs_split.py")
 parser.add_argument("--barrier-epsilon", type=float, default=1.0e-04,
                     help="Scaling factor on logarithmic barrier function to "
                     "enforce parameter constraints (should make very little "
                     "difference as long as it is quite small)")
-parser.add_argument("--gradient-tolerance", type=float, default=1.0e-07,
+parser.add_argument("--gradient-tolerance", type=float, default=0.0005,
                     help="Norm of gradient w.r.t. metaparameters, at which we "
                     "terminate optimization.  Larger->faster, smaller->more accurate.")
+parser.add_argument("--progress-tolerance", type=float, default=1.0e-06,
+                    help="Tolerance for amount of objective function progress, amortized over "
+                    "3 iterations, to be used as a termination condition for BFGS.");
 parser.add_argument("--num-splits", type=int, default=1,
                     help="Controls the number of parallel processes used to "
                     "get objective functions and derivatives.  If >1, then "
-                    "we split the counts and compute these things in parallel.");
+                    "we split the counts and compute these things in parallel.")
+parser.add_argument("--write-inv-hessian", type=str,
+                    help="Filename to which to write the inverse Hessian; you can "
+                    "then use the --read-inv-hessian optimization to supply this "
+                    "Hessian to a later round of optimization (possibly on more data)")
+parser.add_argument("--read-inv-hessian", type=str,
+                    help="Filename from which to write the inverse Hessian for "
+                    "BFGS optimization.")
+
+
+
 parser.add_argument("count_dir",
                     help="Directory in which to find counts")
 parser.add_argument("optimize_dir",
@@ -253,18 +265,25 @@ def GetObjfAndDeriv(x):
     return (objf * scale, derivs * scale)
 
 
-
 x0 = ReadMetaparametersOrDerivs(args.optimize_dir + "/0.metaparams")
 # 'iteration' will affect the filenames used to write the metaparameters
 # and derivatives.
 iteration = 0
 
+inv_hessian = None
+if not args.read_inv_hessian is None:
+    print("optimize_metaparameters.py: reading inverse Hessian from {0}".format(
+            args.read_inv_hessian), file=sys.stderr)
+    inv_hessian = np.loadtxt(args.read_inv_hessian)
+    if inv_hessian.shape != (len(x0), len(x0)):
+        sys.exit("optimize_metaparameters.py: inverse Hessian from {0} "
+                 "has wrong shape.".format(args.read_inv_hessian),
+                 file=sys.stderr)
 
-(x, value, deriv, inv_hessian) = bfgs.Bfgs(x0, GetObjfAndDeriv, MetaparametersAreAllowed)
-
-
-#result = minimize(GetObjfAndDeriv, x0, method='BFGS', jac=True,
-#                  options={'disp': True, 'gtol': args.gradient_tolerance, 'mls':50})
+(x, value, deriv, inv_hessian) = bfgs.Bfgs(x0, GetObjfAndDeriv, MetaparametersAreAllowed,
+                                           init_inv_hessian = inv_hessian,
+                                           gradient_tolerance = args.gradient_tolerance,
+                                           progress_tolerance = args.progress_tolerance)
 
 print("optimize_metaparameters: final x value is ", x, file=sys.stderr)
 
@@ -285,3 +304,8 @@ print("optimize_metaparameters.py: do `diff -y {0}/{{0,final}}.metaparams` "
 print("optimize_metaparameters.py: Wrote final metaparameters to "
       "{0}/final.metaparams".format(args.optimize_dir),
       file=sys.stderr)
+
+if not args.write_inv_hessian is None:
+    print("optimize_metaparameters.py: writing inverse Hessian to {0}".format(
+            args.write_inv_hessian), file=sys.stderr)
+    np.savetxt(args.write_inv_hessian, inv_hessian)

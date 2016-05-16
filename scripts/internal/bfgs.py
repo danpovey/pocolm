@@ -3,7 +3,6 @@
 from __future__ import print_function
 import math, sys
 import numpy as np
-import numpy.linalg as la
 
 
 """
@@ -17,14 +16,17 @@ returns bool) whether the function is finite at the given point.
     f_finite   f_finite(x) returns true if f(x) would be finite, and false otherwise.
 init_hessian   This gives you a way to specify a "better guess" at the initial
                Hessian.
-return value   Returns a 4-tuple (x, f(x), f'(x), inverse-hessian-approximation).
+      return   Returns a 4-tuple (x, f(x), f'(x), inverse-hessian-approximation).
 
 
 """
-def Bfgs(x0, f, f_finite, init_inv_hessian = None):
-    b = __bfgs(x0, f, f_finite, init_inv_hessian)
+def Bfgs(x0, f, f_finite, init_inv_hessian = None,
+         gradient_tolerance = 0.0005, progress_tolerance = 1.0e-06):
+    b = __bfgs(x0, f, f_finite,
+               init_inv_hessian = init_inv_hessian,
+               gradient_tolerance = gradient_tolerance,
+               progress_tolerance = progress_tolerance)
     return b.Minimize()
-
 
 
 
@@ -211,16 +213,17 @@ class __bfgs:
 
     # The function GetDefaultAlpha(), called from LineSearch(), is to be called
     # after you have set self.x and self.p.  It normally returns 1.0, but it
-    # will reduce it by factors of 0.9 until the function evaluated at 2*alpha
+    # will reduce it by factors of 0.9 until the function evaluated at 1.5 * alpha
     # is finite.  This is because generally speaking, approaching the edge of
     # the barrier function too rapidly will lead to poor function values.  Note:
     # evaluating whether the function is finite is very efficient.
     # If the function was not finite even at very tiny alpha, then something
     # probably went wrong; we'll restart BFGS in this case.
     def GetDefaultAlpha(self):
+        alpha_factor = 1.5  # this should be strictly > 1.
         min_alpha = 1.0e-10
         alpha = 1.0
-        while alpha > min_alpha and not self.IsFiniteForAlpha(alpha * 2.0):
+        while alpha > min_alpha and not self.IsFiniteForAlpha(alpha * alpha_factor):
             alpha *= 0.9
         return alpha if alpha > min_alpha else None
 
@@ -242,7 +245,7 @@ class __bfgs:
         if gradient_magnitude < self.gradient_tolerance:
             self.LogMessage("BFGS converged on iteration {0} due to gradient magnitude {1} "
                             "less than gradient tolerance {2}".format(
-                    len(self.x), gradient_magnitude, gradient_tolerance))
+                    len(self.x), gradient_magnitude, self.gradient_tolerance))
             return True
         n = self.progress_tolerance_num_iters
         if len(self.x) > n:
@@ -273,8 +276,6 @@ class __bfgs:
 
     def LogMessage(self, message):
         print(sys.argv[0] + ": " + message, file=sys.stderr)
-
-
 
 
 def __TestFunction(x):

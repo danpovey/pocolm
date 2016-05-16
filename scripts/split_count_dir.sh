@@ -52,7 +52,7 @@ mkdir -p $dir/split$num_splits
 
 all_newer=true
 for s in $(seq $num_splits); do
-  if [ ! -d $dir/split$num_splits/$s ] || [ ! $dir/split$num_splits/$s/dev.int -nt $dir/dev.int ]; then
+  if [ ! -d $dir/split$num_splits/$s ] || [ ! $dir/split$num_splits/$s/int.dev -nt $dir/int.dev ]; then
     all_newer=false
   fi
 done
