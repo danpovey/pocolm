@@ -57,7 +57,7 @@ for s in $(seq $num_splits); do
   fi
 done
 
-if $all_newer; then
+if $all_newer && validate_count_dir.py $dir/split$num_splits/1; then
   echo "$0: not splitting since split dir already exists in $dir/split$num_splits"
   exit 0
 fi
