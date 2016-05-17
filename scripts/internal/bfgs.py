@@ -112,11 +112,14 @@ class __bfgs:
         rho_k = 1.0 / ysdot  # eq. 6.14 in Nocedal and Wright.
         # the next equation is eq. 6.17 in Nocedal and Wright.
         # we don't bother rearranging it for efficiency because the dimension is small.
-        I = np.identity(self.dim)
-        self.inv_hessian = ((I - np.outer(s_k, y_k) * rho_k) * self.inv_hessian *
-                            (I - np.outer(y_k, s_k) * rho_k)) + np.outer(s_k, s_k) * rho_k
+        # I = np.identity(self.dim)
+        # self.inv_hessian = ((I - np.outer(s_k, y_k) * rho_k) * self.inv_hessian *
+        #                     (I - np.outer(y_k, s_k) * rho_k)) + np.outer(s_k, s_k) * rho_k
         # todo: maybe make the line above more efficient.
 
+        z_k = np.dot(self.inv_hessian, y_k)
+        self.inv_hessian += np.outer(s_k, s_k) * (ysdot + np.dot(y_k,z_k)) * rho_k**2 - \
+                            (np.outer(z_k, s_k) + np.outer(s_k, z_k)) * rho_k
     # the function LineSearch is to be called after you have set self.x and
     # self.p.  It returns an alpha value satisfying the strong Wolfe conditions,
     # or None if the line search failed.  It is Algorithm 3.5 of Nocedal and
