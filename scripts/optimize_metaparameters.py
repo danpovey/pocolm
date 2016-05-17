@@ -164,22 +164,22 @@ def MetaparametersAreAllowed(x):
     return True
 
 
-# this function, which requires that x be in the 'allowed' region, computes
-# the modified objective function taking into account the barrier function,
-# and returns the modified pair (objf, derivs).
-# note, this happens before the objf is negated, while we're still maximizing.
-# if we have a constraint of the form x > 0, we're just adding
-# log(x) to the objective function.  This becomes very negative (i.e. bad),
-# as x approaches 0.
-def ModifyWithBarrierFunction(x, objf, derivs):
+# this function, which requires that x be in the 'allowed' region,
+# returns the barrier-function component of the objective function,
+# and its derivative w.r.t. x, as a 2-tuple.
+# this barrier function approaches negative infinity as we get
+# close to the edges of the region.  [note: we negate before
+# minimizing.
+def BarrierFunctionAndDeriv(x):
     epsilon = args.barrier_epsilon
-    derivs = derivs.copy() # don't overwrite the object.
+    barrier = 0.0
+    derivs = np.array([0] * len(x))
     global num_train_sets, ngram_order
     assert len(x) == num_train_sets + 4 * (ngram_order - 1)
     for i in range(num_train_sets):
         xi = x[i]
         # the constraints are: xi > 0.0, and 1.0 - xi > 0.0
-        objf += epsilon * (log(xi - 0.0) + log(1.0 - xi))
+        barrier += epsilon * (log(xi - 0.0) + log(1.0 - xi))
         derivs[i] += epsilon * ((1.0 / xi) + (-1.0 / (1.0 - xi)))
 
     for o in range(2, ngram_order + 1):
@@ -194,7 +194,7 @@ def ModifyWithBarrierFunction(x, objf, derivs):
         # d2 - d3 > 0.0
         # d3 - d4 > 0.0
         #      d4 > 0.0
-        objf += epsilon * (log(1.0 - d1) + log(d1 - d2) + log(d2 - d3) +
+        barrier += epsilon * (log(1.0 - d1) + log(d1 - d2) + log(d2 - d3) +
                            log(d3 - d4) + log(d4))
         # deriv for d1
         derivs[dim_offset] += epsilon * (-1.0 / (1.0 - d1) + 1.0 / (d1 - d2))
@@ -204,18 +204,8 @@ def ModifyWithBarrierFunction(x, objf, derivs):
         derivs[dim_offset + 2] += epsilon * (-1.0 / (d2 - d3) + 1.0 / (d3 - d4))
         # deriv for d4
         derivs[dim_offset + 3] += epsilon * (-1.0 / (d3 - d4) + 1.0 / d4)
-    return (objf, derivs)
+    return (barrier, derivs)
 
-
-# this function basically does the opposite of ModifyWithBarrierFunction,
-# it subtracts the penalty from the objective function and returns
-# the "original" objective function which is just the likelihood.
-# this is needed at the end to print out the "correct" perplexity.
-def RemoveBarrierFunction(x, objf):
-    derivs = x # just need a vector with the same dimension, it'll get something
-               #  added to it inside ModifyWithBarrierFunction and we'll ignore it.
-    (barrier_function, derivs) = ModifyWithBarrierFunction(x, 0, derivs)
-    return objf - barrier_function
 
 # this will return a 2-tuple (objf, deriv).  note, the objective function and
 # derivative are both negated because conventionally optimization problems are
@@ -270,7 +260,9 @@ def GetObjfAndDeriv(x):
     # derivatives couldn't easily be computed if any of the scales were to
     # become exactly zero, so it's easier to use a barrier function to enforce
     # the constraints, so we don't have to deal with that issue.
-    (objf, derivs) = ModifyWithBarrierFunction(x, objf, derivs)
+    (barrier_objf, barrier_derivs) = BarrierFunctionAndDeriv(x)
+    objf += barrier_objf
+    derivs += barrier_derivs
     print("Iteration {0}: objf={1}, deriv-magnitude={2} (with barrier function)".format(
             iteration, objf, math.sqrt(np.vdot(derivs, derivs))), file=sys.stderr)
 
@@ -316,9 +308,10 @@ print("optimize_metaparameters.py: log-prob on dev data (with barrier function) 
       "from {0} to {1} over {2} passes of derivative estimation (penalized perplexity: {3}->{4}".format(
         old_objf, new_objf, iteration, math.exp(-old_objf), math.exp(-new_objf)),
       file=sys.stderr)
+
 print("optimize_metaparameters.py: final perplexity without barrier function was {0} "
-       "(perplexity: {1})".format(RemoveBarrierFunction(x, new_objf),
-                                  math.exp(-RemoveBarrierFunction(x, new_objf))),
+      "(perplexity: {1})".format(new_objf - BarrierFunctionAndDeriv(x)[0],
+                                 math.exp(-(new_objf - BarrierFunctionAndDeriv(x)[0]))),
        file=sys.stderr)
 
 print("optimize_metaparameters.py: do `diff -y {0}/{{0,final}}.metaparams` "
