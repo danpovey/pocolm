@@ -16,7 +16,7 @@ get_word_counts.py data/text data/word_counts
 get_unigram_weights.py data/word_counts > data/weights
 
 # decide on the vocabulary.
-get_vocab.py --num-words=40000 data/word_counts  > data/vocab_40k.txt
+wordlist_to_vocab.py --num-words=40000 data/word_counts  > data/vocab_40k.txt
 
 # local/srilm_baseline.sh
 
@@ -99,5 +99,5 @@ cp data/optimize_40k_4/split/final.metaparams data/optimize_40k_4/0.metaparams
 
 optimize_metaparameters.py --num-splits=5 --progress-tolerance=1.0e-05 \
    --read-inv-hessian=data/optimize_40k_4/split/inv_hessian \
-    data/counts_40k_4 data/optimize_40k_4/split
+    data/counts_40k_4 data/optimize_40k_4
 

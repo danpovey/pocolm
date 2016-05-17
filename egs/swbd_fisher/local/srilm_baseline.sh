@@ -26,7 +26,6 @@ mkdir data/srilm
 
 tail -n +2 data/vocab_40k.txt  | awk '{print $1}' > data/srilm/wordlist
 
-
 for order in 3 4; do
   echo "$0: estimating $order-gram baselines"
 
