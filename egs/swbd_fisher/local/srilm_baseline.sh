@@ -22,7 +22,7 @@ for f in data/text/{swbd1,fisher,dev}.txt data/vocab_40k.txt; do
 done
 
 
-mkdir data/srilm
+mkdir -p data/srilm
 
 tail -n +2 data/vocab_40k.txt  | awk '{print $1}' > data/srilm/wordlist
 

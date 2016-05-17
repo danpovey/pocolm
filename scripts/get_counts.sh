@@ -62,7 +62,7 @@ mkdir -p $dir/log
 num_train_sets=$(cat $int/num_train_sets)
 
 # copy over some meta-info into the 'counts' directory.
-for f in num_train_sets num_words fold_dev_into_train names words.txt; do
+for f in num_train_sets num_words names words.txt; do
   cp $int/$f $dir/$f
 done
 
@@ -104,6 +104,14 @@ if [ -f $dir/.error ]; then
   echo "$0: error detected; check the logs in $dir/log"
   exit 1
 fi
+
+# we also want the files $dir/int.dev.{2,3,...}, i.e. the dev data split up by
+# n-gram order, because this will be required if the user specifies to fold the
+# dev data into some other set for the final build.
+
+cmd="split-int-counts-by-order /dev/null $(for o in $(seq 2 $ngram_order); do echo -n $dir/int.dev.$o ''; done) <$dir/int.dev 2>$dir/log/split_int_counts.log"
+echo "# $cmd"
+eval $cmd
 
 wait
 exit 0

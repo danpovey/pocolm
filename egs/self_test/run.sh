@@ -21,7 +21,7 @@ mkdir -p data/${num_words}_${ngram_order}
 datasub=data/${num_words}_${ngram_order}
 mkdir -p $datasub
 
-wordlist_to_vocab.py --num-words=$num_words --weights=data/weights data/word_counts  > $datasub/words.txt
+counts_to_vocab.py --num-words=$num_words --weights=data/weights data/word_counts  > $datasub/words.txt
 
 prepare_int_data.sh data/text $datasub/words.txt $datasub/int
 

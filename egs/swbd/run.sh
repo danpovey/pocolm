@@ -9,7 +9,7 @@ local/swbd_data_prep.sh
 get_word_counts.py data/text data/word_counts
 
 # decide on the vocabulary.
-wordlist_to_vocab.py --num-words=20000 data/word_counts  > data/vocab_20k.txt
+counts_to_vocab.py --num-words=20000 data/word_counts  > data/vocab_20k.txt
 
 # local/srilm_baseline.sh
 

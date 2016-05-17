@@ -19,7 +19,7 @@ parser.add_argument("--verbose", type=str,
                     help="If true, print more verbose output",
                     default="false", choices = ["false", "true"])
 parser.add_argument("count_dir",
-                    help="Directory from which to obtain for counts files\n");
+                    help="Directory from which to obtain counts files\n");
 
 
 args = parser.parse_args()

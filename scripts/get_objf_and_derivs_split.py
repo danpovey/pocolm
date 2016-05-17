@@ -19,10 +19,13 @@ parser.add_argument("--num-splits", type=int,
                     help="Number of splits in count directory.  You must previously have "
                     "split the counts directory with this number of splits.  This option is "
                     "required (if you're not using splitting, then use get_objf_and_deriv.py)");
+parser.add_argument("--fold-dev-into-int", type=int,
+                    help="Integer identifier of dataset into which the dev data "
+                    "should be folded (not compatible with the --derivs-out option)")
 parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)");
 parser.add_argument("count_dir",
-                    help="Directory from which to obtain for counts files\n");
+                    help="Directory from which to obtain counts files\n");
 parser.add_argument("metaparameters",
                     help="Filename from which to read metaparameters");
 parser.add_argument("objf_out",
@@ -65,6 +68,14 @@ for name in [ 'ngram_order', 'num_train_sets', 'num_words' ]:
     f = open(args.count_dir + os.sep + name)
     globals()[name] = int(f.readline())
     f.close()
+
+if args.fold_dev_into_int != None:
+    if args.derivs_out != None:
+        sys.exit("get_objf_and_derivs.py: --fold-dev-into-int and --derivs-out "
+                 "options are not compatible.")
+    if not args.fold_dev_into_int >= 1 and args.fold_dev_into_int <= num_train_sets:
+        sys.exit("get_objf_and_derivs.py: --fold-dev-into-int={0} is out of range".format(
+                args.fold_dev_into_int))
 
 if os.system("validate_metaparameters.py --ngram-order={ngram_order} "
              "--num-train-sets={num_train_sets} {metaparameters}".format(
@@ -131,6 +142,10 @@ def MergeCounts(split_index, order):
         command += " {split_counts}/{split_index}/int.{train_set}.{order},{scale}".format(
             split_counts = split_count_dir, split_index = split_index,
             train_set = n, order = order, scale = train_set_scale[n])
+    if args.fold_dev_into_int != None:
+        command += " {counts}/int.dev.{order},{scale}".format(
+            counts = args.count_dir, order = order,
+            scale = train_set_scale[args.fold_dev_into_int])
     # for orders less than the highest order, we also have to include the
     # discounted counts from the one-higher order.  there is no scale here, so
     # the program will expect general-counts, not int-counts.
@@ -211,10 +226,14 @@ def MergeCountsOrder1():
 
 def MergeCountsOrder1Backward():
     # This function merges the order-1 discounted counts across all splits.
+    # we pipe it to /dev/null because it writes a newline to stdout (this is
+    # to terimate the derivs w.r.t. the scaling factors, which are written to
+    # stdout but in this case are empty.
     command = ("merge-counts-backward {0}/discounted.1 {0}/discounted_derivs.1 ".format(
                  args.work_dir) +
                " ".join([ "{0}/{1}/discounted.1 {0}/{1}/discounted_derivs.1".format(split_work_dir, s)
-                          for s in range(1, args.num_splits + 1) ]))
+                          for s in range(1, args.num_splits + 1) ]) +
+               ">/dev/null")
     RunCommand(command)
 
 def DiscountCountsOrder1():

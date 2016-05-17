@@ -5,25 +5,22 @@ from __future__ import print_function
 import re, os, argparse, sys, math, warnings, subprocess
 from collections import defaultdict
 
-parser = argparse.ArgumentParser(description="Given a counts directory and a set of "
-                                 "metaparameters, this script does the language model discounting "
-                                 "and computes the objective function, which is the log-probability "
-                                 "per word on the dev set.");
+parser = argparse.ArgumentParser(description="This script, given counts and metaparameters, will "
+                                 "create an LM  in the 'pocolm-internal' format.  This consists of "
+                                 "a directory with a particular structure, containing the files: "
+                                 "float.all (which contains most of the parameters), words.txt, "
+                                 "ngram_order, names and metaparameters.");
 
-
-parser.add_argument("--fold-dev-into-int", type=int,
-                    help="Integer identifier of dataset into which the dev data "
-                    "should be folded (not compatible with the --derivs-out option)")
-parser.add_argument("--derivs-out", type=str,
-                    help="Filename to which to write derivatives (if supplied)")
+parser.add_argument('--fold-dev-into', type=str,
+                    help='If supplied, the name of data-source into which to fold the '
+                    'counts of the dev data when building the model (typically the '
+                    'same data source from which the dev data was originally excerpted).')
 parser.add_argument("count_dir",
                     help="Directory from which to obtain counts files\n")
 parser.add_argument("metaparameters",
                     help="Filename from which to read metaparameters")
-parser.add_argument("objf_out",
-                    help="Filename to which to write objective function")
-parser.add_argument("work_dir",
-                    help="Directory used to temporarily store files and for logs")
+parser.add_argument("lm_dir",
+                    help="Directory used to temporarily store files and for logs");
 
 
 
@@ -39,7 +36,7 @@ if not os.path.exists(args.work_dir):
     os.makedirs(args.work_dir)
 
 if os.system("validate_count_dir.py " + args.count_dir) != 0:
-    sys.exit("get_objf_and_derivs.py: count-dir validation failed");
+    sys.exit(1)
 
 # read the variables 'ngram_order', 'num_train_sets' and 'num_words'
 # from the corresponding files in count_dir.
@@ -47,14 +44,6 @@ for name in [ 'ngram_order', 'num_train_sets', 'num_words' ]:
     f = open(args.count_dir + os.sep + name)
     globals()[name] = int(f.readline())
     f.close()
-
-if args.fold_dev_into_int != None:
-    if args.derivs_out != None:
-        sys.exit("get_objf_and_derivs.py: --fold-dev-into-int and --derivs-out "
-                 "options are not compatible.")
-    if not args.fold_dev_into_int >= 1 and args.fold_dev_into_int <= num_train_sets:
-        sys.exit("get_objf_and_derivs.py: --fold-dev-into-int={0} is out of range".format(
-                args.fold_dev_into_int))
 
 if os.system("validate_metaparameters.py --ngram-order={ngram_order} "
              "--num-train-sets={num_train_sets} {metaparameters}".format(
@@ -118,11 +107,6 @@ def MergeCounts(order):
         command += " {counts}/int.{train_set}.{order},{scale}".format(
             counts = args.count_dir, train_set = n, order = order,
             scale = train_set_scale[n])
-    if args.fold_dev_into_int != None:
-        command += " {counts}/int.dev.{order},{scale}".format(
-            counts = args.count_dir, order = order,
-            scale = train_set_scale[args.fold_dev_into_int])
-
     # for orders less than the highest order, we also have to include the
     # discounted counts from the one-higher order.  there is no scale here, so
     # the program will expect general-counts, not int-counts.

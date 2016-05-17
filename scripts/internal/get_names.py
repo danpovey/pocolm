@@ -18,10 +18,6 @@ parser = argparse.ArgumentParser(description="This script gets the mapping from 
                                  "to the standard output.\n",
                                  epilog="E.g. scripts/internal/get_names.py data/text");
 
-parser.add_argument("--fold-dev-into",
-                    help="If supplied, the nameof the data-source (e.g. foo or bar, in the example) "
-                    "that the dev data will be folded into.  We will ensure that this source is "
-                    "numbered first; this is the only thing this option does.");
 parser.add_argument("text_dir",
                     help="Directory in which to look for text data\n");
 
@@ -53,19 +49,6 @@ if len(all_names) == 0:
 
 # make sure the order is well defined.
 all_names = sorted(all_names)
-
-if args.fold_dev_into != None:
-    found_target_name = False
-    for i in range(len(all_names)):
-        if all_names[i] == args.fold_dev_into:
-            found_target_name = True
-            # Make sure this name is the first-numbered in the list by swapping
-            # with position zero.
-            [ all_names[0], all_names[i] ] = [ all_names[i], all_names[0] ]
-            break
-    if not found_target_name:
-        sys.exit("get_names.py: invalid option --fold-dev-into={0}, no such data source.".format(
-                args.fold_dev_into))
 
 # here is where we produce the output.
 for i in range(len(all_names)):

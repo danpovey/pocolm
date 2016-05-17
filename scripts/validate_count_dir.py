@@ -93,17 +93,7 @@ for n in range(1, num_train_sets + 1):
                 n, args.count_dir, line[0:-1]))
 f.close()
 
-f = open("{0}/fold_dev_into_train".format(args.count_dir))
-line = f.readline()
-if line != None:
-    line = line.strip('\n')
-if line != 'false' and line != 'true':
-    sys.exit("validate_count_dir.py: bad contents {0} of file {1}/fold_dev_into_train".format(
-            line, args.count_dir))
-f.close()
-
-
-for n in range(1, num_train_sets + 1):
+for n in [ 'dev' ] + range(1, num_train_sets + 1):
     for o in range(2, ngram_order +1):
         filename = "{0}/int.{1}.{2}".format(args.count_dir, n, o)
         if not os.path.exists(filename):

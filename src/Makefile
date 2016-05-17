@@ -11,7 +11,8 @@ BINFILES = get-text-counts get-int-counts print-int-counts \
     discount-counts-1gram merge-float-counts compute-probs \
     print-float-derivs perturb-float-counts discount-counts-1gram-backward \
     print-derivs perturb-counts discount-counts-backward \
-    merge-counts-backward split-int-counts sum-count-derivs sum-float-derivs
+    merge-counts-backward split-int-counts sum-count-derivs sum-float-derivs \
+    split-int-counts-by-order
 
 $(BINFILES): $(OBJFILES)
 

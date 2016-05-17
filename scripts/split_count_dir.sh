@@ -66,7 +66,7 @@ echo "$0: creating split counts in $dir/split$num_splits"
 
 for s in $(seq $num_splits); do
   mkdir -p $dir/split$num_splits/$s
-  for f in num_train_sets num_words ngram_order names fold_dev_into_train; do
+  for f in num_train_sets num_words ngram_order names; do
     cp $dir/$f $dir/split$num_splits/$s/$f || exit 1
   done
   # words.txt could be a fairly large file, so soft-link it.
@@ -76,7 +76,7 @@ done
 num_train_sets=$(cat $dir/num_train_sets)
 ngram_order=$(cat $dir/ngram_order)
 
-files=$(echo int.dev; for s in $(seq $num_train_sets); do for o in $(seq 2 $ngram_order); do echo int.$s.$o; done; done)
+files=$(echo int.dev; for s in dev $(seq $num_train_sets); do for o in $(seq 2 $ngram_order); do echo int.$s.$o; done; done)
 
 for f in $files; do
   if [ ! -f $dir/$f ]; then

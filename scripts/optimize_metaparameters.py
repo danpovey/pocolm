@@ -29,21 +29,23 @@ parser.add_argument("--num-splits", type=int, default=1,
                     help="Controls the number of parallel processes used to "
                     "get objective functions and derivatives.  If >1, then "
                     "we split the counts and compute these things in parallel.")
-parser.add_argument("--write-inv-hessian", type=str,
-                    help="Filename to which to write the inverse Hessian; you can "
-                    "then use the --read-inv-hessian optimization to supply this "
-                    "Hessian to a later round of optimization (possibly on more data)")
 parser.add_argument("--read-inv-hessian", type=str,
                     help="Filename from which to write the inverse Hessian for "
                     "BFGS optimization.")
-
-
-
+parser.add_argument("--initial-metaparameters", type=str,
+                    help="If supplied, the initial metaparameters will be taken from  "
+                    "here.  If not supplied, get_initial_metaparameters.py will be "
+                    "called to initialize them.")
+parser.add_argument("--warm-start-dir", type=str,
+                    help="The name of a directory where optimize_metaparameters.py was "
+                    "run on a subset of data.  Setting --subset-optimize-dir=X is "
+                    "equivalent to setting --read-inv-hessian=X/final.inv_hessian and "
+                    "--initial-metaparameters=X/final.metaparams")
 parser.add_argument("count_dir",
                     help="Directory in which to find counts")
 parser.add_argument("optimize_dir",
-                    help="Directory to store temporary files for optimization, including "
-                    "metaparameters; should contain the file 0.metaparams at the start.")
+                    help="Directory to store temporary files for optimization; final "
+                    "metaparameters are written to final.metaparams in this directory.")
 
 args = parser.parse_args()
 
@@ -51,6 +53,13 @@ args = parser.parse_args()
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])));
 
+if args.warm_start_dir != None:
+    if args.initial_metaparameters != None or args.read_inv_hessian != None:
+        sys.exit("optimize_metaparameters.py: if you set --subset-optimize-dir "
+                 "you should not set --initial-metaparameters or "
+                 "--read-inv-hessian.")
+    args.initial_metaparameters = args.warm_start_dir + "/final.metaparams"
+    args.read_inv_hessian = args.warm_start_dir + "/final.inv_hessian"
 
 if os.system("validate_count_dir.py " + args.count_dir) != 0:
     sys.exit("optimize_metaparameters.py: validate_count_dir.py failed")
@@ -61,10 +70,6 @@ if args.num_splits > 1:
     if (os.system("split_count_dir.sh {0} {1}".format(
                 args.count_dir, args.num_splits))) != 0:
         sys.exit("optimize_metaparameters.py: failed to create split count-dir.")
-
-if not os.path.exists(args.optimize_dir + "/0.metaparams"):
-    sys.exit("optimize_metaparameters.py: expected file {0}/0.metaparams "
-             "to exist".format(args.optimize_dir))
 
 if not os.path.exists(args.optimize_dir + "/work"):
     os.makedirs(args.optimize_dir + "/work")
@@ -79,6 +84,22 @@ for name in [ 'ngram_order', 'num_train_sets' ]:
     f = open(args.count_dir + os.sep + name)
     globals()[name] = int(f.readline())
     f.close()
+
+if args.initial_metaparameters != None:
+    # the reason we do the cmp before copying, is that
+    # if we copy even if it's the same as before, it messes with the caching.
+    if (os.system("cmp -s {0} {1}/0.metaparams || cp {0} {1}/0.metaparams".format(
+                args.initial_metaparameters, args.optimize_dir)) != 0 or
+        os.system("validate_metaparameters.py --ngram-order={0} --num-train-sets={1} "
+                  "{2}/0.metaparams".format(ngram_order, num_train_sets,
+                                            args.optimize_dir)) != 0):
+        sys.exit("optimize_metaparameters.py: error copying or validating initial "
+                 "metaparameters from {0}".format(args.initial_metaparameters))
+else:
+    command = ("get_initial_metaparameters.py --ngram-order={0} --num-train-sets={1} "
+               ">{2}/0.metaparams".format(ngram_order, num_train_sets, args.optimize_dir));
+    if os.system(command) != 0:
+        sys.exit("optimize_metaparameters.py: failed to initialize parameters");
 
 
 def ReadObjf(file):
@@ -186,6 +207,16 @@ def ModifyWithBarrierFunction(x, objf, derivs):
     return (objf, derivs)
 
 
+# this function basically does the opposite of ModifyWithBarrierFunction,
+# it subtracts the penalty from the objective function and returns
+# the "original" objective function which is just the likelihood.
+# this is needed at the end to print out the "correct" perplexity.
+def RemoveBarrierFunction(x, objf):
+    derivs = x # just need a vector with the same dimension, it'll get something
+               #  added to it inside ModifyWithBarrierFunction and we'll ignore it.
+    (barrier_function, derivs) = ModifyWithBarrierFunction(x, 0, derivs)
+    return objf - barrier_function
+
 # this will return a 2-tuple (objf, deriv).  note, the objective function and
 # derivative are both negated because conventionally optimization problems are
 # framed as minimization problems.
@@ -208,9 +239,6 @@ def GetObjfAndDeriv(x):
         changed_or_new = WriteMetaparameters(metaparameter_file, x)
         prev_metaparameter_file = "{0}/{1}.metaparams".format(args.optimize_dir, iteration - 1)
         enable_caching = True # if true, enable re-use of files from a previous run.
-        enable_remembering = True  # if true, enable re-use of objf,derivs from
-                                   # previous iteration (if metaparameters are
-                                   # the same).
         if enable_caching and (not changed_or_new and os.path.exists(deriv_file) and
                                os.path.exists(objf_file) and
                                os.path.getmtime(deriv_file) >
@@ -218,19 +246,6 @@ def GetObjfAndDeriv(x):
             print("optimize_metaparameters.py: using previously computed objf and deriv "
                   "info from {0} and {1} (presumably you are rerunning after a partially "
                   "finished run)".format(deriv_file, objf_file), file=sys.stderr)
-        elif (enable_remembering and iteration > 0 and
-            os.system("cmp -s {0} {1}".format(metaparameter_file, prev_metaparameter_file))==0):
-            print("optimize_metaparameters.py: metaparameters are the same as previous iteration, so "
-                  "re-using objf and derivs and copying log.", file=sys.stderr);
-            shutil.copyfile("{0}/{1}.derivs".format(args.optimize_dir, iteration - 1),
-                            deriv_file)
-            shutil.copyfile("{0}/{1}.objf".format(args.optimize_dir, iteration - 1),
-                            objf_file)
-            try:
-                shutil.copyfile("{0}/{1}.log".format(args.optimize_dir, iteration - 1),
-                                log_file)
-            except:
-                pass
         else:
             # we need to call get_objf_and_derivs.py
             command = ("get_objf_and_derivs{maybe_split}.py {split_opt} --derivs-out={derivs} {counts} {metaparams} "
@@ -262,6 +277,9 @@ def GetObjfAndDeriv(x):
     # we need to negate the objective function and derivatives, since we are
     # minimizing.
     scale = -1.0
+    global value0
+    if value0 == None:
+        value0 = objf * scale
     return (objf * scale, derivs * scale)
 
 
@@ -269,6 +287,8 @@ x0 = ReadMetaparametersOrDerivs(args.optimize_dir + "/0.metaparams")
 # 'iteration' will affect the filenames used to write the metaparameters
 # and derivatives.
 iteration = 0
+# value0 will store the first evaluated objective function.a
+value0 = None
 
 inv_hessian = None
 if not args.read_inv_hessian is None:
@@ -285,27 +305,31 @@ if not args.read_inv_hessian is None:
                                            gradient_tolerance = args.gradient_tolerance,
                                            progress_tolerance = args.progress_tolerance)
 
-print("optimize_metaparameters: final x value is ", x, file=sys.stderr)
+print("optimize_metaparameters: final metaparameters are ", x, file=sys.stderr)
 
 WriteMetaparameters("{0}/final.metaparams".format(args.optimize_dir), x)
 
-old_objf = ReadObjf("{0}/0.objf".format(args.optimize_dir))
+old_objf = -1.0 * value0
 new_objf = -1.0 * value
 
-print("optimize_metaparameters.py: log-prob on dev data increased "
-      "from {0} to {1} over {2} passes of derivative estimation (perplexity: {3}->{4}".format(
+print("optimize_metaparameters.py: log-prob on dev data (with barrier function) increased "
+      "from {0} to {1} over {2} passes of derivative estimation (penalized perplexity: {3}->{4}".format(
         old_objf, new_objf, iteration, math.exp(-old_objf), math.exp(-new_objf)),
       file=sys.stderr)
+print("optimize_metaparameters.py: final perplexity without barrier function was {0} "
+       "(perplexity: {1})".format(RemoveBarrierFunction(x, new_objf),
+                                  math.exp(-RemoveBarrierFunction(x, new_objf))),
+       file=sys.stderr)
 
 print("optimize_metaparameters.py: do `diff -y {0}/{{0,final}}.metaparams` "
       "to see change in metaparameters.".format(args.optimize_dir),
       file=sys.stderr)
 
+
 print("optimize_metaparameters.py: Wrote final metaparameters to "
       "{0}/final.metaparams".format(args.optimize_dir),
       file=sys.stderr)
 
-if not args.write_inv_hessian is None:
-    print("optimize_metaparameters.py: writing inverse Hessian to {0}".format(
-            args.write_inv_hessian), file=sys.stderr)
-    np.savetxt(args.write_inv_hessian, inv_hessian)
+# save the inverse Hessian, in case we want to use it to initialize a later
+# round of optimization.
+np.savetxt("{0}/final.inv_hessian".format(args.optimize_dir), inv_hessian)

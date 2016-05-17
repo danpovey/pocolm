@@ -58,14 +58,14 @@ fi
 echo "$0: creating split counts in $dir/split$num_splits"
 
 
-for f in num_train_sets num_words ngram_order names fold_dev_into_train words.txt; do
+for f in num_train_sets num_words ngram_order names words.txt; do
   cp $dir/$f $destdir/$f || exit 1
 done
 
 num_train_sets=$(cat $dir/num_train_sets)
 ngram_order=$(cat $dir/ngram_order)
 
-files=$(echo int.dev; for s in $(seq $num_train_sets); do for o in $(seq 2 $ngram_order); do echo int.$s.$o; done; done)
+files=$(echo int.dev; for s in dev $(seq $num_train_sets); do for o in $(seq 2 $ngram_order); do echo int.$s.$o; done; done)
 
 for f in $files; do
   if [ ! -f $dir/$f ]; then

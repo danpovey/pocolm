@@ -61,19 +61,7 @@ mkdir -p $dir
 # remove any old *.int.gz files in $dir.
 rm $dir/*.int.gz 2>/dev/null || true
 
-if [ "$fold_dev_into" != "" ]; then
-  fold_dev_opt="--fold-dev-into=$fold_dev_info"
-  echo true > $dir/fold_dev_into_train
-  if [ ! -f $text/$fold_dev_into.txt ] && [ ! -f $text/$fold_dev_into.txt.gz ]; then
-    echo "$0: expected $text/$fold_dev_into.txt or $text/$fold_dev_into.txt.gz to exist"
-    exit 1
-  fi
-else
-  fold_dev_opt=
-  echo false >$dir/fold_dev_into_train
-fi
-
-$scriptdir/internal/get_names.py $fold_dev_opt $text > $dir/names
+$scriptdir/internal/get_names.py $text > $dir/names
 
 rm -f $dir/.error
 mkdir -p $dir/log
