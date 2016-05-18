@@ -2,26 +2,29 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess
+import re, os, argparse, sys, math, warnings, subprocess, shutil
 from collections import defaultdict
 
 parser = argparse.ArgumentParser(description="This script, given counts and metaparameters, will "
                                  "create an LM  in the 'pocolm-internal' format.  This consists of "
                                  "a directory with a particular structure, containing the files: "
                                  "float.all (which contains most of the parameters), words.txt, "
-                                 "ngram_order, names and metaparameters.");
+                                 "ngram_order, names, metaparameters and was_pruned.");
 
 parser.add_argument('--fold-dev-into', type=str,
                     help='If supplied, the name of data-source into which to fold the '
                     'counts of the dev data when building the model (typically the '
                     'same data source from which the dev data was originally excerpted).')
+parser.add_argument("--num-splits", type=int, default=1,
+                    help="Controls the number of parallel processes used to "
+                    "get objective functions and derivatives.  If >1, then "
+                    "we split the counts and build the LM in parallel.")
 parser.add_argument("count_dir",
                     help="Directory from which to obtain counts files\n")
 parser.add_argument("metaparameters",
                     help="Filename from which to read metaparameters")
 parser.add_argument("lm_dir",
-                    help="Directory used to temporarily store files and for logs");
-
+                    help="Output directory where the language model is created.")
 
 
 args = parser.parse_args()
@@ -32,11 +35,13 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
 
-if not os.path.exists(args.work_dir):
-    os.makedirs(args.work_dir)
+work_dir = args.lm_dir + "/work"
+
+if not os.path.exists(work_dir):
+    os.makedirs(work_dir)
 
 if os.system("validate_count_dir.py " + args.count_dir) != 0:
-    sys.exit(1)
+    sys.exit("make_lm_dir.py: failed to validate counts directory")
 
 # read the variables 'ngram_order', 'num_train_sets' and 'num_words'
 # from the corresponding files in count_dir.
@@ -45,226 +50,85 @@ for name in [ 'ngram_order', 'num_train_sets', 'num_words' ]:
     globals()[name] = int(f.readline())
     f.close()
 
+
+if args.num_splits < 1:
+    sys.exit("optimize_metaparameters.py: --num-splits must be >0.")
+if args.num_splits > 1:
+    if (os.system("split_count_dir.sh {0} {1}".format(
+                args.count_dir, args.num_splits))) != 0:
+        sys.exit("make_lm_dir.py: failed to create split count-dir.")
+
+fold_dev_opt=''
+
+if args.fold_dev_into != None:
+    fold_dev_into_int = None
+    f = open(args.count_dir + "/names")
+    for line in f.readlines():
+        # we already validated the count-dir so we can assume the names file is
+        # correctly formatted.
+        [number, name] = line.split()
+        if name == args.fold_dev_into:
+            fold_dev_into_int = int(number)
+    if fold_dev_into_int is None:
+        sys.exit("make_lm_dir.py: invalid option --fold-dev-into={0}, does not "
+                 "correspond to any entry in {1}/names".format(args.fold_dev_into,
+                                                               args.count_dir))
+    fold_dev_opt='--fold-dev-into-int=' + str(fold_dev_into_int)
+
 if os.system("validate_metaparameters.py --ngram-order={ngram_order} "
              "--num-train-sets={num_train_sets} {metaparameters}".format(
-        ngram_order=ngram_order, num_train_sets=num_train_sets,
+        ngram_order = ngram_order, num_train_sets = num_train_sets,
         metaparameters = args.metaparameters)) != 0:
-    sys.exit(1)
+    sys.exit("make_lm_dir.py: failed to validate metaparameters "
+             + args.metaparameters)
 
+for name in ['words.txt', 'ngram_order', 'names' ]:
+    src = args.count_dir + os.sep + name
+    dest = args.lm_dir + os.sep + name
+    try:
+        shutil.copy(src, dest)
+    except:
+        sys.exit("make_lm_dir.py: error copying {0} to {1}".format(src, dest))
 
+try:
+    shutil.copy(args.metaparameters,
+                args.lm_dir + os.sep + "metaparameters")
+except:
+    sys.exit("make_lm_dir.py: error copying {0} to {1}".format(
+            args.metaparameters,
+            args.lm_dir + os.sep + "metaparameters"))
 
-# read the metaparameters as dicts.
-# train_set_scale will be a map from integer
-# training-set number to floating-point scale.  Note: there is no checking
-# because we already called validate_metaparameters.py.
-f = open(args.metaparameters, "r")
-train_set_scale = {}
-for n in range(1, num_train_sets + 1):
-    train_set_scale[n] = float(f.readline().split()[1])
-# the discounting constants will be stored as maps d1,d2,d3,d4 from integer order
-# to discounting constant.
-d1 = {}
-d2 = {}
-d3 = {}
-d4 = {}
-for o in range(2, ngram_order + 1):
-    d1[o] = float(f.readline().split()[1])
-    d2[o] = float(f.readline().split()[1])
-    d3[o] = float(f.readline().split()[1])
-    d4[o] = float(f.readline().split()[1])
+f = open(args.lm_dir + "/was_pruned", "w")
+print("false", file=f)
 f.close()
 
+if args.num_splits == 1:
+    command = ("get_objf_and_derivs.py {fold_dev_opt} {count_dir} {metaparameters} "
+               "{work_dir}/objf {work_dir} 2>{work_dir}/log.txt".format(fold_dev_opt = fold_dev_opt,
+                                                        count_dir = args.count_dir,
+                                                        metaparameters = args.metaparameters,
+                                                        work_dir = work_dir))
+else:
+    command = ("get_objf_and_derivs_split.py --num-splits={num_splits} --need-model=true "
+               "{fold_dev_opt} {count_dir} {metaparameters} {work_dir}/objf "
+               "{work_dir} 2>{work_dir}/log.txt".format(
+            fold_dev_opt = fold_dev_opt, num_splits = args.num_splits,
+            count_dir = args.count_dir, metaparameters = args.metaparameters,
+            work_dir = work_dir))
 
-def RunCommand(command):
-    # print the command for logging
-    print(command, file=sys.stderr)
-    if os.system(command) != 0:
-        sys.exit("get_objf_and_derivs.py: error running command: " + command)
+print("make_lm_dir.py: running command {0}".format(command), file=sys.stderr)
 
-def GetCommandStdout(command):
-    # print the command for logging
-    print(command, file=sys.stderr)
-    try:
-        output = subprocess.check_output(command, shell = True)
-    except:
-        sys.exit("get_objf_and_derivs.py: error running command: " + command)
-    return output
-
-
-# This function does the count merging for the specified
-# n-gram order, writing to $work_dir/merged.$order
-# For the highest order we merge count_dir/int.*.order,
-# each with its appropriate scalign factor; for orders
-# strictly between the highest order and 1 we merge those
-# but also the discounted counts from work_dir/discounted.order;
-# for order 1, no merging is done (-> this function shouldn't be
-# called).
-def MergeCounts(order):
-    # merge counts of the specified order > 1.
-    assert order > 1
-    command = "merge-counts";
-    for n in range(1, num_train_sets + 1):
-        command += " {counts}/int.{train_set}.{order},{scale}".format(
-            counts = args.count_dir, train_set = n, order = order,
-            scale = train_set_scale[n])
-    # for orders less than the highest order, we also have to include the
-    # discounted counts from the one-higher order.  there is no scale here, so
-    # the program will expect general-counts, not int-counts.
-    if order < ngram_order:
-        command += " {work}/discounted.{order}".format(
-            work = args.work_dir, order = order)
-    # the output gets redirected to the output file.
-    command += " >{work}/merged.{order}".format(
-        work = args.work_dir, order = order)
-    RunCommand(command)
-
-def MergeCountsBackward(order):
-    global scale_derivs
-    # merge counts of the specified order > 1; the backprop phase.
-    assert order > 1
-    command = "merge-counts-backward {work}/merged.{order} {work}/merged_derivs.{order} ".format(
-        work = args.work_dir, order = order)
-
-    for n in range(1, num_train_sets + 1):
-        command += " {counts}/int.{train_set}.{order} {scale}".format(
-            counts = args.count_dir, train_set = n, order = order,
-            scale = train_set_scale[n])
-    # for orders less than the highest order, we also have to include the
-    # discounted counts from the one-higher order, and provide a filename
-    # for it to output the derivatives w.r.t. that file.
-    if order < ngram_order:
-        command += " {work}/discounted.{order} {work}/discounted_derivs.{order}".format(
-            work = args.work_dir, order = order)
-    output = GetCommandStdout(command)
-    try:
-        this_scale_derivs = [ float(n) / num_dev_set_words for n in output.split() ]
-        assert len(scale_derivs) == num_train_sets
-        # the scaling factors are applied for each order > 1, and the
-        # derivatives will be a sum over the derivatives for each of these
-        # orders.
-        for n in range(num_train_sets):
-            scale_derivs[n] += this_scale_derivs[n]
-    except:
-        sys.exit("get_objf_and_derivs.py: unexpected output from command:" + output)
+if os.system(command) != 0:
+    sys.exit("make_lm_dir.py: error running command {0}".format(command))
 
 
-def DiscountCounts(order):
-    # discount counts of the specified order > 1.
-    assert order > 1
-    command = "discount-counts {d1} {d2} {d3} {d4} {work}/merged.{order} {work}/float.{order} {work}/discounted.{orderm1} ".format(
-        d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
-        work = args.work_dir, order = order, orderm1 = order - 1)
-    RunCommand(command)
+try:
+    shutil.move(work_dir + "/float.all",
+                args.lm_dir + "/float.all")
+except:
+    sys.exit("make_lm_dir.py: error moving {0}/float.all to {1}/float.all".format(
+            work_dir, args.lm_dir))
 
-def DiscountCountsBackward(order):
-    # discount counts of the specified order > 1; backprop version.
-    assert order > 1
-    command = ("discount-counts-backward {d1} {d2} {d3} {d4} {work}/merged.{order} {work}/float.{order} "
-               "{work}/float_derivs.{order} {work}/discounted.{orderm1} {work}/discounted_derivs.{orderm1} "
-               "{work}/merged_derivs.{order}".format(
-            d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
-            work = args.work_dir, order = order, orderm1 = order - 1))
-    output = GetCommandStdout(command);
-    try:
-        [ deriv1, deriv2, deriv3, deriv4 ] = output.split()
-    except:
-        sys.exit("get_objf_and_derivs.py: could not parse output of command: " + output)
-    d1_deriv[order] = float(deriv1) / num_dev_set_words
-    d2_deriv[order] = float(deriv2) / num_dev_set_words
-    d3_deriv[order] = float(deriv3) / num_dev_set_words
-    d4_deriv[order] = float(deriv4) / num_dev_set_words
+if os.system("validate_lm_dir.py " + args.lm_dir) != 0:
+    sys.exit("make_lm_dir.py: error validating lm-dir " + args.lm_dir)
 
-
-def DiscountCountsOrder1():
-    command = "discount-counts-1gram {num_words} <{work}/discounted.1 >{work}/float.1".format(
-        num_words = num_words, work = args.work_dir)
-    RunCommand(command)
-
-def DiscountCountsOrder1Backward():
-    command = ("discount-counts-1gram-backward {work}/discounted.1 {work}/float.1 "
-               "{work}/float_derivs.1 {work}/discounted_derivs.1".format(work = args.work_dir))
-    RunCommand(command)
-
-def MergeAllOrders():
-    command = ("merge-float-counts " +
-               " ".join([ "{0}/float.{1}".format(args.work_dir, n) for n in range(1, ngram_order + 1) ])
-               + ">{0}/float.all".format(args.work_dir))
-    RunCommand(command)
-
-def ComputeObjfAndFinalDerivs(need_derivs):
-    global num_dev_set_words, objf
-    command = "compute-probs {work}/float.all {counts}/int.dev ".format(
-        work = args.work_dir, counts = args.count_dir);
-    if need_derivs:
-        command +=" ".join([ "{work}/float_derivs.{order}".format(work = args.work_dir, order = n)
-                             for n in range(1, ngram_order + 1) ])
-    output = GetCommandStdout(command)
-    try:
-        [ num_dev_set_words, tot_objf ] = output.split()
-        num_dev_set_words = int(num_dev_set_words)
-        objf = float(tot_objf) / num_dev_set_words
-    except:
-        sys.exit("get_objf_and_derivs.py: error interpreting the output of compute-probs: "
-                 "output was: " + output)
-    print("get_objf_and_derivs.py: objf is {0} over {1} "
-          "words".format(objf, num_dev_set_words), file=sys.stderr)
-    # Write the objective function.
-    try:
-        f = open(args.objf_out, "w")
-        print(str(objf), file=f)
-        f.close()
-    except:
-        sys.exit("get_objf_and_derivs.py: error writing objective function to: " +
-                 args.objf_out)
-
-def WriteDerivs():
-    try:
-        f = open(args.derivs_out, "w")
-    except:
-        sys.exit("get_objf_and_derivs.py: error opening --derivs-out={0} for writing".format(
-                 args.derivs_out))
-    for n in range(num_train_sets):
-        print("count_scale_{0} {1}".format(n + 1, scale_derivs[n]), file=f)
-    for o in range(2, ngram_order + 1):
-        print("order{0}_D1 {1}".format(o, d1_deriv[o]), file=f)
-        print("order{0}_D2 {1}".format(o, d2_deriv[o]), file=f)
-        print("order{0}_D3 {1}".format(o, d3_deriv[o]), file=f)
-        print("order{0}_D4 {1}".format(o, d4_deriv[o]), file=f)
-    f.close()
-
-# for n-gram orders down to 2, do the merging and discounting.
-for o in range(ngram_order, 1, -1):
-    MergeCounts(o)
-    DiscountCounts(o)
-
-DiscountCountsOrder1()
-MergeAllOrders()
-ComputeObjfAndFinalDerivs(args.derivs_out != None)
-
-if args.derivs_out == None:
-    sys.exit(0)
-
-# scale_derivs will be an array of the derivatives of the objective function
-# w.r.t. the scaling factors of the training sets.
-scale_derivs = [ 0 ] * num_train_sets
-# the following dicts will be indexed by the order.
-d1_deriv = {}
-d2_deriv = {}
-d3_deriv = {}
-d4_deriv = {}
-
-# Now comes the backprop code.
-
-# Note: there is no need for a call like MergeAllOrdersBackward(), because that
-# merging was just aggregating different histories of distinct orders, and to
-# avoid the need for a backprop version of this program, the program
-# 'compute-probs' writes the derivatives for history-states of distinct orders,
-# to distinct files.
-
-DiscountCountsOrder1Backward()
-
-for o in range(2, ngram_order + 1):
-    DiscountCountsBackward(o)
-    MergeCountsBackward(o)
-
-WriteDerivs()

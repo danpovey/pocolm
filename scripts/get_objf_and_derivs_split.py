@@ -22,6 +22,9 @@ parser.add_argument("--num-splits", type=int,
 parser.add_argument("--fold-dev-into-int", type=int,
                     help="Integer identifier of dataset into which the dev data "
                     "should be folded (not compatible with the --derivs-out option)")
+parser.add_argument("--need-model", type=str, default="false", choices=["true","false"],
+                    help="If true, this script will create work_dir/float.all (the merged "
+                    "file of counts")
 parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)");
 parser.add_argument("count_dir",
@@ -143,9 +146,9 @@ def MergeCounts(split_index, order):
             split_counts = split_count_dir, split_index = split_index,
             train_set = n, order = order, scale = train_set_scale[n])
     if args.fold_dev_into_int != None:
-        command += " {counts}/int.dev.{order},{scale}".format(
-            counts = args.count_dir, order = order,
-            scale = train_set_scale[args.fold_dev_into_int])
+        command += " {split_counts}/{split_index}/int.dev.{order},{scale}".format(
+            split_counts = split_count_dir, split_index = split_index,
+            order = order, scale = train_set_scale[args.fold_dev_into_int])
     # for orders less than the highest order, we also have to include the
     # discounted counts from the one-higher order.  there is no scale here, so
     # the program will expect general-counts, not int-counts.
@@ -267,6 +270,14 @@ def MergeAllOrders(split_index):
                + ">{0}/float.all".format(this_split_work))
     RunCommand(command)
 
+def MergeAllSplits():
+    # merges the float.all acros all splits.
+    command = ("merge-float-counts " +
+               " ".join([ "{0}/{1}/float.all".format(split_work_dir, split_index)
+                          for split_index in range(1, args.num_splits + 1) ]) +
+               ">{0}/float.all".format(args.work_dir))
+    RunCommand(command)
+
 def ComputeObjfAndFinalDerivs(split_index, need_derivs):
     global num_dev_set_words_total, loglike_total
     command = "compute-probs {swork}/{s}/float.all {scount}/{s}/int.dev ".format(
@@ -358,6 +369,9 @@ for t in threads:
     t.join()
 
 WriteObjectiveFunction()
+
+if args.need_model == "true":
+    MergeAllSplits()
 
 if args.derivs_out == None:
     sys.exit(0)

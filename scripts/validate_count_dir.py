@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description="Validates directory containing bin
                                  epilog="E.g. validate_count_dir.py data/counts.100k");
 
 parser.add_argument("count_dir",
-                    help="Directory in which to find the data");
+                    help="Directory to validate")
 
 args = parser.parse_args()
 
@@ -67,15 +67,7 @@ f.close()
 # call validate_vocab.py to check the vocab.
 if os.system("validate_vocab.py --num-words={0} {1}/words.txt".format(
         num_words, args.count_dir)) != 0:
-    sys.exit(1)
-
-
-num_words = subprocess.check_output("cat {0}/words.txt | wc -l".format(args.count_dir), shell=True)
-try:
-    num_words = int(num_words) + 1
-except:
-    sys.exit("validate_count_dir.py: error getting number of words from {0}/words.txt".format(
-            args.count_dir))
+    sys.exit("validate_vocab.py: failed to validate {0}/words.txt".format(args.lm_dir))
 
 
 # check the 'names' file; it should have lines like:

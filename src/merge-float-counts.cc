@@ -107,9 +107,21 @@ class FloatCountMerger {
       FloatLmState &input = float_lm_states_[sources[0]];
       input.Write(std::cout);
     } else {
-      std::cerr << "merge-float-counts: you have multiple inputs for the "
-                << "same history, which is not supported\n";
-      exit(1);
+      // If there are multiple states with the same history, we currently
+      // assume that they are duplicates of the same state, and that only
+      // one of the duplicates should be written out.  (this situation
+      // arises when this program is called from get_objf_and_derivs_split.py,
+      // where the order-1 LM state is duplicated across splits).
+      int32 size = sources.size();
+      assert(size > 1);
+      FloatLmState &input = float_lm_states_[sources[0]];
+      for (int32 n = 1; n < size; n++) {
+        FloatLmState &other_input = float_lm_states_[sources[n]];
+        assert(other_input.counts == input.counts && "merge-float-counts: "
+               "multiple inputs have the same history state but the counts are "
+               "not identical.");
+      }
+      input.Write(std::cout);
     }
     for (std::vector<int32>::const_iterator iter = sources.begin();
          iter != sources.end(); ++iter) {
@@ -141,7 +153,11 @@ int main (int argc, const char **argv) {
   if (argc <= 1) {
     std::cerr << "merge-float-counts: expected usage: <float-counts-file1> <float-counts-file2> .. \n"
               << " (it writes the merged float-counts to stdout).  For example:\n"
-              << " merge-float-counts dir/discounted/1.ngram dir/discounted/2.ngram | ...\n";
+              << " merge-float-counts dir/discounted/1.ngram dir/discounted/2.ngram | ...\n"
+              << "This program currently assumes that the LM-states to be merged always\n"
+              << "either have distinct histories (in which case no real merging is done\n"
+              << "at the LM-state level), or have the same histories but are identical,\n"
+              << "in which only one of the identical LM-states are written out.\n";
     exit(1);
   }
 

@@ -58,9 +58,10 @@ if args.fold_dev_into_int != None:
 
 if os.system("validate_metaparameters.py --ngram-order={ngram_order} "
              "--num-train-sets={num_train_sets} {metaparameters}".format(
-        ngram_order=ngram_order, num_train_sets=num_train_sets,
+        ngram_order = ngram_order, num_train_sets = num_train_sets,
         metaparameters = args.metaparameters)) != 0:
-    sys.exit(1)
+    sys.exit("get_objf_and_derivs.py: failed to validate metaparameters "
+             + args.metaparameters)
 
 
 

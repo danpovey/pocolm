@@ -42,6 +42,9 @@ for order in 3 4 5; do
   optimize_metaparameters.py --warm-start-dir=data/optimize_40k_${order}_subset${ratio} \
     --progress-tolerance=1.0e-04 --num-splits=${splits} \
     data/counts_40k_${order} data/optimize_40k_${order}
+
+  make_lm_dir.py --num-splits=${splits} data/counts_40k_${order} \
+     data/optimize_40k_${order}/final.metaparams data/lm_40k_${order}
 done
 
 # order 3: optimize_metaparameters.py: final perplexity without barrier function was -4.35843985217 (perplexity: 78.1351369165)
