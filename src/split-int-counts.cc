@@ -40,15 +40,33 @@
 
 
 int main (int argc, const char **argv) {
-  int num_outputs = argc - 1;
-  if (num_outputs <= 0) {
+  if (argc < 3 || (!strcmp(argv[1], "-d") && argc < 5)) {
     std::cerr << "split-int-counts: expected usage:\n"
-              << "split-int-counts <output1> <output2> ... <outputN>  < input-int-counts\n"
+              << "split-int-counts [-d N] <output1> <output2> ... <outputN>  < input-int-counts\n"
               << "This program reads int-counts from its stdin, and distributes them\n"
               << "among the provided outputs by taking the most recent word in the history\n"
-              << "modulo the number of outputs.\n";
+              << "modulo the number of outputs.\n"
+              << "The -d option takes an integer argument N > 0; if supplied, we will\n"
+              << "divide the most-recent-word by N before taking it modulo the number of\n"
+              << "outputs.  This is useful in splitting counts that have already been\n"
+              << "split.";
     exit(1);
   }
+
+  int N = 1;
+  if (argc >= 3 && !strcmp(argv[1], "-d")) {
+    char *end;
+    N = strtol(argv[2], &end, 10);
+    if (N < 1 || *end != '\0') {
+      std::cerr << "split-int-counts: -d option expects integer argument >0.";
+      exit(1);
+    }
+    argc -= 2;
+    argv += 2;
+  }
+
+  int num_outputs = argc - 1;
+
   // note: if num_outputs is 1 and the input is of higher order, all data just goes
   // to the same file.
   std::ofstream *outputs = new std::ofstream[num_outputs];
@@ -56,7 +74,7 @@ int main (int argc, const char **argv) {
   for (int32 i = 0; i < num_outputs; i++) {
     outputs[i].open(argv[i + 1], std::ios_base::binary|std::ios_base::out);
     if (!outputs[i]) {
-      std::cerr << "split-int-counts: Failed to open '" << argv[i + 1] << "' for output.";
+      std::cerr << "split-int-counts: Failed to open '" << argv[i + 1] << "' for output.\n";
       exit(1);
     }
   }
@@ -64,7 +82,6 @@ int main (int argc, const char **argv) {
 
   int32 num_states_written = 0;
   std::vector<int64> counts_written_per_output(num_outputs, 0);
-
 
   pocolm::IntLmState int_lm_state;
 
@@ -74,7 +91,7 @@ int main (int argc, const char **argv) {
            "split-int-counts: did not expect input with empty history.");
     int32 most_recent_history_word = int_lm_state.history[0];
     assert(most_recent_history_word > 0);
-    int32 output = most_recent_history_word % num_outputs;
+    int32 output = (most_recent_history_word / N) % num_outputs;
     counts_written_per_output[output] += int_lm_state.counts.size();
     num_states_written++;
     int_lm_state.Write(outputs[output]);

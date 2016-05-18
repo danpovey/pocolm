@@ -67,6 +67,11 @@ ngram_order=$(cat $dir/ngram_order)
 
 files=$(echo int.dev; for s in dev $(seq $num_train_sets); do for o in $(seq 2 $ngram_order); do echo int.$s.$o; done; done)
 
+# Normally we'll be subsetting a directory that has not already been
+# split or subsetted, so old_split_modulus will be 1.
+old_split_modulus=1
+[ -f $dir/split_modulus ] && old_split_modulus=$(cat $dir/split_modulus)
+
 for f in $files; do
   if [ ! -f $dir/$f ]; then
     echo "$0: expected $dir/$f to exist"
@@ -75,8 +80,12 @@ for f in $files; do
   # e.g. split_files="$destdir/int.1.1 /dev/null /dev/null /dev/null"
   split_files="$destdir/$f $(for s in $(seq 2 $ratio); do echo /dev/null; done)"
 
-  split-int-counts $split_files <$dir/$f || exit 1
+  split-int-counts -d $old_split_modulus $split_files <$dir/$f || exit 1
 done
+
+# the 'split_modulus' file will be
+new_split_modulus=$[$old_split_modulus*$ratio]
+echo $new_split_modulus >$destdir/split_modulus
 
 validate_count_dir.py $destdir || exit 1
 

@@ -64,6 +64,12 @@ fi
 
 echo "$0: creating split counts in $dir/split$num_splits"
 
+
+old_split_modulus=1
+[ -f $dir/split_modulus ] && old_split_modulus=$(cat $dir/split_modulus)
+
+new_split_modulus=$[$num_splits*$old_split_modulus]
+
 for s in $(seq $num_splits); do
   mkdir -p $dir/split$num_splits/$s
   for f in num_train_sets num_words ngram_order names; do
@@ -71,6 +77,10 @@ for s in $(seq $num_splits); do
   done
   # words.txt could be a fairly large file, so soft-link it.
   ln -sf ../../words.txt $dir/split$num_splits/$s/words.txt
+  # The 'split_modulus' file will only be needed if we split a directory that
+  # has already been split-- which doesn't happen in the current scripts.  But
+  # we write it anyway.
+  echo $new_split_modulus >$dir/split$num_splits/$s/split_modulus
 done
 
 num_train_sets=$(cat $dir/num_train_sets)
@@ -85,7 +95,7 @@ for f in $files; do
   fi
   split_files=$(for s in $(seq $num_splits); do echo $dir/split$num_splits/$s/$f; done)
 
-  split-int-counts $split_files <$dir/$f || exit 1
+  split-int-counts -d $old_split_modulus $split_files <$dir/$f || exit 1
 done
 
 validate_count_dir.py $dir/split$num_splits/1 || exit 1

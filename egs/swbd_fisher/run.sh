@@ -31,7 +31,7 @@ for order in 3 4 5; do
   get_counts.sh data/int_40k ${order} data/counts_40k_${order}
 
   ratio=10
-  splits=7  # must be coprime to 'ratio'.
+  splits=5
   subset_count_dir.sh data/counts_40k_${order} ${ratio} data/counts_40k_${order}_subset${ratio}
 
   mkdir -p data/optimize_40k_${order}_subset${ratio}

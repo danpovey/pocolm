@@ -51,6 +51,23 @@ except Exception as e:
              "an integer >0: {1}".format(args.count_dir, str(e)))
 f.close()
 
+
+# the following code checks split_modulus (which doesn't have to exist,
+# it's optional).
+if os.path.exists("{0}/split_modulus".format(args.count_dir)):
+    f = open("{0}/num_words".format(args.count_dir))
+    line = f.readline()
+    try:
+        split_modulus = int(line)
+        assert split_modulus > 0 and len(line.split()) == 1
+        assert f.readline() == ''
+    except Exception as e:
+        sys.exit("validate_count_dir.py: Expected file {0}/split_modulus (if it exists) "
+                 "to contain an integer >0: {1}".format(args.count_dir, str(e)))
+    f.close()
+
+
+
 # the following code checks ngram_order
 f = open("{0}/ngram_order".format(args.count_dir))
 line = f.readline()
