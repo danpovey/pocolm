@@ -102,7 +102,7 @@ class CountDiscounterBackward {
         end = state.count_derivs.end();
     std::vector<std::pair<int32,Count> >::const_iterator pair_iter =
         state.counts.begin();
-    for (; iter != end; ++iter, pair_iter++) {
+    for (; iter != end; ++iter, ++pair_iter) {
       assert((iter->top1 == 0.0 || pair_iter->second.top1 == 0.0) &&
              (iter->top2 == 0.0 || pair_iter->second.top2 == 0.0) &&
              (iter->top3 == 0.0 || pair_iter->second.top3 == 0.0) &&

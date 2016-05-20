@@ -12,7 +12,7 @@ BINFILES = get-text-counts get-int-counts print-int-counts \
     print-float-derivs perturb-float-counts discount-counts-1gram-backward \
     print-derivs perturb-counts discount-counts-backward \
     merge-counts-backward split-int-counts sum-count-derivs sum-float-derivs \
-    split-int-counts-by-order
+    split-int-counts-by-order float-counts-to-pre-arpa pre-arpa-to-arpa
 
 $(BINFILES): $(OBJFILES)
 
