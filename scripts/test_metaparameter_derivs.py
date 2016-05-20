@@ -13,6 +13,9 @@ parser = argparse.ArgumentParser(description="This script, to be used in testing
 parser.add_argument("--delta", type=float, default=1.0e-04,
                     help="Parameter-change with which to compute derivatives using "
                     "the difference method")
+parser.add_argument("--num-splits", type=int, default=1,
+                    help="If supplied and >1, we'll call get_objf_and_derivs_split.py "
+                    "to get the objective functions.");
 
 parser.add_argument("metaparameter_file",
                     help="Filename of metaparameters at which to compute derivatives")
@@ -34,16 +37,28 @@ if not os.path.exists(derivs_dir):
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])));
 
+if args.num_splits < 1:
+    sys.exit("test_metaparameter_derivs.py: --num-splits must be >0.")
+if args.num_splits > 1:
+    if (os.system("split_count_dir.sh {0} {1}".format(
+                args.count_dir, args.num_splits))) != 0:
+        sys.exit("test_metaparameter_derivs.py: failed to create split count-dir.")
+
 def RunCommand(command):
     # print the command for logging
     print(command, file=sys.stderr)
     if os.system(command) != 0:
         sys.exit("test_metaparameter_derivs.py: error running command: " + command)
 
+
+split_opt = "--num-splits={0}".format(args.num_splits) if args.num_splits > 1 else ""
+split_suffix = "_split" if args.num_splits > 1 else ""
+
 # make the first call to get_objf_and_derivs.py, getting the derivatives
 # and the objf.
-command = ("get_objf_and_derivs.py --derivs-out={derivs}/derivs {counts} "
+command = ("get_objf_and_derivs{split_suffix}.py {split_opt} --derivs-out={derivs}/derivs {counts} "
            "{metaparams} {derivs}/objf {temp} ".format(
+        split_opt = split_opt, split_suffix = split_suffix,
         derivs = derivs_dir, temp = temp_dir, counts = args.count_dir,
         metaparams = args.metaparameter_file))
 
@@ -73,8 +88,8 @@ def WriteMetaparameters(metaparameters, file):
         print("{0} {1}".format(name, value), file=f)
     f.close()
 
-modified_objfs = [0] * num_metaparameters
-deltas = [0] * num_metaparameters
+modified_objfs = [0.0] * num_metaparameters
+deltas = [0.0] * num_metaparameters
 
 for i in range(num_metaparameters):
     # always perturb towards 0.5, to avoid exiting the domain [0, 1].
@@ -85,8 +100,9 @@ for i in range(num_metaparameters):
     WriteMetaparameters(modified_metaparameters,
                         derivs_dir + os.sep + "metaparameters.{0}".format(i))
 
-    command = ("get_objf_and_derivs.py {counts} {derivs}/metaparameters.{i} "
+    command = ("get_objf_and_derivs{split_suffix}.py {split_opt} {counts} {derivs}/metaparameters.{i} "
                "{derivs}/objf.{i} {temp}".format(
+            split_opt = split_opt, split_suffix = split_suffix,
             counts = args.count_dir, derivs = derivs_dir, i = i, temp = temp_dir))
     print("test_metaparameter_derivs.py: running command " + command,
           file=sys.stderr)

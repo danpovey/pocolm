@@ -41,6 +41,7 @@ class __bfgs:
         self.f = f
         self.f_finite = f_finite
         self.gradient_tolerance = gradient_tolerance
+        self.num_restarts = 0
         self.progress_tolerance = progress_tolerance
         assert progress_tolerance_num_iters >= 1
         self.progress_tolerance_num_iters = progress_tolerance_num_iters
@@ -88,6 +89,7 @@ class __bfgs:
         if alpha is None:
             self.LogMessage("Restarting BFGS with unit Hessian since line search failed")
             self.inv_hessian = np.identity(self.dim)
+            self.num_restarts += 1
             return
         cur_x = self.x[-1]
         next_x = cur_x + alpha * self.p
@@ -111,11 +113,10 @@ class __bfgs:
             return
         rho_k = 1.0 / ysdot  # eq. 6.14 in Nocedal and Wright.
         # the next equation is eq. 6.17 in Nocedal and Wright.
-        # we don't bother rearranging it for efficiency because the dimension is small.
+        # the following comment is the simple but inefficient version
         # I = np.identity(self.dim)
         # self.inv_hessian = ((I - np.outer(s_k, y_k) * rho_k) * self.inv_hessian *
         #                     (I - np.outer(y_k, s_k) * rho_k)) + np.outer(s_k, s_k) * rho_k
-        # todo: maybe make the line above more efficient.
 
         z_k = np.dot(self.inv_hessian, y_k)
         self.inv_hessian += np.outer(s_k, s_k) * (ysdot + np.dot(y_k,z_k)) * rho_k**2 - \
@@ -142,7 +143,7 @@ class __bfgs:
         if phi_dash_0 >= 0.0:
             self.LogMessage("{0}: line search failed unexpectedly: not a descent "
                             "direction")
-
+            return None
         while True:
             i = len(phi)
             alpha_i = alpha[-1]
@@ -150,7 +151,7 @@ class __bfgs:
             phi.append(phi_i)
             phi_dash.append(phi_dash_i)
             if (phi_i > phi_0 + self.c1 * alpha_i * phi_dash_0 or
-                (i > 1 and phi_i > phi[-2])):
+                (i > 1 and phi_i >= phi[-2])):
                 return self.Zoom(alpha[-2], alpha_i)
             if abs(phi_dash_i) <= -self.c2 * phi_dash_0:
                 self.LogMessage("Line search: accepting default alpha = {0}".format(alpha_i))
@@ -249,6 +250,9 @@ class __bfgs:
             self.LogMessage("BFGS converged on iteration {0} due to gradient magnitude {1} "
                             "less than gradient tolerance {2}".format(
                     len(self.x), gradient_magnitude, self.gradient_tolerance))
+            return True
+        if self.num_restarts > 1:
+            self.LogMessage("Restarted BFGS computation twice: declaring convergence to avoid a loop")
             return True
         n = self.progress_tolerance_num_iters
         if len(self.x) > n:

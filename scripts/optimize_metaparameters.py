@@ -173,7 +173,7 @@ def MetaparametersAreAllowed(x):
 def BarrierFunctionAndDeriv(x):
     epsilon = args.barrier_epsilon
     barrier = 0.0
-    derivs = np.array([0] * len(x))
+    derivs = np.array([0.0] * len(x))
     global num_train_sets, ngram_order
     assert len(x) == num_train_sets + 4 * (ngram_order - 1)
     for i in range(num_train_sets):
@@ -215,7 +215,7 @@ def GetObjfAndDeriv(x):
     if not MetaparametersAreAllowed(x):
         # return negative infinity, and a zero derivative.
         print("Metaparameters not allowed: ", x)
-        return (1.0e+10, np.array([0]*len(x)))
+        return (1.0e+10, np.array([0.0]*len(x)))
 
     metaparameter_file = "{0}/{1}.metaparams".format(args.optimize_dir, iteration)
     deriv_file = "{0}/{1}.derivs".format(args.optimize_dir, iteration)
@@ -261,10 +261,13 @@ def GetObjfAndDeriv(x):
     # become exactly zero, so it's easier to use a barrier function to enforce
     # the constraints, so we don't have to deal with that issue.
     (barrier_objf, barrier_derivs) = BarrierFunctionAndDeriv(x)
+
+    barrier_free_magnitude = math.sqrt(np.vdot(derivs, derivs))
     objf += barrier_objf
     derivs += barrier_derivs
-    print("Iteration {0}: objf={1}, deriv-magnitude={2} (with barrier function)".format(
-            iteration, objf, math.sqrt(np.vdot(derivs, derivs))), file=sys.stderr)
+    print("Evaluation {0}: objf={1}, deriv-magnitude={2} (with barrier function; without = {3})".format(
+            iteration, objf, math.sqrt(np.vdot(derivs, derivs)),
+            barrier_free_magnitude), file=sys.stderr)
 
     # we need to negate the objective function and derivatives, since we are
     # minimizing.

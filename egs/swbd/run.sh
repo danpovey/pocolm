@@ -14,53 +14,38 @@ counts_to_vocab.py --num-words=20000 data/word_counts  > data/vocab_20k.txt
 # local/srilm_baseline.sh
 
 
-
 prepare_int_data.sh data/text data/vocab_20k.txt data/int_20k
-get_counts.sh data/int_20k 3 data/counts_20k_3
 
-mkdir -p data/optimize_20k_3
-get_initial_metaparameters.py \
-   --ngram-order=3 \
-   --names=data/counts_20k_3/names \
-   --num-train-sets=$(cat data/counts_20k_3/num_train_sets) > data/optimize_20k_3/0.metaparams
+# local/self_test.sh
 
-# validate_metaparameters.py \
-#    --ngram-order=3 \
-#   --num-train-sets=$(cat data/counts_20k_3/num_train_sets) \
-#    data/optimize_20k_3/0.metaparams
+for order in 3 4 5; do
 
-# get_objf_and_derivs.py --derivs-out=data/optimize_20k_3/0.derivs \
-#   data/counts_20k_3  data/optimize_20k_3/0.{metaparams,objf} data/optimize_20k_3/work.0
+  get_counts.sh data/int_20k ${order} data/counts_20k_${order}
 
-# validate_metaparameter_derivs.py \
-#    --ngram-order=3 \
-#   --num-train-sets=$(cat data/counts_20k_3/num_train_sets) \
-#    data/optimize_20k_3/0.{metaparams,derivs}
+  ratio=10
+  splits=5
+  subset_count_dir.sh data/counts_20k_${order} ${ratio} data/counts_20k_${order}_subset${ratio}
 
-#test_metaparameter_derivs.py \
-#  data/optimize_20k_3/0.metaparams \
-#  data/counts_20k_3 data/optimize_20k_3/temp
+  mkdir -p data/optimize_20k_${order}_subset${ratio}
 
-# # test_metaparameter_derivs.py: analytical and difference-method derivatives agree 98.9100764013%
+  optimize_metaparameters.py --progress-tolerance=2.0e-04 --num-splits=${splits} \
+     --barrier-epsilon=1.0e-03 \
+    data/counts_20k_${order}_subset${ratio} data/optimize_20k_${order}_subset${ratio}
 
+  optimize_metaparameters.py --warm-start-dir=data/optimize_20k_${order}_subset${ratio} \
+     --barrier-epsilon=1.0e-03 \
+    --progress-tolerance=1.0e-04 --num-splits=${splits} \
+    data/counts_20k_${order} data/optimize_20k_${order}
 
-optimize_metaparameters.py --gradient-tolerance=0.005 \
-  data/counts_20k_3 data/optimize_20k_3
+  make_lm_dir.py --num-splits=${splits} data/counts_20k_${order} \
+     data/optimize_20k_${order}/final.metaparams data/lm_20k_${order}
+done
 
-# log-prob on dev data increased from -4.42278966972 to -4.41127767165 over 6 passes of derivative estimation (perplexity: 83.3284201887->82.3746440442)
+# notes on SRILM baselines, from local/srilm_baseline.sh:
+# 3-gram: ppl= 84.6115
+# 4-gram: ppl= 89.0114
 
-
-get_counts.sh data/int_20k 4 data/counts_20k_4
-
-mkdir -p data/optimize_20k_4
-get_initial_metaparameters.py \
-   --ngram-order=4 \
-   --names=data/counts_20k_4/names \
-   --num-train-sets=$(cat data/counts_20k_4/num_train_sets) > data/optimize_20k_4/0.metaparams
-
-optimize_metaparameters.py --gradient-tolerance=0.005 \
-  data/counts_20k_4 data/optimize_20k_4
-
-# optimize_metaparameters.py: log-prob on dev data increased from -4.4224930661
-# to -4.38089709795 over 13 passes of derivative estimation (perplexity:
-# 83.3037083426->79.909688077
+# pocolm perplexities:
+# 3-gram:  final perplexity without barrier function was -4.4109445077 (perplexity: 82.3472043536)
+# 4-gram:  final perplexity without barrier function was -4.38097477755 (perplexity: 79.9158956707)
+# 5-gram:  final perplexity without barrier function was -4.37773395894 (perplexity: 79.6573219703)
