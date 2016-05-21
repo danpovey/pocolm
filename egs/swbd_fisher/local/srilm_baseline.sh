@@ -61,7 +61,7 @@ for order in 3 4; do
       -unk -write-lm data/srilm/combined.${order}g.kn.gz
 
   echo "Perplexity for combined $order-gram LM:"
-  ngram -unk -lm data/srilm/combined.${order}g.kn.gz -ppl data/text/dev.txt
+  ngram -unk -order $order -lm data/srilm/combined.${order}g.kn.gz -ppl data/text/dev.txt
 done
 
 # local/srilm_baseline.sh: estimating 3-gram baselines
@@ -74,16 +74,16 @@ done
 # For 3-gram LMs, giving weight of 0.600461 to SWBD1 and 0.399539 to Fisher
 # Perplexity for combined 3-gram LM:
 # file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
-# 0 zeroprobs, logprob= -244069 ppl= 79.9856 ppl1= 115.861
+# 0 zeroprobs, logprob= -244069 ppl= **79.9856** ppl1= 115.861
 
 # local/srilm_baseline.sh: estimating 4-gram baselines
 # Perplexity for swbd1 4-gram LM:
 # file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
-# 0 zeroprobs, logprob= -252017 ppl= 92.254 ppl1= 135.255
+# 0 zeroprobs, logprob= -248127 ppl= 86.0299 ppl1= 125.386
 # Perplexity for fisher 4-gram LM:
 # file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
-# 0 zeroprobs, logprob= -262949 ppl= 112.26 ppl1= 167.34
-# For 4-gram LMs, giving weight of 0.650063 to SWBD1 and 0.349937 to Fisher
+# 0 zeroprobs, logprob= -257323 ppl= 101.474 ppl1= 149.974
+# For 4-gram LMs, giving weight of 0.581204 to SWBD1 and 0.418796 to Fisher
 # Perplexity for combined 4-gram LM:
 # file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
-# 0 zeroprobs, logprob= -247772 ppl= 85.4848 ppl1= 124.525
+# 0 zeroprobs, logprob= -241822 ppl= **76.8235** ppl1= 110.902

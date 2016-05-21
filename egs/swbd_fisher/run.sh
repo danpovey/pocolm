@@ -52,5 +52,5 @@ done
 # order 5: optimize_metaparameters.py: final perplexity without barrier function was -4.30108107162 (perplexity: 73.7795115375)
 
 # note, the perplexities from SRILM-estimated language models from orders 3 and
-# 4 are (from local/srilm_baseline.sh), 79.9856 and 85.4848 respectively.
+# 4 are (from local/srilm_baseline.sh), 79.9856 and 76.8235 respectively.
 

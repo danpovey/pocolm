@@ -46,7 +46,7 @@ done
 
 # notes on SRILM baselines, from local/srilm_baseline.sh:
 # 3-gram: ppl= 84.6115
-# 4-gram: ppl= 89.0114
+# 4-gram: ppl= 82.9717
 
 # pocolm perplexities:
 # 3-gram: final perplexity without barrier function was -4.4111061032 (perplexity: 82.3605123665)
