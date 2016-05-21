@@ -13,7 +13,6 @@ counts_to_vocab.py --num-words=20000 data/word_counts  > data/vocab_20k.txt
 
 # local/srilm_baseline.sh
 
-
 prepare_int_data.sh data/text data/vocab_20k.txt data/int_20k
 
 # local/self_test.sh
@@ -29,11 +28,9 @@ for order in 3 4 5; do
   mkdir -p data/optimize_20k_${order}_subset${ratio}
 
   optimize_metaparameters.py --progress-tolerance=2.0e-04 --num-splits=${splits} \
-     --barrier-epsilon=1.0e-03 \
     data/counts_20k_${order}_subset${ratio} data/optimize_20k_${order}_subset${ratio}
 
   optimize_metaparameters.py --warm-start-dir=data/optimize_20k_${order}_subset${ratio} \
-     --barrier-epsilon=1.0e-03 \
     --progress-tolerance=1.0e-04 --num-splits=${splits} \
     data/counts_20k_${order} data/optimize_20k_${order}
 
@@ -46,6 +43,6 @@ done
 # 4-gram: ppl= 89.0114
 
 # pocolm perplexities:
-# 3-gram:  final perplexity without barrier function was -4.4109445077 (perplexity: 82.3472043536)
-# 4-gram:  final perplexity without barrier function was -4.38097477755 (perplexity: 79.9158956707)
-# 5-gram:  final perplexity without barrier function was -4.37773395894 (perplexity: 79.6573219703)
+# 3-gram: final perplexity without barrier function was -4.4111061032 (perplexity: 82.3605123665)
+# 4-gram: final perplexity without barrier function was -4.38100312372 (perplexity: 79.9181610124)
+# 5-gram: final perplexity without barrier function was -4.37786357735 (perplexity: 79.6676476949)
