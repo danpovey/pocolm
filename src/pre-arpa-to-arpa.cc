@@ -23,6 +23,7 @@
 #include <fstream>
 #include <vector>
 #include <stdlib.h>
+#include <string.h>
 #include "pocolm-types.h"
 #include "lm-state.h"
 
@@ -61,22 +62,21 @@ class PreArpaProcessor {
   }
 
  private:
-  // this function gets called if we find a line starting
-  // with " 0".  It gets the rest of the line.  An example
-  // would be a line " 0  3 54132143\n",
-  // and what would get passed into this function would be the part
-  // "  3 54132143\n".
+  // this function gets called if we find a line starting with " 0".  It gets
+  // the rest of the line.  An example would be a line " 0 3 54132143" (note:
+  // getline removes the newline), and what would get passed into this function
+  // would be the part " 3 54132143".
   inline void ProcessNgramCountLine(const char *line_in) {
     const char *line = line_in;
     while (isspace(*line)) line++;
     int64 ngram_order = strtol(line, const_cast<char**>(&line), 10);
     if (*line != ' ' || ngram_order <= 0) {
-      std::cerr << "pre-arpa-to-arpa: can't process line: 0 " << line_in;
+      std::cerr << "pre-arpa-to-arpa: can't process line: 0 " << line_in << "\n";
       exit(1);
     }
     int64 num_ngrams = strtol(line, const_cast<char**>(&line), 10);
-    if (*line != '\n' || num_ngrams < 0) {
-      std::cerr << "pre-arpa-to-arpa: can't process line: 0 " << line_in;
+    if (*line != '\0' || num_ngrams < 0) {
+      std::cerr << "pre-arpa-to-arpa: can't process line: 0 " << line_in << "\n";
       exit(1);
     }
     // produce a line like
@@ -92,6 +92,7 @@ class PreArpaProcessor {
     std::string line_str,
         extra_line_str;
     while (std::getline(std::cin, line_str)) {
+      std::ostringstream words;
       const char *line = line_str.c_str();
       int32 order = strtol(line, const_cast<char**>(&line), 10);
       if (!(*line == ' ' && order >= 0))
@@ -104,13 +105,13 @@ class PreArpaProcessor {
       if (order != cur_order) {
         // new order.  Print the separators in the ARPA file.
         // e.g. print "\n\\2-grams".
-        std::cout << "\n\\" << cur_order << "-grams:\n";
+        std::cout << "\n\\" << order << "-grams:\n";
         cur_order = order;
       }
-      // the next block prints out the string form of each of the words.
-      // e.g. if this line is " 3 891 22 81 -4.43142", the next block takes the
-      // entries for 891, 22 and 81 from the vocabulary file and prints each of
-      // them out followed by a space.
+      // the next block prints out to a temporary string, the string form of
+      // each of the words.  e.g. if this line is " 3 891 22 81 -4.43142", the
+      // next block takes the entries for 891, 22 and 81 from the vocabulary
+      // file and prints each of them into "words", followed by a space.
       for (int32 i = 0; i < order; i++) {
         int32 word = strtol(line, const_cast<char**>(&line), 10);
         if ((*line != ' ' && *line != '\t') || word < 0)
@@ -120,16 +121,16 @@ class PreArpaProcessor {
                     << "the vocabulary size: line is " << line_str;
           exit(1);
         }
-        std::cout << vocab_data[word] << ' ';
+        words << ' ' << vocab_data[word];
       }
       if (*line == ' ') {
         // We reach this position if we're processing an n-gram line that
         // was not preceded by a line showing the backoff probability
         // for that sequence.  In this case we just won't print out the
         // backoff log-prob, it defaults to zero if not printed.
-        // E.g. at this point we might have line == " -1.84292\n",
-        // and we print "-1.84292\n".
-        std::cout << (line + 1);
+        // E.g. at this point we might have line == " -1.84292",
+        // and we print "-1.84292".
+        std::cout << (line + 1) << words.str() << "\n";
       } else {
         if (*line != '\t')
           goto fail;
@@ -146,8 +147,8 @@ class PreArpaProcessor {
         // normal in ARPA-format LMs, e.g. SRILM does it).
         // The following code relies on the fact that kBosSymbol == 1,
         // documented in pocolm-types.h.
-        if (order == 1 && !strncmp(line_str.c_str(), " 1 1\t", 4)) {
-          std::cout << " -99 " << (line + 1);
+        if (order == 1 && !strncmp(line_str.c_str(), " 1 1\t", 5)) {
+          std::cout << "-99" << words.str() << ' ' << (line + 1) << "\n";
           continue;
         }
         // Each line with a backoff prob (except the edge case with <s>)
@@ -160,8 +161,8 @@ class PreArpaProcessor {
           exit(1);
         }
         // As an example, imagine that
-        // line_str == " 3 531 432 8901\t-1.43123\n"
-        // extra_line_str == " 3 531 432 8901 -2.984312\n"
+        // line_str == " 3 531 432 8901\t-1.43123"
+        // extra_line_str == " 3 531 432 8901 -2.984312"
         size_t extra_line_size = extra_line_str.size(),
             this_line_consumed = line - line_str.c_str();
         // check that the initial parts of the lines are identical.
@@ -173,27 +174,18 @@ class PreArpaProcessor {
                     << "followed by: " << extra_line_str << "... bad counts?\n";
           exit(1);
         }
-        // extra_line_float will point to "-2.984312\n" in the example.  we work
-        // out the length of the floating-point string- we need it in order to
-        // avoid printing out the terminating newline, because after this we'll
-        // print out the backoff prob and we don't want the line to end before
-        // that.
+        // extra_line_float will point to "-2.984312" in the example.  We print
+        // this out.
         const char *extra_line_float = extra_line_str.c_str() +
             this_line_consumed + 1;
-        size_t extra_line_float_length = extra_line_str.size() -
-            this_line_consumed - 2;
-        if (!(extra_line_float_length > 0)) {
-          std::cerr << "pre-arpa-to-arpa: read confusing sequence of lines: " << line_str
-                    << "followed by: " << extra_line_str << "... bad counts?\n";
-          exit(1);
-        }
-        std::cout.write(extra_line_float, extra_line_float_length);
+        std::cout << extra_line_float << words.str();
         // the next line will print out " -1.43123\n" in the example,
         // which is the log-base-10 backoff prob.
-        std::cout << ' ' << (line + 1);
+        std::cout << ' ' << (line + 1) << "\n";
       }
+      continue;
    fail:
-      std::cerr << "pre-arpa-to-arpa: could not process line " << line;
+      std::cerr << "pre-arpa-to-arpa: could not process line " << line << "\n";
       exit(1);
     }
     if (cur_order == -1) {
@@ -218,28 +210,29 @@ class PreArpaProcessor {
   void ReadVocabulary(const char *vocab_filename) {
     std::ifstream vocab_stream(vocab_filename);
     if (vocab_stream.fail()) {
-      std::cerr << "float-counts-to-arpa: error opening vocabulary file '"
+      std::cerr << "pre-arpa-to-arpa: error opening vocabulary file '"
                 << vocab_filename << "'\n";
       exit(1);
     }
     std::string line;
     while (std::getline(vocab_stream, line)) {
       std::istringstream is(line);
-      int32 i;
+      int32 i = -1;
       std::string word;
-      // read 'i' and 'word' then eat up whitespace.
+      // read 'word' then 'i' then eat up whitespace.
       // note: this approach should work for UTF-8 encoded text, as
       // (I believe) it's encoded in such a way that no character
       // could be interpreted as an (ASCII) space.
-      is >> i >> word >> std::ws;
-      if (is.fail() || !is.eof()) {
-        std::cerr << "float-counts-to-arpa: could not interpret the following line "
+      is >> word >> i >> std::ws;
+      is.peek();  // so it will register as EOF.
+      if (i == -1 || !is.eof()) {
+        std::cerr << "pre-arpa-to-arpa: could not interpret the following line "
                   << "(line " << (vocab_.size() + 1) << ") of the file "
                   << vocab_filename << ": " << line;
         exit(1);
       }
-      if (i != vocab_.size()) {
-        std::cerr << "float-counts-to-arpa: expected the vocab file "
+      if (static_cast<size_t>(i) != vocab_.size()) {
+        std::cerr << "pre-arpa-to-arpa: expected the vocab file "
                   << vocab_filename << " to have lines in order: unexpected "
                   << (vocab_.size() + 1) << "'th line " << line;
         exit(1);

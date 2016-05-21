@@ -30,8 +30,8 @@ ngram-count -text data/text/swbd1.txt -order 3 -limit-vocab -vocab data/srilm/wo
   -unk -map-unk "<unk>" -kndiscount -interpolate -lm data/srilm/sw1.o3g.kn.gz
 
 echo "Perplexity for SWBD1 trigram LM:"
-ngram -unk -lm data/srilm/sw1.o3g.kn.gz -ppl data/text/dev.txt
-ngram -unk -lm data/srilm/sw1.o3g.kn.gz -ppl data/text/dev.txt -debug 2 >& data/srilm/3gram.ppl2
+ngram -order 3 -unk -lm data/srilm/sw1.o3g.kn.gz -ppl data/text/dev.txt
+ngram -order 3 -unk -lm data/srilm/sw1.o3g.kn.gz -ppl data/text/dev.txt -debug 2 >& data/srilm/3gram.ppl2
 
 # Note, it probably says '0 OOVs' because we used the -unk option.
 # Perplexity for SWBD1 trigram LM:
@@ -43,10 +43,10 @@ ngram-count -text data/text/swbd1.txt -order 4 -limit-vocab -vocab data/srilm/wo
   -unk -map-unk "<unk>" -kndiscount -interpolate -lm data/srilm/sw1.o4g.kn.gz
 
 echo "Perplexity for SWBD1 4-gram LM:"
-ngram -unk -lm data/srilm/sw1.o4g.kn.gz -ppl data/text/dev.txt
-ngram -unk -lm data/srilm/sw1.o4g.kn.gz -ppl data/text/dev.txt -debug 2 >& data/srilm/4gram.ppl2
+ngram -order 4 -unk -lm data/srilm/sw1.o4g.kn.gz -ppl data/text/dev.txt
+ngram -order 4 -unk -lm data/srilm/sw1.o4g.kn.gz -ppl data/text/dev.txt -debug 2 >& data/srilm/4gram.ppl2
 
 #Perplexity for SWBD1 4-gram LM:
 #file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
-#0 zeroprobs, logprob= -250024 ppl= 89.0114 ppl1= 130.106
+#0 zeroprobs, logprob= -246110 ppl= 82.9717 ppl1= 120.56
 

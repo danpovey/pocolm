@@ -35,12 +35,12 @@ namespace pocolm {
 class PreArpaGenerator {
  public:
   PreArpaGenerator(int argc, const char **argv) {
-    assert(argc == 3);
+    assert(argc == 4);
     order_ = ConvertToInt(argv[1]);
     num_words_ = ConvertToInt(argv[2]);
     assert(order_ >= 2 && num_words_ >= 4);
     lm_states_.resize(order_);
-    num_ngrams_.resize(order_ - 1, 0);
+    num_ngrams_.resize(order_, 0);
     // we add one to the number of n-grams for order 1 (history-length 0),
     // because the BOS (<s>) will have its backoff printed although it has no
     // n-gram probability, which adds one line to the file that wouldn't
@@ -49,7 +49,7 @@ class PreArpaGenerator {
     word_to_position_map_.resize((num_words_ + 1) * (order_ - 1));
     // set fill character to space and precision to 6.
     std::cout << std::setfill(' ') << std::setprecision(6);
-    ProcessInput();
+    ProcessInput(argv[3]);
     OutputNumNgrams();
   }
 
@@ -66,14 +66,21 @@ class PreArpaGenerator {
 
  private:
 
-  void ProcessInput() {
-    while (std::cin.peek(), !std::cin.eof()) {
+  void ProcessInput(const char *float_counts) {
+    std::ifstream input;
+    input.open(float_counts, std::ios_base::in|std::ios_base::binary);
+    if (input.fail()) {
+      std::cerr << "float-counts-to-pre-arpa: error opening float-counts file "
+                << float_counts << "\n";
+      exit(1);
+    }
+    while (input.peek(), !input.eof()) {
       FloatLmState lm_state;
-      lm_state.Read(std::cin);
+      lm_state.Read(input);
       size_t hist_length = lm_state.history.size();
       assert(hist_length < lm_states_.size());
       lm_states_[hist_length].Swap(&lm_state);
-      if (hist_length < order_ - 1)
+      if (static_cast<int32>(hist_length) < order_ - 1)
         PopulateMap(hist_length);
       if (hist_length == 0)
         assert(lm_states_[0].total > 0 &&
@@ -85,7 +92,8 @@ class PreArpaGenerator {
 
   void PopulateMap(int32 hist_length) {
     int32 pos = 0, num_words = num_words_;
-    assert(word_to_position_map_.size() == (num_words + 1) * (order_ - 1));
+    assert(word_to_position_map_.size() ==
+           static_cast<size_t>((num_words + 1) * (order_ - 1)));
     int32 *map_data = &(word_to_position_map_[0]),
         orderm1 = order_ - 1;
     std::vector<std::pair<int32, float> >::const_iterator
@@ -145,7 +153,7 @@ class PreArpaGenerator {
       // we use tab instead of space just before the backoff prob...
       // this ensures that the backoff prob precedes the same-named
       // n-gram prob
-      std::cout << '\t' << log10_backoff_prob;
+      std::cout << '\t' << log10_backoff_prob << "\n";
     }
   }
 
@@ -190,7 +198,7 @@ class PreArpaGenerator {
   // of the state in lm_states_[hist_length].
   void CheckBackoffStatesExist(int32 hist_length) const {
     for (int32 i = 1; i < hist_length; i++) {
-      assert(lm_states_[i].history.size() == i);
+      assert(static_cast<int32>(lm_states_[i].history.size()) == i);
       assert(std::equal(lm_states_[i].history.begin(),
                         lm_states_[i].history.end(),
                         lm_states_[hist_length].history.begin()));
@@ -198,7 +206,7 @@ class PreArpaGenerator {
   }
 
   void OutputNumNgrams() const {
-    assert(num_ngrams_.size() == order_ - 1);
+    assert(static_cast<int32>(num_ngrams_.size()) == order_);
     std::cerr << "float-counts-to-pre-arpa: output [ ";
     for (int32 order = 1; order <= order_; order++) {
       // output will be something like: " 0  3 43142".
@@ -206,7 +214,7 @@ class PreArpaGenerator {
       // that the rest of the line says the number of n-grams for som eorder.
       // The padding with space is there to ensure that string order and
       // numeric order coincide, up to n-gram order = 99
-      std::cout << std::setw(2) << 0 << ' ' << order << ' ' << std::setw(0)
+      std::cout << std::setw(2) << 0 << ' ' << std::setw(2) << order << ' '
                 << num_ngrams_[order-1] << '\n';
       std::cerr << num_ngrams_[order-1] << ' ';
     }
@@ -239,9 +247,9 @@ class PreArpaGenerator {
 
 
 int main (int argc, const char **argv) {
-  if (argc != 3) {
-    std::cerr << "Usage: float-counts-to-pre-arpa <ngram-order> <num-words> < <float-counts>  > <pre-arpa-out>\n"
-              << "E.g. cat float.all | float-counts-to-pre-arpa 3 40000 | LC_ALL=C sort | pre-arpa-to-pre-arpa words.txt > arpa"
+  if (argc != 4) {
+    std::cerr << "Usage: float-counts-to-pre-arpa <ngram-order> <num-words> <float-counts>  > <pre-arpa-out>\n"
+              << "E.g. float-counts-to-pre-arpa 3 40000 float.all | LC_ALL=C sort | pre-arpa-to-pre-arpa words.txt > arpa"
               << "The output is in text form, with lines of the following types:\n"
               << "N-gram probability lines: <n-gram-order> <word1> ... <wordN> <log10-prob>, e.g.:\n"
               << " 3 162 82 978 -1.72432\n"

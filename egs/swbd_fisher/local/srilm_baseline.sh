@@ -30,13 +30,13 @@ for order in 3 4; do
   echo "$0: estimating $order-gram baselines"
 
   for source in swbd1 fisher; do
-    ngram-count -text data/text/${source}.txt -order ${order} -limit-vocab -vocab data/srilm/wordlist \
+    ngram-count -order ${order} -text data/text/${source}.txt -limit-vocab -vocab data/srilm/wordlist \
       -unk -map-unk "<unk>" -kndiscount -interpolate -lm data/srilm/$source.${order}g.kn.gz
 
     echo "Perplexity for $source $order-gram LM:"
-    ngram -unk -lm data/srilm/$source.${order}g.kn.gz -ppl data/text/dev.txt
+    ngram -order $order -unk -lm data/srilm/$source.${order}g.kn.gz -ppl data/text/dev.txt
 
-    ngram -unk -lm data/srilm/$source.${order}g.kn.gz -ppl data/text/dev.txt -debug 2 \
+    ngram -order $order -unk -lm data/srilm/$source.${order}g.kn.gz -ppl data/text/dev.txt -debug 2 \
       >& data/srilm/$source.${order}g.ppl2
   done
   compute-best-mix data/srilm/{swbd1,fisher}.${order}g.ppl2 >& data/srilm/swbd1_fisher_mix.${order}g.log
