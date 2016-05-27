@@ -56,7 +56,6 @@ test_metaparameter_derivs.py \
   $datasub/optimize/0.metaparams \
   $datasub/counts $datasub/temp
 
-
 # the following script expects $datasub/optimize/0.metaparams to
 # already exist.
 optimize_metaparameters.py \

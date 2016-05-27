@@ -80,7 +80,7 @@ def SpotCheckTextFile(text_file):
                 return;
             other_fields_set.add(other_word)
     print("validate_text_dir.py: input file {0} looks suspicious; check that you "
-          "dont have utterance-ids in the first field (i.e. you shouldn't provide "
+          "don't have utterance-ids in the first field (i.e. you shouldn't provide "
           "lines that look like 'utterance-id1 hello there').  Ignore this warning "
           "if you don't have that problem.".format(text_file), file=sys.stderr);
 

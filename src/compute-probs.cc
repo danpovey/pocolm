@@ -207,9 +207,8 @@ class ProbComputer {
         // of how discount-counts-1gram works.  This saves us having to do
         // a logarithmic-time lookup.
         assert(word >= kEosSymbol &&
-               static_cast<int32>(lm_state.counts.size()) >= word &&
-               lm_state.counts[word - kEosSymbol].first ==
-               word);
+               static_cast<int32>(lm_state.counts.size()) > word - kEosSymbol &&
+               lm_state.counts[word - kEosSymbol].first == word);
         double unigram_count = lm_state.counts[word - kEosSymbol].second,
             unigram_total = lm_state.total;
         tot_prob += cur_backoff_prob * unigram_count / unigram_total;
