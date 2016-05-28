@@ -85,6 +85,7 @@ for n in $(seq $num_train_sets) dev; do
     args="/dev/null $(for o in $(seq 2 $ngram_order); do echo -n $dir/int.$n.$o ''; done)"
   fi
 
+  export LC_ALL=C
   echo "# gunzip -c $int/$n.txt.gz | get-text-counts $ngram_order | sort | uniq -c | get-int-counts $args " \
      > $dir/log/get_counts.$n.log
   ( gunzip -c $int/$n.txt.gz | get-text-counts $ngram_order | sort | uniq -c | get-int-counts $args || \
