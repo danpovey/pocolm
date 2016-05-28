@@ -110,6 +110,6 @@ for name in names:
         # in theory it's possible that a file whose first 10 lines is empty
         # could be valid, a there is nothing wrong in principle with modeling
         # empty sequences.  But it's very odd.
-        sys.exit("validate_int_dir.py: did not see any data in file {1}/{2}.txt.gz".format(
+        sys.exit("validate_int_dir.py: did not see any data in file {0}/{1}.txt.gz".format(
                 args.int_dir, name))
     p.terminate()
