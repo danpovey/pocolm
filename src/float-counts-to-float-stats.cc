@@ -120,6 +120,14 @@ class FloatStatsGenerator {
         exit(1);
       }
     }
+    for (int32 o = 0; o < order_; o++) {
+      outputs_[o].close();
+      if (outputs_[o].fail()) {
+        std::cerr << "float-counts-to-float-stats: failed to close an output "
+                  << "file.  Disk full?\n";
+        exit(1);
+      }
+    }
     delete [] outputs_;
   }
   private:
@@ -143,7 +151,7 @@ class FloatStatsGenerator {
   void OpenOutputs(int argc, const char **argv) {
     outputs_ = new std::ofstream[order_];
     for (int32 i = 0; i < order_; i++) {
-      outputs_[i].open(argv[i + 2]);
+      outputs_[i].open(argv[i + 2], std::ios_base::out|std::ios_base::binary);
       if (outputs_[i].fail()) {
         std::cerr << "float-counts-to-float-stats: error opening output file '"
                   << argv[i + 2] << "' for writing.\n";
@@ -162,7 +170,7 @@ class FloatStatsGenerator {
       int32 history_length = lm_state.history.size();
       assert(history_length < order_ && "float-counts-to-float-stats: the order "
              "of the input counts is more than expected given the number of "
-             "outputs.");
+             "command-line arguments.");
 
       FlushOutput(history_length);
       lm_state.Swap(&(lm_states_[history_length]));
@@ -204,10 +212,10 @@ class FloatStatsGenerator {
     }
   }
 
-  // This function does the processing of, and then writes out and destroys,
-  // the LM-states of all history lengths >= this history-length.
-  // This is called prior to reading something in of this history length;
-  // and right at the end.
+  // This function does the processing of, and then writes out and destroys, the
+  // LM-states of all history lengths >= this history-length.  This is called
+  // prior to reading something in of this history length (to make space); and
+  // right at the end.
   void FlushOutput(int32 history_length) {
     assert(history_length < order_);
     for (int32 h = order_ - 1; h >= history_length; h--) {
@@ -424,18 +432,7 @@ int main (int argc, const char **argv) {
 }
 
 /*
- ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts 1.int 2.int 3.int
-
-  merge-counts 3.int,1.0 | discount-counts  0.8 0.7 0.6 /dev/stdin /dev/stdout /dev/null | print-float-counts
-
-  1.int,1.0 2.int,1.0 3.int,1.0
-
-  /dev/stdin,0.5 | discount-counts 0.8 0.7 0.6 /dev/stdin /dev/stdout /dev/null | print-float-counts
-
- rm *.int
-
-
-
-
+  There is a script to sanity-check this, see egs/simple/run.sh, and
+  'local/test_float_counts.sh' in that directory.
  */
 
