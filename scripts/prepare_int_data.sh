@@ -89,10 +89,11 @@ echo "dev dev" | cat - $dir/names | while read int name; do
   fi
 done
 
+wait
+
 if [ -f $dir/.error ]; then
   echo "$0: error detected; check the logs in $dir/log"
   exit 1
 fi
 
-wait
 exit 0

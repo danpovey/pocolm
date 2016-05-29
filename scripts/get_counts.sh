@@ -101,6 +101,8 @@ for n in $(seq $num_train_sets) dev; do
   fi
 done
 
+wait
+
 if [ -f $dir/.error ]; then
   echo "$0: error detected; check the logs in $dir/log"
   exit 1
@@ -114,5 +116,4 @@ cmd="split-int-counts-by-order /dev/null $(for o in $(seq 2 $ngram_order); do ec
 echo "# $cmd"
 eval $cmd
 
-wait
 exit 0
