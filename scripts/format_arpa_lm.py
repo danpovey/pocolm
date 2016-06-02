@@ -30,7 +30,7 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
 # this will affect the program "sort" that we call.
 os.environ['LC_ALL'] = 'C'
 # this temporary directory will be used by "sort".
-os.environ['TEMPDIR'] = args.temp_dir
+os.environ['TMPDIR'] = args.temp_dir
 
 if os.system("validate_lm_dir.py " + args.lm_dir) != 0:
     sys.exit("format_arpa_lm.py: failed to validate input LM directory")
