@@ -47,8 +47,6 @@
 */
 
 
-// paul hsu maxent interpolation
-
 int main (int argc, const char **argv) {
   int num_outputs = argc - 1;
   if (num_outputs <= 0) {
@@ -98,7 +96,7 @@ int main (int argc, const char **argv) {
 
     if (count <= 0 || errno != 0)
       goto fail;
-    // note, this code assumes there is no space at the end of the line.
+    // This code assumes there is no space at the end of the line.  This is
     // safe, since the data is produced by our own binary.
     while (*cur_pos != '\0') {
       int base = 10;
@@ -116,15 +114,15 @@ int main (int argc, const char **argv) {
     predicted_word = wseq.back();
     wseq.pop_back();
 
-    if (int_lm_state.history != wseq) {
+    if (int_lm_state.history != wseq || first_time) {
       if (!first_time) {
         int32 output_index = (num_outputs == 1 ? 0 :
                               int_lm_state.history.size());
         int_lm_state.Write(outputs[output_index]);
         num_states_written++;
       }
-      first_time = false;
       int_lm_state.Init(wseq);
+      first_time = false;
     }
     int_lm_state.AddCount(predicted_word, count);
     num_counts++;

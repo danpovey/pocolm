@@ -44,7 +44,7 @@ namespace pocolm {
 class FloatCountsEstimator {
  public:
   // usage is:
-  // float-counts-to-float-stats <num-words> <float-counts-input> <float-stats-input> <order1-counts-output> ... <orderN-counts-output>
+  // float-counts-estimate <num-words> <float-counts-input> <float-stats-input> <order1-counts-output> ... <orderN-counts-output>
   // both inputs and outputs are of float-counts type.
   FloatCountsEstimator(int argc, const char **argv):
       order_(argc - 4), outputs_(NULL),
@@ -54,7 +54,7 @@ class FloatCountsEstimator {
     char *end;
     num_words_ = strtol(argv[1], &end, 10);
     if (num_words_ <= 3 || *end != '\0') {
-      std::cerr << "float-counts-to-float-stats: expected num-words as 1st argument, "
+      std::cerr << "float-counts-estimate: expected num-words as 1st argument, "
                 << "got '" << argv[1] << "'\n";
       exit(1);
     }
@@ -67,7 +67,7 @@ class FloatCountsEstimator {
     for (int32 o = 0; o < order_; o++) {
       outputs_[o].close();
       if (outputs_[o].fail()) {
-        std::cerr << "float-counts-to-float-stats: failed to close an output "
+        std::cerr << "float-counts-estimate: failed to close an output "
                   << "file.  Disk full?\n";
         exit(1);
       }
