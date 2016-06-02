@@ -76,7 +76,7 @@ echo $num_words >$dir/num_words
 # we can include the preparation of the dev data in the following
 # by adding "0 dev" to the contents of $dir/names using cat.
 
-echo "dev dev" | cat - $dir/names | while read int name; do
+while read int name; do
   set -o pipefail
   ( if [ -f $text/$name.txt.gz ]; then gunzip -c $text/$name.txt.gz; else cat $text/$name.txt; fi | \
     text_to_int.py $vocab | gzip -c >$dir/$int.txt.gz ) 2>$dir/log/$int.log || touch $dir/.error &
@@ -87,7 +87,7 @@ echo "dev dev" | cat - $dir/names | while read int name; do
       exit 1
     fi
   fi
-done
+done < <(echo "dev dev" | cat - $dir/names)
 
 wait
 
