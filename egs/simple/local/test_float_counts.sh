@@ -66,3 +66,9 @@ float-counts-estimate 10 data/work/float2.all data/work/float_stats.all a1 b1 c1
 # print-float-counts: printed 9 LM states, with 15 individual n-grams.
 
 
+float-counts-to-histories <data/work/float.all | LC_ALL=C sort | histories-to-null-counts >data/work/protected.all
+
+float-counts-prune 0.01 10 data/work/float.all data/work/protected.all data/work/pruned.{1,2,3}
+
+
+

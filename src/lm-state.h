@@ -127,6 +127,41 @@ class FloatLmState {
 
 
 /**
+   NullLmState stores LM states that just contain lists of words, with no count
+   (hence "null", because the count is null).  This is used in the pruning code
+   where we need to keep track of which N-grams are 'protected' because they
+   lead to LM states that exist.
+ */
+class NullLmState {
+ public:
+  // Reversed history, e.g. count of "a b c" would have c as 'next-word', and [
+  // b a ] as 'history'.
+  std::vector<int32> history;
+
+  // A list of words that appear in that history, sorted.
+  std::vector<int32> predicted;
+
+  // writes to the ostream.  Throws on error.
+  void Write(std::ostream &os) const;
+
+  // prints in text form to the ostream (for debug- the output is not computer readable).
+  void Print(std::ostream &os) const;
+
+  // reads from the istream, which is assumed to not be at EOF.
+  // Throws on error.
+  void Read(std::istream &is);
+
+  // checks the data for validity, dies if that fails.
+  void Check() const;
+
+  void Swap(NullLmState *other) {
+    history.swap(other->history);
+    predicted.swap(other->predicted);
+  }
+};
+
+
+/**
    This class is the general case of storing counts for an LM state, in which we
    might have done weighting, smoothing and interpolation.  Unlike IntLmState,
    we assume that the individual counts might be of different size (due to

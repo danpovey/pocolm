@@ -60,8 +60,6 @@
  */
 
 
-// paul hsu maxent interpolation
-
 int main (int argc, char **argv) {
   int ngram_order;
   if (argc != 2) {

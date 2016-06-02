@@ -117,6 +117,74 @@ void IntLmState::Check() const {
   }
 }
 
+void NullLmState::Write(std::ostream &os) const {
+  int32 history_size = history.size(), num_predicted = predicted.size();
+  assert(num_predicted > 0);
+  os.write(reinterpret_cast<const char*>(&history_size), sizeof(int32));
+  os.write(reinterpret_cast<const char*>(&num_predicted), sizeof(int32));
+  if (history_size > 0) {
+    os.write(reinterpret_cast<const char*>(&(history[0])),
+             sizeof(int32) * history_size);
+  }
+  os.write(reinterpret_cast<const char*>(&(predicted[0])),
+           sizeof(int32) * num_predicted);
+  if (!os.good()) {
+    std::cerr << "Failure writing NullLmState to stream\n";
+    exit(1);
+  }
+}
+
+void NullLmState::Read(std::istream &is) {
+  int32 history_size, num_predicted;
+  is.read(reinterpret_cast<char*>(&history_size), sizeof(int32));
+  is.read(reinterpret_cast<char*>(&num_predicted), sizeof(int32));
+  if (!is.good() || is.eof()) {
+    std::cerr << "Failure reading FloatLmState from stream\n";
+    exit(1);
+  }
+  if (history_size < 0 || history_size > 10000 || num_predicted <= 0) {
+    std::cerr << "Failure reading NullLmState from stream: "
+        "got implausible data (wrong input?)\n";
+    exit(1);
+  }
+  history.resize(history_size);
+  predicted.resize(num_predicted);
+  if (history_size > 0) {
+    is.read(reinterpret_cast<char*>(&(history[0])),
+            sizeof(int32) * history_size);
+  }
+  is.read(reinterpret_cast<char*>(&(predicted[0])),
+          sizeof(int32) * num_predicted);
+  if (!is.good()) {
+    std::cerr << "Failure reading NullLmState from stream\n";
+    exit(1);
+  }
+  if (rand() % 10 == 0)
+    Check();
+}
+
+void NullLmState::Check() const {
+  for (size_t i = 0; i < history.size(); i++)
+    assert(history[i] > 0 && history[i] != static_cast<int32>(kEosSymbol));
+  assert(predicted.size() > 0);
+  for (size_t i = 0; i + 1 < predicted.size(); i++) {
+    assert(predicted[i] < predicted[i+1]);
+  }
+}
+
+void NullLmState::Print(std::ostream &os) const {
+  os << " [ ";
+  int32 hist_size = history.size();
+  for (int32 i = 0; i < hist_size; i++)
+    os << history[i] << " ";
+  os << "]: ";
+  int32 predicted_size = predicted.size();
+  for (int32 i = 0; i < predicted_size; i++)
+    os << predicted[i] << " ";
+  os << "\n";
+}
+
+
 void FloatLmState::Write(std::ostream &os) const {
   int32 history_size = history.size(), num_counts = counts.size();
   assert(num_counts > 0);

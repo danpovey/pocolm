@@ -32,9 +32,4 @@ get_initial_metaparameters.py \
 
 get_objf_and_derivs.py data/counts data/metaparams data/objf data/work
 
-
-
-get_counts.sh $datasub/int $ngram_order $datasub/counts
-
-
 local/test_float_counts.sh
