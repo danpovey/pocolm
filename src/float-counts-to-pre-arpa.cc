@@ -26,6 +26,7 @@
 #include <fstream>
 #include <vector>
 #include <stdlib.h>
+#include <string.h>
 #include "pocolm-types.h"
 #include "lm-state.h"
 
