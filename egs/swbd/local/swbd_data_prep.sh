@@ -19,13 +19,15 @@ fi
 # make everything lowercase here. This is because we will be using SRILM which
 # can optionally make everything lowercase (but not uppercase) when mapping
 # LM vocabs.
-awk '{
-       name=substr($1,1,6); gsub("^sw","sw0",name); side=substr($1,7,1);
-       stime=$2; etime=$3;
-       printf("%s-%s_%06.0f-%06.0f",
-              name, side, int(100*stime+0.5), int(100*etime+0.5));
-       for(i=4;i<=NF;i++) printf(" %s", $i); printf "\n"
-}' data/swbd1/swb_ms98_transcriptions/*/*/*-trans.text  > data/swbd1/transcripts1.txt
+for f in data/swbd1/swb_ms98_transcriptions/*/*/*-trans.text; do
+  awk '{
+         name=substr($1,1,6); gsub("^sw","sw0",name); side=substr($1,7,1);
+         stime=$2; etime=$3;
+         printf("%s-%s_%06.0f-%06.0f",
+                name, side, int(100*stime+0.5), int(100*etime+0.5));
+         for(i=4;i<=NF;i++) printf(" %s", $i); printf "\n"
+  }' $f
+done > data/swbd1/transcripts1.txt
 
 # test if trans. file is sorted
 export LC_ALL=C;
