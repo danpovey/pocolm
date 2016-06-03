@@ -43,7 +43,7 @@ for order in 3 4 5; do
     --progress-tolerance=1.0e-04 --num-splits=${splits} \
     data/counts_40k_${order} data/optimize_40k_${order}
 
-  make_lm_dir.py --num-splits=${splits} data/counts_40k_${order} \
+  make_lm_dir.py --num-splits=${splits} --keep-splits=true data/counts_40k_${order} \
      data/optimize_40k_${order}/final.metaparams data/lm_40k_${order}
 done
 
