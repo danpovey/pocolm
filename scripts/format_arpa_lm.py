@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(description="This script turns a pocolm languag
 
 parser.add_argument("--temp-dir", type=str,
                     help="Temporary directory for use by 'sort'; if not provided, "
-                    "we use the source directory.")
+                    "we use the destination directory lm_dir")
 parser.add_argument("lm_dir",
                     help="Directory of the source language model, as created "
                     "by make_lm_dir.py")
@@ -55,9 +55,25 @@ except:
     sys.exit("format_arpa_lm.py: error getting num-words from {0}/words.txt".format(
             args.lm_dir))
 
-command = ("float-counts-to-pre-arpa {ngram_order} {num_words} {lm_dir}/float.all | sort |"
-           " pre-arpa-to-arpa {lm_dir}/words.txt".format(
-        ngram_order = ngram_order, num_words = num_words, lm_dir = args.lm_dir))
+if not os.path.exists(args.lm_dir + "/num_splits"):
+    # LM counts are in one file.
+    command = ("float-counts-to-pre-arpa {ngram_order} {num_words} {lm_dir}/float.all | sort |"
+               " pre-arpa-to-arpa {lm_dir}/words.txt".format(
+            ngram_order = ngram_order, num_words = num_words, lm_dir = args.lm_dir))
+else:
+    # reading num_splits shouldn't fail, we validated the directory.
+    num_splits = int(open(args.lm_dir + "/num_splits").readline())
+    # create command line of the form:
+    # sort -m <(command1) <(command2) ... <(commandN) | pre-arpa-to-arpa ...
+    # we put it all inside bash -c, because the process substitution <(command)
+    # won't always work in /bin/sh.
+    command = ("bash -c 'sort -m " + # merge-sort
+               " ".join([ "<(float-counts-to-pre-arpa {opt} {ngram_order} {num_words} "
+                          "{lm_dir}/float.all.{n} | sort)".format(
+                    opt = ('--no-unigram' if n > 1 else ''),
+                    ngram_order = ngram_order, num_words = num_words,
+                    lm_dir = args.lm_dir, n = n) for n in range(1, num_splits + 1)]) +
+               " | pre-arpa-to-arpa {lm_dir}/words.txt'".format(lm_dir = args.lm_dir))
 
 print("format_arpa_lm.py: running " + command, file=sys.stderr)
 

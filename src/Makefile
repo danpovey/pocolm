@@ -14,7 +14,8 @@ BINFILES = get-text-counts get-int-counts print-int-counts \
     merge-counts-backward split-int-counts sum-count-derivs sum-float-derivs \
     split-int-counts-by-order float-counts-to-pre-arpa pre-arpa-to-arpa \
     float-counts-to-float-stats float-counts-estimate float-counts-to-histories \
-    histories-to-null-counts print-null-counts float-counts-prune
+    histories-to-null-counts print-null-counts float-counts-prune \
+	float-counts-remove-zeros
 
 $(BINFILES): $(OBJFILES)
 

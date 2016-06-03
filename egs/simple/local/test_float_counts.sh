@@ -70,5 +70,8 @@ float-counts-to-histories <data/work/float.all | LC_ALL=C sort | histories-to-nu
 
 float-counts-prune 0.01 10 data/work/float.all data/work/protected.all data/work/pruned.{1,2,3}
 
+float-counts-remove-zeros data/work/pruned.3
+
+
 
 

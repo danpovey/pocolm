@@ -36,9 +36,7 @@ for order in 3 4 5; do
 
   make_lm_dir.py --num-splits=${splits} data/counts_20k_${order} \
      data/optimize_20k_${order}/final.metaparams data/lm_20k_${order}
-done
 
-for order in 3 4 5; do
   mkdir -p data/arpa
   format_arpa_lm.py data/lm_20k_${order} | gzip -c > data/arpa/20k_${order}gram_unpruned.arpa.gz
 done

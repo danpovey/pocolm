@@ -58,50 +58,83 @@ class PreArpaProcessor {
                     const char **argv) {
     assert(argc == 2);
     ReadVocabulary(argv[1]);
-    ProcessInput();
+    ProcessNgramCountLines();
+    ProcessNgrams();
   }
 
  private:
-  // this function gets called if we find a line starting with " 0".  It gets
-  // the rest of the line.  An example would be a line " 0 3 54132143" (note:
-  // getline removes the newline), and what would get passed into this function
-  // would be the part " 3 54132143".
-  inline void ProcessNgramCountLine(const char *line_in) {
-    const char *line = line_in;
-    while (isspace(*line)) line++;
-    int64 ngram_order = strtol(line, const_cast<char**>(&line), 10);
-    if (*line != ' ' || ngram_order <= 0) {
-      std::cerr << "pre-arpa-to-arpa: can't process line: 0 " << line_in << "\n";
-      exit(1);
+  // this function processes those lines of the input that start with " 0" and
+  // represent the numbers of n-grams of different orders, e.g. the line "0 3
+  // 5431423" means that there are 5431423 order-3 ngrams.  In order for this to
+  // work in the pipeline where we're working from a split-up LM, we have to
+  // aggregate counts across multiple lines, so for instance if we see two lines
+  // "0 3 12" and "0 3 13", we add up 12 + 13 = 25 and output a line like
+  // "ngram 3=25".
+  void ProcessNgramCountLines() {
+    int32 current_order = -1;
+    int64 current_ngram_count = 0;
+    std::cout << "\\data\\\n";
+    while (1) {
+      std::cin >> std::ws;  // eat up whitespace.
+      int32 marker = -1, this_order = -1;
+      if (std::cin.peek() == '0') {
+        // this is a line with a number-of-ngrams, like "0 1 500".  at this
+        // point we read in the 0 (which identifies it as a line that has a
+        // number of ngrams), and the order (the 1 in the example).
+        std::cin >> marker >> std::ws >> this_order;
+        if (std::cin.fail() || marker != 0 || this_order < 1) {
+          std::cerr << "pre-arpa-to-arpa, error at file position "
+                    << std::cin.tellg() << ", expected int: marker = "
+                    << marker << ", order = " << this_order << '\n';
+          exit(1);
+        }
+      }
+      if (this_order != current_order) {
+        if (current_order != -1) {
+          // we have now seen all the lines of a particular order, e.g.  all
+          // lines of the form "0 2 X" (for order 2).  We need to print out the
+          // 'ngram' line with the accumulated count.
+          std::cout << "ngram " << current_order << '='
+                  << current_ngram_count << '\n';
+        }
+        current_order = this_order;
+        current_ngram_count = 0;
+      }
+      if (this_order == -1) {
+        // the line does not begin with '0' (the peek() didn't find '0').  we're
+        // done with the header, so return.  Before we return, unget the most
+        // recent character which would have been a space.  Its absence would
+        // confuse the main loop in ProcessNgrams(), which compares the strings
+        // of successive lines.
+        std::cin.unget();
+        assert(std::cin.peek() == ' ');
+        return;
+      }
+      int64 this_count = -1;
+      std::cin >> this_count;
+      if (std::cin.fail() || this_count < 0) {
+        std::cerr << "pre-arpa-to-arpa, error at file position "
+                  << std::cin.tellg() << ", expected int.";
+        exit(1);
+      }
+      current_ngram_count += this_count;
     }
-    int64 num_ngrams = strtol(line, const_cast<char**>(&line), 10);
-    if (*line != '\0' || num_ngrams < 0) {
-      std::cerr << "pre-arpa-to-arpa: can't process line: 0 " << line_in << "\n";
-      exit(1);
-    }
-    // produce a line like
-    // 'ngram 1=40000'
-    std::cout << "ngram " << ngram_order << "=" << num_ngrams << "\n";
   }
 
-  void ProcessInput() {
+  void ProcessNgrams() {
     std::string *vocab_data = &(vocab_[0]);
     int32 vocab_size = vocab_.size(),
         cur_order = -1;
-    std::cout << "\\data\\\n";
     std::string line_str,
         extra_line_str;
+
     while (std::getline(std::cin, line_str)) {
       std::ostringstream words;
       const char *line = line_str.c_str();
       int32 order = strtol(line, const_cast<char**>(&line), 10);
-      if (!(*line == ' ' && order >= 0))
+      if (!(*line == ' ' && order > 0))
         goto fail;
       line++;  // consume the ' '
-      if (order == 0) {
-        ProcessNgramCountLine(line);
-        continue;
-      }
       if (order != cur_order) {
         // new order.  Print the separators in the ARPA file.
         // e.g. print "\n\\2-grams".
@@ -170,8 +203,8 @@ class PreArpaProcessor {
             strncmp(line_str.c_str(), extra_line_str.c_str(),
                     this_line_consumed) != 0 ||
             extra_line_str[this_line_consumed] != ' ') {
-          std::cerr << "pre-arpa-to-arpa: read confusing sequence of lines: " << line_str
-                    << "followed by: " << extra_line_str << "... bad counts?\n";
+          std::cerr << "pre-arpa-to-arpa: read confusing sequence of lines: '" << line_str
+                    << "' followed by: '" << extra_line_str << "'... bad counts?\n";
           exit(1);
         }
         // extra_line_float will point to "-2.984312" in the example.  We print
@@ -253,7 +286,10 @@ int main (int argc, const char **argv) {
   if (argc != 2) {
     std::cerr << "Usage: pre-arpa-to-arpa <vocab-file>  < <pre-arpa-lines> > <arpa-file>\n"
               << "e.g.:  float-counts-to-pre-arpa 3 40000 <float.all | sort | \\\n"
-              << "    pre-arpa-to-arpa words.txt | gzip -c > arpa.gz\n";
+              << "    pre-arpa-to-arpa words.txt | gzip -c > arpa.gz\n"
+              << "Note: this program will also work if you start from several 'split' files\n"
+              << "of a language model (float.all.1, float.all.2), split by most recent\n"
+              << "history state, and do sort and merge-sort after float-counts-to-pre-arpa.\n";
     exit(1);
   }
 

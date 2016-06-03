@@ -64,11 +64,27 @@ while True:
                 num_train_sets, args.lm_dir, line[0:-1]))
 f.close()
 
-count_file = args.lm_dir + "/float.all"
-if not os.path.exists(count_file):
-    sys.exit("validate_lm_dir.py: Expected file {0} to exist".format(count_file))
-if not os.path.getsize(count_file) > 0:
-    sys.exit("validate_lm_dir.py: Expected file {0} to be nonempty".format(count_file))
+
+if os.path.exists(args.lm_dir + "/num_splits"):
+    # split LM dir, contains float.all.split{1,2,3..}
+    f = open(args.lm_dir + "/num_splits")
+    try:
+        num_splits = int(f.readline())
+        assert f.readline() == '' and num_splits > 1
+        f.close()
+    except:
+        sys.exit("validate_lm_dir.py: {0}/num_splits had unexpected contents.")
+    for i in range(1, num_splits + 1):
+        name = "{0}/float.all.{1}".format(args.lm_dir, i)
+        if not os.path.exists(name):
+            sys.exit("validate_lm_dir.py: expected file {0} to exist".format(name))
+else:
+    # non-split LM dir, contains float.all
+    count_file = args.lm_dir + "/float.all"
+    if not os.path.exists(count_file):
+        sys.exit("validate_lm_dir.py: Expected file {0} to exist".format(count_file))
+    if not os.path.getsize(count_file) > 0:
+        sys.exit("validate_lm_dir.py: Expected file {0} to be nonempty".format(count_file))
 
 if os.system("validate_metaparameters.py --ngram-order={0} --num-train-sets={1} "
              "{2}/metaparameters".format(ngram_order,

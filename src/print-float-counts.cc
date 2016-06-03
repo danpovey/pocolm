@@ -41,8 +41,7 @@ int main (int argc, char **argv) {
         exit(1);
   }
 
-  int64 num_lm_states = 0;
-  int64 num_counts = 0;
+  int64 num_lm_states = 0, num_counts = 0;
 
   // we only get EOF after trying to read past the end of the file,
   // so first call peek().

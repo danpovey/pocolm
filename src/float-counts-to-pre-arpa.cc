@@ -35,7 +35,16 @@ namespace pocolm {
 class PreArpaGenerator {
  public:
   PreArpaGenerator(int argc, const char **argv) {
-    assert(argc == 4);
+    // note: we checked the following condition already in main(), this
+    // documents it locally.
+    assert(argc == 4 || (argc == 5 && !strcmp(argv[1], "--no-unigram")));
+    if (argc == 5) {
+      print_unigrams_ = false;
+      argc--;
+      argv++;
+    } else {
+      print_unigrams_ = true;
+    }
     order_ = ConvertToInt(argv[1]);
     num_words_ = ConvertToInt(argv[2]);
     assert(order_ >= 2 && num_words_ >= 4);
@@ -85,7 +94,8 @@ class PreArpaGenerator {
       if (hist_length == 0)
         assert(lm_states_[0].total > 0 &&
                "Zero count for 1-gram history state (something went wrong?)");
-      OutputLmState(hist_length);
+      if (hist_length > 0 || print_unigrams_)
+        OutputLmState(hist_length);
     }
   }
 
@@ -208,10 +218,10 @@ class PreArpaGenerator {
   void OutputNumNgrams() const {
     assert(static_cast<int32>(num_ngrams_.size()) == order_);
     std::cerr << "float-counts-to-pre-arpa: output [ ";
-    for (int32 order = 1; order <= order_; order++) {
+    for (int32 order = (print_unigrams_ ? 1 : 2); order <= order_; order++) {
       // output will be something like: " 0  3 43142".
       // the "0" will be interpreted by pre-arpa-to-arpa- it tells it
-      // that the rest of the line says the number of n-grams for som eorder.
+      // that the rest of the line says the number of n-grams for some order.
       // The padding with space is there to ensure that string order and
       // numeric order coincide, up to n-gram order = 99
       std::cout << std::setw(2) << 0 << ' ' << std::setw(2) << order << ' '
@@ -241,14 +251,17 @@ class PreArpaGenerator {
   // in lm_states_[hist_len].counts that this word exists.  Note: for words that
   // are not in that counts vector, the value is undefined.
   std::vector<int32> word_to_position_map_;
+
+  // will be false if --no-unigram option was used.
+  bool print_unigrams_;
 };
 
 }  // namespace pocolm
 
 
 int main (int argc, const char **argv) {
-  if (argc != 4) {
-    std::cerr << "Usage: float-counts-to-pre-arpa <ngram-order> <num-words> <float-counts>  > <pre-arpa-out>\n"
+  if (!(argc == 4 || (argc == 5 && !strcmp(argv[1], "--no-unigram")))) {
+    std::cerr << "Usage: float-counts-to-pre-arpa [--no-unigram] <ngram-order> <num-words> <float-counts>  > <pre-arpa-out>\n"
               << "E.g. float-counts-to-pre-arpa 3 40000 float.all | LC_ALL=C sort | pre-arpa-to-pre-arpa words.txt > arpa"
               << "The output is in text form, with lines of the following types:\n"
               << "N-gram probability lines: <n-gram-order> <word1> ... <wordN> <log10-prob>, e.g.:\n"

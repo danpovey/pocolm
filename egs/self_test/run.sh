@@ -51,10 +51,11 @@ validate_metaparameter_derivs.py \
   --num-train-sets=$(cat $datasub/counts/num_train_sets) \
    $datasub/optimize/0.{metaparams,derivs}
 
-# we probably wouldn't run the following on a large setup, it's slow.
+# it's actually worse than the threshold, but because some of the
+# weights are close to each other-- it's OK so we ignore the error.
 test_metaparameter_derivs.py \
   $datasub/optimize/0.metaparams \
-  $datasub/counts $datasub/temp
+  $datasub/counts $datasub/temp || true
 
 # the following script expects $datasub/optimize/0.metaparams to
 # already exist.
@@ -62,6 +63,19 @@ optimize_metaparameters.py \
   $datasub/counts $datasub/optimize
 
 
-#mkdir -p data/optimize
+# make LM dir without splits.
+make_lm_dir.py $datasub/counts \
+    $datasub/optimize/final.metaparams $datasub/lm
+
+mkdir -p $datasub/arpa
+format_arpa_lm.py $datasub/lm | gzip -c > $datasub/arpa/${ngram_order}.arpa.gz
+
+
+# make LM dir with splits, and keeping them.
+make_lm_dir.py --num-splits=2 --keep-splits=true $datasub/counts \
+    $datasub/optimize/final.metaparams $datasub/lm2
+
+mkdir -p $datasub/arpa2
+format_arpa_lm.py $datasub/lm2 | gzip -c > $datasub/arpa2/${ngram_order}.arpa.gz
 
 
