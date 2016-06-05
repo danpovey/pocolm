@@ -1,4 +1,4 @@
-// split-int-counts.cc
+// split-float-counts.cc
 
 // Copyright     2016  Johns Hopkins University (Author: Daniel Povey)
 
@@ -31,19 +31,17 @@
 
 
 /*
-   This program operates on 'int-counts' of the form that are output by
-   'get-int-counts'.  It reads counts from its stdin (which must all
-   have history-length >0), and outputs the counts to its outputs, splitting
-   them up by taking the most recent word in the history modulo the
-   number of outputs.
+   This program operates on 'float-counts'; it splits them up by taking the most
+   recent word in the history modulo the number of outputs.  The empty
+   history-state is written to all outputs.
 */
 
 
 int main (int argc, const char **argv) {
-  if (argc < 3 || (!strcmp(argv[1], "-d") && argc < 5)) {
-    std::cerr << "split-int-counts: expected usage:\n"
-              << "split-int-counts [-d N] <output1> <output2> ... <outputN>  < <input-int-counts>\n"
-              << "This program reads int-counts from its stdin, and distributes them\n"
+  if (argc < 3) {
+    std::cerr << "split-float-counts: expected usage:\n"
+              << "split-float-counts  <output1> <output2> ... <outputN>  < <input-float-counts>\n"
+              << "This program reads float-counts from its stdin, and distributes them\n"
               << "among the provided outputs by taking the most recent word in the history\n"
               << "modulo the number of outputs.\n"
               << "The -d option takes an integer argument N > 0; if supplied, we will\n"
@@ -53,18 +51,6 @@ int main (int argc, const char **argv) {
     exit(1);
   }
 
-  int N = 1;
-  if (argc >= 3 && !strcmp(argv[1], "-d")) {
-    char *end;
-    N = strtol(argv[2], &end, 10);
-    if (N < 1 || *end != '\0') {
-      std::cerr << "split-int-counts: -d option expects integer argument >0.";
-      exit(1);
-    }
-    argc -= 2;
-    argv += 2;
-  }
-
   int num_outputs = argc - 1;
 
   std::ofstream *outputs = new std::ofstream[num_outputs];
@@ -72,7 +58,7 @@ int main (int argc, const char **argv) {
   for (int32 i = 0; i < num_outputs; i++) {
     outputs[i].open(argv[i + 1], std::ios_base::binary|std::ios_base::out);
     if (!outputs[i]) {
-      std::cerr << "split-int-counts: Failed to open '" << argv[i + 1] << "' for output.\n";
+      std::cerr << "split-float-counts: Failed to open '" << argv[i + 1] << "' for output.\n";
       exit(1);
     }
   }
@@ -81,25 +67,30 @@ int main (int argc, const char **argv) {
   int32 num_states_written = 0;
   std::vector<int64> counts_written_per_output(num_outputs, 0);
 
-  pocolm::IntLmState int_lm_state;
+  pocolm::FloatLmState lm_state;
 
   while (std::cin.peek(),!std::cin.eof()) {
-    int_lm_state.Read(std::cin);
-    assert(int_lm_state.history.size() > 0 &&
-           "split-int-counts: did not expect input with empty history.");
-    int32 most_recent_history_word = int_lm_state.history[0];
-    assert(most_recent_history_word > 0);
-    int32 output = (most_recent_history_word / N) % num_outputs;
-    counts_written_per_output[output] += int_lm_state.counts.size();
-    num_states_written++;
-    int_lm_state.Write(outputs[output]);
+    lm_state.Read(std::cin);
+    if (lm_state.history.empty()) {
+      // write to all outputs.
+      for (int i = 0; i < num_outputs; i++) {
+        lm_state.Write(outputs[i]);
+        counts_written_per_output[i] += lm_state.counts.size();
+      }
+    } else {
+      int32 most_recent_history_word = lm_state.history[0];
+      assert(most_recent_history_word > 0);
+      int32 output = most_recent_history_word % num_outputs;
+      counts_written_per_output[output] += lm_state.counts.size();
+      lm_state.Write(outputs[output]);
+    }
   }
 
   std::ostringstream info_string;
   for (int32 i = 0; i < num_outputs; i++) {
     outputs[i].close();
     if (outputs[i].fail()) {
-      std::cerr << "split-int-counts: failed to close file "
+      std::cerr << "split-float-counts: failed to close file "
                 << argv[i + 1] << " (disk full?)\n";
       exit(1);
     }
@@ -108,7 +99,7 @@ int main (int argc, const char **argv) {
   delete [] outputs;
 
 
-  std::cerr << "split-int-counts: processed "
+  std::cerr << "split-float-counts: processed "
             << num_states_written << " LM states, with the counts "
             << "for each output respectively as: "
             << info_string.str() << "\n";
@@ -116,9 +107,3 @@ int main (int argc, const char **argv) {
   return 0;
 }
 
-/*
-  testing
-
- ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort -n | uniq -c | get-int-counts /dev/stdout /dev/null /dev/null | split-int-counts /dev/stdout /dev/null | print-int-counts
-
- */

@@ -78,4 +78,6 @@ make_lm_dir.py --num-splits=2 --keep-splits=true $datasub/counts \
 mkdir -p $datasub/arpa2
 format_arpa_lm.py $datasub/lm2 | gzip -c > $datasub/arpa2/${ngram_order}.arpa.gz
 
-
+split_lm_dir.py $datasub/lm 3 $datasub/lm3
+mkdir -p $datasub/arpa3
+format_arpa_lm.py $datasub/lm3 | gzip -c > $datasub/arpa3/${ngram_order}.arpa.gz

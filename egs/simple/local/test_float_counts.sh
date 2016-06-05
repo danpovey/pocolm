@@ -68,10 +68,27 @@ float-counts-estimate 10 data/work/float2.all data/work/float_stats.all a1 b1 c1
 
 float-counts-to-histories <data/work/float.all | LC_ALL=C sort | histories-to-null-counts >data/work/protected.all
 
-float-counts-prune 0.01 10 data/work/float.all data/work/protected.all data/work/pruned.{1,2,3}
+float-counts-prune 0.5 10 data/work/float.all data/work/protected.all data/work/pruned.{1,2,3}
 
-float-counts-remove-zeros data/work/pruned.3
+merge-float-counts data/work/pruned.{1,2,3}  | float-counts-remove-zeros | print-float-counts
+
+merge-float-counts data/work/pruned.{1,2,3} > data/work/pruned.all
+
+float-counts-remove-zeros <data/work/pruned.all >data/work/pruned.all.nozeros
+
+float-counts-stats-remove-zeros 10 data/work/pruned.all data/work/float_stats.all \
+        data/work/pruned.all.nozeros2  a b c
+merge-float-counts a b c > data/work/stats_pruned.all.nozeros
+# check output is same as float-counts-remove-zeros
+cmp data/work/pruned.all.nozeros{,2}
+
+# check that float-counts-estimate gives the same result before and after removing
+# zero counts.
+float-counts-estimate 10 data/work/pruned.all data/work/float_stats.all a1 b1 c1
+# float-counts-estimate: logprob per word was -1.425 over 3.5 words.
 
 
+float-counts-estimate 10 data/work/pruned.all.nozeros data/work/stats_pruned.all.nozeros a1 b1 c1
+# float-counts-estimate: logprob per word was -1.425 over 3.5 words.
 
 

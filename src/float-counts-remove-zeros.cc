@@ -51,11 +51,12 @@ void RemoveZeroCounts(FloatLmState *lm_state) {
 */
 
 
-int main (int argc, char **argv) {
+int main (int argc, const char **argv) {
   if (argc != 1) {
     std::cerr << "Usage: float-counts-remove-zeros  < <float-counts> > <float-counts>\n"
               << "This program copies float-counts while removing zero counts and\n"
-              << "LM-states that have no counts.\n";
+              << "LM-states that have no counts.\n"
+              << "See also float-counts-stats-remove-zeros\n";
     exit(1);
   }
 
@@ -75,7 +76,7 @@ int main (int argc, char **argv) {
     if (!lm_state.counts.empty()) {
       num_lm_states_out++;
       num_counts_out += static_cast<int64>(lm_state.counts.size());
-      lm_state.Print(std::cout);
+      lm_state.Write(std::cout);
     }
   }
 
