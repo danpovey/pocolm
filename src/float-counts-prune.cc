@@ -248,6 +248,7 @@ class FloatCountsPruner {
     while (float_counts_input_.peek(), !float_counts_input_.eof()) {
       FloatLmState lm_state;
       lm_state.Read(float_counts_input_);
+      total_count_ += lm_state.total - lm_state.discount;
       int32 history_length = lm_state.history.size();
       assert(history_length < order_ && "float-counts-prune: the order "
              "of the input counts is more than expected given the number of "
@@ -481,9 +482,6 @@ class FloatCountsPruner {
     CheckBackoffStatesExist(history_length);
     FloatLmState &lm_state = lm_states_[history_length],
         &backoff_state = lm_states_[history_length - 1];
-    // update total_count_ before pruning... it would be the same before or
-    // after, as long as we were consistent.
-    total_count_ += lm_state.total - lm_state.discount;
     float threshold = threshold_;
     double lm_state_discount = lm_state.discount;
     double backoff_state_total = backoff_state.total;
