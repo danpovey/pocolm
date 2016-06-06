@@ -183,7 +183,7 @@ class FloatCountsPruner {
     std::cout << num_ngrams_ << ' ' << num_ngrams_shadowed_ << ' '
               << num_ngrams_protected_ << ' ' << num_ngrams_pruned_ << '\n';
 
-    std::cout << "float-counts-prune: aside from unigram there were "
+    std::cerr << "float-counts-prune: aside from unigram there were "
               << num_ngrams_ << " nonzero n-grams.\n";
     int64 num_ngrams_eligible = num_ngrams_ - num_ngrams_shadowed_ -
         num_ngrams_protected_;

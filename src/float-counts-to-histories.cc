@@ -99,7 +99,7 @@ int main (int argc, char **argv) {
 
   std::cerr << "float-counts-to-histories: printed "
             << num_histories_printed << " histories (out of "
-            << num_histories_total << " in total.\n";
+            << num_histories_total << " in total).\n";
   return 0;
 }
 
