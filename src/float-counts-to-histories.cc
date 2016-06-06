@@ -62,7 +62,8 @@ int main (int argc, char **argv) {
     exit(1);
   }
 
-  int64 num_histories_printed = 0;
+  int64 num_histories_total = 0,
+      num_histories_printed = 0;
 
   // we only get EOF after trying to read past the end of the file,
   // so first call peek().
@@ -70,7 +71,20 @@ int main (int argc, char **argv) {
     pocolm::FloatLmState lm_state;
     lm_state.Read(std::cin);
     const std::vector<int32> &history = lm_state.history;
-    if (!history.empty()) {
+    // histories will only be 'protected' if there is at least one
+    // nonzero n-gram count in that state.
+    bool found_nonzero_count = false;
+    std::vector<std::pair<int32, float> >::const_iterator
+        counts_iter = lm_state.counts.begin(),
+        counts_end = lm_state.counts.end();
+    for (; counts_iter != counts_end; ++counts_iter) {
+      if (counts_iter->second != 0.0) {
+        found_nonzero_count = true;
+        break;
+      }
+    }
+
+    if (found_nonzero_count && !history.empty()) {
       for (size_t i = 1; i < history.size(); i++) {
         std::cout << ' ';
         PrintNumber(history[i]);
@@ -78,12 +92,14 @@ int main (int argc, char **argv) {
       std::cout << "\t";
       PrintNumber(history[0]);
       std::cout << '\n';
+      num_histories_printed++;
     }
-    num_histories_printed++;
+    num_histories_total++;
   }
 
   std::cerr << "float-counts-to-histories: printed "
-            << num_histories_printed << " histories.\n";
+            << num_histories_printed << " histories (out of "
+            << num_histories_total << " in total.\n";
   return 0;
 }
 
