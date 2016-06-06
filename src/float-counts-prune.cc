@@ -430,7 +430,7 @@ class FloatCountsPruner {
 
     float ans = this_a_change + other_a_change + b_change + c_change;
     // ans should be negative.
-    assert(ans < 0.0001 * (count + discount));
+    assert(ans <= 0.0001 * (count + discount + backoff_count + backoff_total));
     return ans;
   }
 
