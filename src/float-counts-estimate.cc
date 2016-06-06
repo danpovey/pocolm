@@ -341,7 +341,7 @@ class FloatCountsEstimator {
       // first deal with the backoff/discount count.
       float old_backoff_prob = lm_state.discount / old_total,
           new_backoff_prob = work.discount / work_total;
-      this_auxf_impr += work.discount * log(old_backoff_prob / new_backoff_prob);
+      this_auxf_impr += work.discount * log(new_backoff_prob / old_backoff_prob);
       assert(this_auxf_impr - this_auxf_impr == 0.0); // check for NaN.
     }
 

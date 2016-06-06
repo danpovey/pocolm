@@ -89,11 +89,12 @@ class ZeroRemover {
         lm_state.Write(counts_out_);
       // Now read in the float-stats.
       lm_state.Read(stats_in_);
-      assert(history_length == lm_state.history.size() &&
+      assert(static_cast<size_t>(history_length) == lm_state.history.size() &&
              "float-counts-stats-remove-zeros: mismatched stats?");
       // Most of the work happens inside FlushOutput().
       lm_stats_[history_length].Swap(&lm_state);
-      PopulateMap(history_length);
+      if (history_length < order_ - 1)
+        PopulateMap(history_length);
     }
     FlushOutput(0);
     stats_in_.peek();
@@ -158,8 +159,8 @@ class ZeroRemover {
         float stats_count = stats_in_iter->second;
         int32 backoff_pos = word_to_position_map_data[word * orderm1 +
                                                       history_length - 1];
-        assert(backoff_pos < backoff_lm_stats.counts.size() &&
-               backoff_lm_stats.counts[backoff_pos].first == word);
+        assert(static_cast<size_t>(backoff_pos) < backoff_lm_stats.counts.size()
+               && backoff_lm_stats.counts[backoff_pos].first == word);
         backoff_lm_stats.counts[backoff_pos].second += stats_count;
         extra_discount += stats_count;
       }
@@ -205,7 +206,7 @@ class ZeroRemover {
     char *end;
     int32 ans = strtol(arg, &end, 10);
     if (end == arg || *end != '\0') {
-      std::cerr << "float-counts-to-pre-arpa: command line: expected int, got '"
+      std::cerr << "float-counts-stats-remove-zeros: command line: expected int, got '"
                 << arg << "'\n";
       exit(1);
     }

@@ -110,7 +110,8 @@ class NullCountsReader {
     // first in the lexicographical ordering.
     assert(lm_states_[history_length].history <= lm_state.history);
     lm_states_[history_length].Swap(&lm_state);
-    PopulateMap(history_length);
+    if (history_length < order_ - 1)
+      PopulateMap(history_length);
   }
 
   std::istream &input_;
@@ -429,7 +430,7 @@ class FloatCountsPruner {
 
     float ans = this_a_change + other_a_change + b_change + c_change;
     // ans should be negative.
-    assert(ans < 0.0001 * count);
+    assert(ans < 0.0001 * (count + discount));
     return ans;
   }
 
@@ -527,7 +528,7 @@ class FloatCountsPruner {
         int32 pos = word_to_position_map_[word * (order_ - 1) +
                                           history_length - 1];
         assert(lm_states_[history_length - 1].counts[pos].first == word);
-        count_shadowed_[history_length][pos] = true;
+        count_shadowed_[history_length - 1][pos] = true;
       }
     }
   }

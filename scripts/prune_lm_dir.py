@@ -10,9 +10,9 @@ parser = argparse.ArgumentParser(description="This script takes an lm-dir, as pr
                                  "the counts and writes out to a new lm-dir.")
 
 parser.add_argument("--steps", type=str,
-                    default='prune*4.0 EM EM EM prune*2.0 EM EM prune*1.0 EM EM ',
+                    default='prune*0.25 EM EM EM prune*0.5 EM EM EM prune*1.0 EM EM EM prune*1.0 EM EM EM',
                     help='This string specifies a sequence of steps in the pruning sequence.'
-                    'prune*X, with X >= 1.0, tells it to prune with X times the threshold '
+                    'prune*X, with X <= 1.0, tells it to prune with X times the threshold '
                     'specified with the --threshold option.  EM specifies one iteration of '
                     'E-M on the model. ')
 parser.add_argument("--remove-zeros", type=str, choices=['true','false'],
@@ -110,15 +110,21 @@ def CreateInitialWorkDir():
     # create protected.all
     CreateProtectedCounts(work0dir)
 
-    # create stats.all
+    stats_star = ' '.join([ "{0}/stats.{1}".format(work0dir, n)
+                            for n in range(1, ngram_order + 1) ])
+
+    # create stats.{1,2,3..}
     # e.g. command = 'float-counts-to-float-stats 20000 foo/work/iter0/stats.1 '
     #                'foo/work/iter0/stats.2 <foo/work/iter0/float.all'
     command = ("float-counts-to-float-stats {0} ".format(num_words) +
-               ' '.join([ "{0}/stats.{1}".format(work0dir, n)
-                          for n in range(1, ngram_order + 1) ]) +
+               stats_star +
                " <{0}/float.all".format(work0dir))
     RunCommand(command)
-
+    command = "merge-float-counts {0} > {1}/stats.all".format(
+        stats_star, work0dir)
+    RunCommand(command)
+    command = "rm " + stats_star
+    RunCommand(command)
 
 def RunPruneStep(work_in, work_out, threshold):
     # set float_star = 'work_out/float.1 work_out/float.2 ...'
@@ -147,9 +153,11 @@ def RunPruneStep(work_in, work_out, threshold):
         stats_star = " ".join([ '{0}/stats.{1}'.format(work_out, n)
                                 for n in range(1, ngram_order + 1) ])
 
-        command = ('merge-float-counts {float_star} | float-counts-stats-remove-zeros /dev/stdin '
-                   '{work_in}/stats.all {work_out}/float.all {stats_star}'.format(
-                float_star = float_star, work_in = work_in, work_out = work_out,
+        command = ('merge-float-counts {float_star} | float-counts-stats-remove-zeros '
+                   '{num_words} /dev/stdin {work_in}/stats.all {work_out}/float.all '
+                   '{stats_star}'.format(
+                num_words = num_words, float_star = float_star,
+                work_in = work_in, work_out = work_out,
                 stats_star = stats_star))
         RunCommand(command)
 
@@ -196,7 +204,7 @@ def RunStep(step_number):
     if step_text[0:6] == 'prune*':
         try:
             scale = float(step_text[6:])
-            assert scale >= 1.0
+            assert scale <= 1.0
         except:
             sys.exit("prune_lm_dir.py: invalid step (wrong --steps "
                      "option): '{0}'".format(step_text))
@@ -216,7 +224,7 @@ def FinalizeOutput(final_work_out):
     except:
         sys.exit("prune_lm_dir.py: error moving {0}/float.all to {1}/float.all".format(
                 final_work_out, args.lm_dir_out))
-    f = open(args.lm_dir_out + "/was_pruned")
+    f = open(args.lm_dir_out + "/was_pruned", "w")
     print("true", file=f)
     f.close()
     for f in [ 'names', 'words.txt', 'ngram_order', 'metaparameters' ]:
@@ -240,6 +248,6 @@ ngram_order = GetNgramOrder(args.lm_dir_in)
 CreateInitialWorkDir()
 for step in range(len(steps)):
     RunStep(step)
-FinalizeOutput(work_dir + "/iter" + str(len(step) + 1))
+FinalizeOutput(work_dir + "/iter" + str(len(steps)))
 
 
