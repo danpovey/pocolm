@@ -468,6 +468,7 @@ class FloatCountsPruner {
     // after, as long as we were consistent.
     total_count_ += lm_state.total - lm_state.discount;
     float threshold = threshold_;
+    double backoff_state_total = backoff_state.total;
     assert(count_shadowed_[history_length].size() == lm_state.counts.size());
     std::vector<std::pair<int32, float> >::iterator
         counts_iter = lm_state.counts.begin(),
@@ -504,7 +505,10 @@ class FloatCountsPruner {
         lm_state.discount += count;  // assign it to backoff in this state..
         backoff_state.counts[pos].second += count;  // and move it to the
                                                     // backoff state
-        backoff_state.total += count;  // update total of the backoff state.
+        // update total of the backoff state; we use a double-precision
+        // variable to keep track of this.
+        backoff_state_total += count;
+        backoff_state.total = backoff_state_total;
         total_logprob_change_ += logprob_change;
         num_ngrams_pruned_++;
       }
