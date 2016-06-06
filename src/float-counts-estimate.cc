@@ -77,11 +77,11 @@ class FloatCountsEstimator {
     std::cout << total_count_ << ' ' << total_logprob_ << ' ';
     for (int32 o = 0; o < order_; o++)
       std::cout << auxf_impr_[o] << ' ';
-    std::cout << '\n';
+    std::cout << std::endl;
 
     std::cerr << "float-counts-estimate: logprob per word was "
               << (total_logprob_  / total_count_) << " over "
-              << total_count_ << " words.\n";
+              << total_count_ << " words." << std::endl;
     std::cerr << "float-counts-estimate: auxiliary function improvement per "
               << "word was [ ";
     for (int32 o = 0; o < order_; o++) {
@@ -91,7 +91,7 @@ class FloatCountsEstimator {
     }
     float total_auxf_impr = std::accumulate(auxf_impr_.begin(),
                                             auxf_impr_.end(), 0.0);
-    std::cerr << " ] = " << (total_auxf_impr / total_count_) << "\n";
+    std::cerr << " ] = " << (total_auxf_impr / total_count_) << std::endl;
   }
 
  private:

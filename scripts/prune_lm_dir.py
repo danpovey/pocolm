@@ -2,7 +2,7 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess, shutil
+import re, os, argparse, sys, math, warnings, subprocess, shutil, threading
 from collections import defaultdict
 
 parser = argparse.ArgumentParser(description="This script takes an lm-dir, as produced by make_lm_dir.py, "
@@ -18,6 +18,8 @@ parser.add_argument("--steps", type=str,
 parser.add_argument("--remove-zeros", type=str, choices=['true','false'],
                     default='true', help='Set this to false to disable an optimization. '
                     'Only useful for debugging purposes.')
+parser.add_argument("--check-exact-divergence", type=str, choices=['true','false'],
+                    default='true', help='')
 parser.add_argument("lm_dir_in",
                     help="Source director, for the input language model.")
 parser.add_argument("threshold", type=float,
@@ -133,6 +135,39 @@ def CreateInitialWorkDir():
     command = "rm " + stats_star
     RunCommand(command)
 
+# sets initial_logprob_per_word.
+def GetInitialLogprob():
+    work0dir = work_dir + "/iter0"
+    float_star = ' '.join([ '/dev/null' for n in range(1, ngram_order + 1) ])
+    command = ('float-counts-estimate {num_words} {work0dir}/float.all '
+               '{work0dir}/stats.all {float_star} '.format(
+            num_words = num_words, work0dir = work0dir,
+            float_star = float_star))
+    try:
+        print(command, file=sys.stderr)
+        p = subprocess.Popen(command, stdout = subprocess.PIPE, shell = True)
+        # the stdout of this program will be something like:
+        # 1.63388e+06 -7.39182e+06 10.5411 41.237 49.6758
+        # representing: total-count, total-like, and for each order, the like-change
+        # for that order.
+        line = p.stdout.readline()
+        print(line, file=sys.stderr)
+        a = line.split()
+        tot_count = float(a[0])
+        tot_like = float(a[1])
+        like_change = 0.0
+        logprob_per_word = tot_like / tot_count
+        for i in range(2, len(a)):  # for each n-gram order
+            like_change += float(a[i])
+        like_change_per_word = like_change / tot_count
+        assert like_change_per_word < 0.0001  # should be exactly zero.
+    except Exception as e:
+        sys.exit("prune_lm_dir.py: error running command '{0}', error is '{1}'".format(
+                command, str(e)))
+    global initial_logprob_per_word
+    initial_logprob_per_word = logprob_per_word
+
+
 def RunPruneStep(work_in, work_out, threshold):
     # set float_star = 'work_out/float.1 work_out/float.2 ...'
     float_star = " ".join([ '{0}/float.{1}'.format(work_out, n)
@@ -216,6 +251,8 @@ def RunEmStep(work_in, work_out):
         tot_count = float(a[0])
         tot_like = float(a[1])
         like_change = 0.0
+        global final_logprob_per_word
+        final_logprob_per_word = tot_like / tot_count
         for i in range(2, len(a)):  # for each n-gram order
             like_change += float(a[i])
         like_change_per_word = like_change / tot_count
@@ -294,22 +331,42 @@ num_words = GetNumWords(args.lm_dir_in)
 ngram_order = GetNgramOrder(args.lm_dir_in)
 initial_num_ngrams = None
 final_num_ngrams = None
-
-
+initial_logprob_per_word = None
+final_logprob_per_word = None
+waiting_thread = None
 logprob_changes = []
 
 CreateInitialWorkDir()
+
+if args.check_exact_divergence == 'true':
+    if steps[-1] != 'EM':
+        print("prune_lm_dir.py: --check-exact-divergence=true won't give you the "
+              "exact divergence because the last step is not 'EM'.", file=sys.stderr)
+    waiting_thread = threading.Thread(target=GetInitialLogprob)
+    waiting_thread.start()
+
 for step in range(len(steps)):
     logprob_changes.append(RunStep(step))
 
 FinalizeOutput(work_dir + "/iter" + str(len(steps)))
 
+if waiting_thread != None:
+    waiting_thread.join()
+
 print ("prune_lm_dir.py: log-prob changes per iter were "
        + str(logprob_changes), file=sys.stderr)
 
-print ("prune_lm_dir.py: reduced number of n-grams from {0} to {1}, i.e. by {2}%;"
-       " measured K-L divergence was {3}".format(
+print ("prune_lm_dir.py: reduced number of n-grams from {0} to {1}, i.e. by {2}%".format(
         initial_num_ngrams, final_num_ngrams,
-        100.0 * (initial_num_ngrams - final_num_ngrams) / initial_num_ngrams,
-        -sum(logprob_changes)),
+        100.0 * (initial_num_ngrams - final_num_ngrams) / initial_num_ngrams),
        file=sys.stderr)
+
+print ("prune_lm_dir.py: approximate K-L divergence was {0}".format(-sum(logprob_changes)),
+       file=sys.stderr)
+
+if initial_logprob_per_word != None and steps[-1] == 'EM':
+    print ("prune_lm_dir.py: exact K-L divergence was {0}".format(
+            initial_logprob_per_word - final_logprob_per_word))
+
+# clean up the work directory.
+shutil.rmtree(work_dir)
