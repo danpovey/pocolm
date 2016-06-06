@@ -39,8 +39,17 @@ for order in 3 4 5; do
 
   mkdir -p data/arpa
   format_arpa_lm.py data/lm_20k_${order} | gzip -c > data/arpa/20k_${order}gram_unpruned.arpa.gz
+
+  # example of pruning.  note: the threshold can be less than or more than one.
+  threshold=1.0
+  prune_lm_dir.py data/lm_20k_${order} $threshold data/lm_20k_${order}_prune${threshold}
 done
 
+  split=5; order=3
+  make_lm_dir.py --num-splits=${splits} --keep-splits=true data/counts_20k_${order} \
+     data/optimize_20k_${order}/final.metaparams data/lm_20k_${order}
+  threshold=1.0
+  prune_lm_dir.py data/lm_20k_${order} $threshold data/lm_20k_${order}_prune${threshold}
 
 # notes on SRILM baselines, from local/srilm_baseline.sh:
 # 3-gram: ppl= 84.6115

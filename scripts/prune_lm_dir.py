@@ -41,10 +41,11 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
 if os.system("validate_lm_dir.py " + args.lm_dir_in) != 0:
     sys.exit("prune_lm_dir.py: failed to validate input LM-dir")
 
+num_splits = None
 if os.path.exists(args.lm_dir_in + "/num_splits"):
-    sys.exit("prune_lm_dir.py: input LM-dir is split ({0}/num_splits exists). "
-             "This script currently only works with non-split LM-dirs.".format(
-            args.lm_dir_in))
+    f = open(args.lm_dir_in + "/num_splits")
+    num_splits = int(f.readline())
+    f.close()
 
 if args.threshold <= 0.0:
     sys.exit("prune_lm_dir.py: --threshold must be positive: got " + str(args.threshold))
@@ -105,7 +106,13 @@ def CreateInitialWorkDir():
     # create float.all
     if not os.path.isdir(work0dir):
         os.makedirs(work0dir)
-    SoftLink(args.lm_dir_in + "/float.all", work0dir + "/float.all")
+    if num_splits == None:
+        SoftLink(args.lm_dir_in + "/float.all", work0dir + "/float.all")
+    else:
+        splits_star = ' '.join([ args.lm_dir_in + "/float.all." + str(n)
+                                 for n in range(1, num_splits + 1) ])
+        command = "merge-float-counts " + splits_star + " >{0}/float.all".format(work0dir)
+        RunCommand(command)
 
     # create protected.all
     CreateProtectedCounts(work0dir)
@@ -234,6 +241,8 @@ def FinalizeOutput(final_work_out):
         except:
             sys.exit("prune_lm_dir.py: error copying {0}/{1} to {2}/{1}".format(
                     args.lm_dir_in, f, args.lm_dir_out))
+    if os.path.exists(args.lm_dir_out + "/num_splits"):
+        os.remove(args.lm_dir_out + "/num_splits")
 
 
 if not os.path.isdir(work_dir):
@@ -249,5 +258,3 @@ CreateInitialWorkDir()
 for step in range(len(steps)):
     RunStep(step)
 FinalizeOutput(work_dir + "/iter" + str(len(steps)))
-
-

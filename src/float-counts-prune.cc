@@ -445,12 +445,29 @@ class FloatCountsPruner {
       if (!lm_states_[h].counts.empty()) {
         DoPruningForLmState(h);
         UpdateCountShadowed(h);
+        FixTotalCount(&(lm_states_[h]));
         lm_states_[h].Write(outputs_[h]);
         // after we make the following call, we treat this history-state
         // as being empty.
         lm_states_[h].counts.clear();
       }
     }
+  }
+
+  // this fixes small errors in the total-count of LM-states, that
+  // are caused by the accumulation of numerical roundoff.
+  static void FixTotalCount(FloatLmState *lm_state) {
+    double total_count = lm_state->discount;
+    std::vector<std::pair<int32, float> >::const_iterator
+        iter = lm_state->counts.begin(),
+        end = lm_state->counts.end();
+    for (; iter != end; ++iter)
+      total_count += iter->second;
+    if (fabs(lm_state->total - total_count) > 0.0001 * total_count) {
+      std::cerr << "Fixing lm-state total " << lm_state->total << " -> "
+                << total_count << "\n";
+    }
+    lm_state->total = total_count;
   }
 
   // This function does the pruning of this LM state, and it assumes that the
@@ -468,6 +485,7 @@ class FloatCountsPruner {
     // after, as long as we were consistent.
     total_count_ += lm_state.total - lm_state.discount;
     float threshold = threshold_;
+    double lm_state_discount = lm_state.discount;
     double backoff_state_total = backoff_state.total;
     assert(count_shadowed_[history_length].size() == lm_state.counts.size());
     std::vector<std::pair<int32, float> >::iterator
@@ -502,7 +520,8 @@ class FloatCountsPruner {
         int32 pos = word_to_position_map_[word * (order_ - 1) +
                                           history_length - 1];
         counts_iter->second = 0.0;  // set this count to zero.
-        lm_state.discount += count;  // assign it to backoff in this state..
+        lm_state_discount += count;  // assign it to backoff in this state..
+        lm_state.discount = lm_state_discount;
         backoff_state.counts[pos].second += count;  // and move it to the
                                                     // backoff state
         // update total of the backoff state; we use a double-precision
