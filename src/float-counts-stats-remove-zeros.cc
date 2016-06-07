@@ -195,6 +195,7 @@ class ZeroRemover {
         RestructureLmStats(h);
         num_ngrams_out_[h] += static_cast<int64>(lm_stats_[h].counts.size());
         if (!lm_stats_[h].counts.empty()) {
+          lm_stats_[h].FixTotalCount();
           lm_stats_[h].Write(stats_out_[h]);
           lm_stats_[h].counts.clear();
         }

@@ -235,6 +235,23 @@ void FloatLmState::Read(std::istream &is) {
     Check();
 }
 
+
+// this fixes small errors in the total-count of LM-states, that
+// are caused by the accumulation of numerical roundoff.
+void FloatLmState::FixTotalCount() {
+  double total_count = discount;
+  std::vector<std::pair<int32, float> >::const_iterator
+      iter = counts.begin(),
+      end = counts.end();
+  for (; iter != end; ++iter)
+    total_count += iter->second;
+  if (fabs(total - total_count) > 0.0001 * total_count) {
+    std::cerr << "Fixing lm-state total " << total << " -> "
+              << total_count << "\n";
+  }
+  total = total_count;
+}
+
 void FloatLmState::Check() const {
   for (size_t i = 0; i < history.size(); i++)
     assert(history[i] > 0 && history[i] != static_cast<int32>(kEosSymbol));

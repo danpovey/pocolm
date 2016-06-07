@@ -446,29 +446,13 @@ class FloatCountsPruner {
       if (!lm_states_[h].counts.empty()) {
         DoPruningForLmState(h);
         UpdateCountShadowed(h);
-        FixTotalCount(&(lm_states_[h]));
+        lm_states_[h].FixTotalCount();
         lm_states_[h].Write(outputs_[h]);
         // after we make the following call, we treat this history-state
         // as being empty.
         lm_states_[h].counts.clear();
       }
     }
-  }
-
-  // this fixes small errors in the total-count of LM-states, that
-  // are caused by the accumulation of numerical roundoff.
-  static void FixTotalCount(FloatLmState *lm_state) {
-    double total_count = lm_state->discount;
-    std::vector<std::pair<int32, float> >::const_iterator
-        iter = lm_state->counts.begin(),
-        end = lm_state->counts.end();
-    for (; iter != end; ++iter)
-      total_count += iter->second;
-    if (fabs(lm_state->total - total_count) > 0.0001 * total_count) {
-      std::cerr << "Fixing lm-state total " << lm_state->total << " -> "
-                << total_count << "\n";
-    }
-    lm_state->total = total_count;
   }
 
   // This function does the pruning of this LM state, and it assumes that the

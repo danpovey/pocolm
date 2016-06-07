@@ -111,6 +111,10 @@ class FloatLmState {
   // Throws on error.
   void Read(std::istream &is);
 
+  // Sets total = discount + sum of counts.second.  Prints warning
+  // if it significantly differs from old total.
+  void FixTotalCount();
+
   // checks the data for validity, dies if that fails.
   void Check() const;
 
