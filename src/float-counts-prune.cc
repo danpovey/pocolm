@@ -110,7 +110,9 @@ class NullCountsReader {
     // first in the lexicographical ordering.
     assert(lm_states_[history_length].history <= lm_state.history);
     lm_states_[history_length].Swap(&lm_state);
-    if (history_length < order_ - 1)
+    // note: here, order_ is actually the n-gram order of the model we're reading
+    // minus one.
+    if (history_length < order_)
       PopulateMap(history_length);
   }
 

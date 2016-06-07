@@ -265,7 +265,10 @@ void FloatLmState::Check() const {
   for (std::vector<std::pair<int32,float> >::const_iterator iter =
            counts.begin(); iter != counts.end(); ++iter)
     my_total += iter->second;
-  assert(fabs(total - my_total) <= 0.0001 * fabs(my_total));
+  if (fabs(total - my_total) > 0.0001 * fabs(my_total)) {
+    std::cerr << "warning: in float-counts," << total << " != "
+              << my_total << "\n";
+  }
 }
 
 void FloatLmState::Print(std::ostream &os) const {

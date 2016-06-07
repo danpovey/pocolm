@@ -43,8 +43,11 @@ for order in 3 4 5; do
   # example of pruning.  note: the threshold can be less than or more than one.
   get_data_prob.py data/text/dev.txt data/lm_20k_${order} 2>&1 | grep -F '[perplexity'
   for threshold in 1.0 0.25; do
-    prune_lm_dir.py data/lm_20k_${order} $threshold data/lm_20k_${order}_prune${threshold} 2>/dev/null
+    prune_lm_dir.py data/lm_20k_${order} $threshold data/lm_20k_${order}_prune${threshold} 2>&1 | tail -n 5 | head -n 3
     get_data_prob.py data/text/dev.txt data/lm_20k_${order}_prune${threshold} 2>&1 | grep -F '[perplexity'
+
+    format_arpa_lm.py data/lm_20k_${order}_prune${threshold} | gzip -c > data/arpa/20k_${order}gram_prune${threshold}.arpa.gz
+
   done
 done
 

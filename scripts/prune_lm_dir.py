@@ -15,6 +15,9 @@ parser.add_argument("--steps", type=str,
                     'prune*X, with X <= 1.0, tells it to prune with X times the threshold '
                     'specified with the --threshold option.  EM specifies one iteration of '
                     'E-M on the model. ')
+parser.add_argument("--cleanup",  type=str, choices=['true','false'],
+                    default='true', help='Set this to false to disable clean up of the '
+                    'work directory.')
 parser.add_argument("--remove-zeros", type=str, choices=['true','false'],
                     default='true', help='Set this to false to disable an optimization. '
                     'Only useful for debugging purposes.')
@@ -370,7 +373,8 @@ if initial_logprob_per_word != None and steps[-1] == 'EM':
            file=sys.stderr)
 
 # clean up the work directory.
-shutil.rmtree(work_dir)
+if args.cleanup == 'true':
+    shutil.rmtree(work_dir)
 
 if os.system("validate_lm_dir.py " + args.lm_dir_out) != 0:
     sys.exit("split_lm_dir.py: failed to validate output LM-dir")
