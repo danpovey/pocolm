@@ -60,7 +60,7 @@ if args.text_in[-3:] == '.gz':
 else:
     command = "text_to_int.py {0}/words.txt <{1}".format(args.lm_dir_in,
                                                          args.text_in)
-command += "| get-text-counts {0} | sort | uniq -c | get-int-counts ".format(ngram_order)
+command += "| get-text-counts {0} | LC_ALL=C sort | uniq -c | get-int-counts ".format(ngram_order)
 if num_splits == None:
     command += "{0}/int.dev".format(work_dir)
 else:

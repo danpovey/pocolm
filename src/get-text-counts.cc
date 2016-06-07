@@ -110,6 +110,6 @@ int main (int argc, char **argv) {
   std::cerr << "get-text-counts: processed " << num_lines_processed
             << " lines, with (on average) "
             << (num_words_processed * 1.0 / num_lines_processed)
-            << " words per line.";
+            << " words per line.\n";
   return (num_lines_processed > 0 ? 0 : 1);
 }
