@@ -21,7 +21,7 @@ parser.add_argument("--remove-zeros", type=str, choices=['true','false'],
 parser.add_argument("--check-exact-divergence", type=str, choices=['true','false'],
                     default='true', help='')
 parser.add_argument("lm_dir_in",
-                    help="Source director, for the input language model.")
+                    help="Source directory, for the input language model.")
 parser.add_argument("threshold", type=float,
                     help="Threshold for pruning, e.g. 0.5, 1.0, 2.0, 4.0.... "
                     "larger threshold will give you more highly-pruned models."
@@ -366,7 +366,11 @@ print ("prune_lm_dir.py: approximate K-L divergence was {0}".format(-sum(logprob
 
 if initial_logprob_per_word != None and steps[-1] == 'EM':
     print ("prune_lm_dir.py: exact K-L divergence was {0}".format(
-            initial_logprob_per_word - final_logprob_per_word))
+            initial_logprob_per_word - final_logprob_per_word),
+           file=sys.stderr)
 
 # clean up the work directory.
 shutil.rmtree(work_dir)
+
+if os.system("validate_lm_dir.py " + args.lm_dir_out) != 0:
+    sys.exit("split_lm_dir.py: failed to validate output LM-dir")

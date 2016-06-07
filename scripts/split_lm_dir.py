@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description="This script takes an lm-dir, as pr
                                  "Output is the 'split' form of lm-dir, with float.all.{1,2,3...} and "
                                  "num_splits")
 parser.add_argument("lm_dir_in",
-                    help="Source director, for the input language model.")
+                    help="Source directory, for the input language model.")
 parser.add_argument("num_splits", type=int,
                     help="Number of split-up pieces in the source lm-dir")
 parser.add_argument("lm_dir_out",
