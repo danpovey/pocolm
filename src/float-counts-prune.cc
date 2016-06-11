@@ -78,10 +78,7 @@ class NullCountsReader {
                      // model we're pruning.
     }
 
-    while ((lm_states_[history_size].predicted.empty() ||
-            history > lm_states_[history_size].history) &&
-           !input_.eof())
-      ReadNext();
+    ReadUntil(history);
 
     // If the history-state in 'history_in' does not even exist in the protected
     // counts (e.g. this history-state is "a b" and there is no history-state of
@@ -97,29 +94,46 @@ class NullCountsReader {
             lm_states_[history_size].predicted[pos] == word);
   }
  private:
-  void ReadNext() {
-    input_.peek();
-    if (input_.eof())
-      return;
-    NullLmState lm_state;
-    lm_state.Read(input_);
-    int32 history_length = lm_state.history.size();
-    assert(history_length < order_);
-    // The next line checks that the input is in sorted order.  To work at the
-    // start of the file, relies on the fact that the empty vector always comes
-    // first in the lexicographical ordering.
-    assert(lm_states_[history_length].history <= lm_state.history);
-    lm_states_[history_length].Swap(&lm_state);
-    // note: here, order_ is actually the n-gram order of the model we're reading
-    // minus one.
-    if (history_length < order_)
-      PopulateMap(history_length);
+  // Keeps reading until the next thing to be read is strictly greater
+  // than 'history' in lexicographical order on histories.
+  void ReadUntil(const std::vector<int32> &history) {
+    while (true) {
+      if (!pending_lm_state_.predicted.empty()) {
+        // pending_lm_state_ contains something.
+        if (pending_lm_state_.history <= history) {
+          // it's <= 'history' in the ordering, so place it in
+          // the lm_states_ array.
+          size_t history_size = pending_lm_state_.history.size();
+          assert(history_size < lm_states_.size() &&
+                 "float-counts-prune: order of protected-counts input is "
+                 "unexpectedly high.");
+          pending_lm_state_.Swap(&lm_states_[history_size]);
+          PopulateMap(history_size);
+          pending_lm_state_.predicted.clear();
+        } else {
+          // It's >= 'history' in the ordering, so we're done.
+          return;
+        }
+      }
+      assert(pending_lm_state_.predicted.empty());
+      input_.peek();
+      if (input_.eof())
+        return;
+      pending_lm_state_.Read(input_);
+      assert(!pending_lm_state_.predicted.empty());
+    }
   }
 
   std::istream &input_;
   int32 order_;
   int32 num_words_;
   std::vector<NullLmState> lm_states_;
+
+  // If !pending_lm_state_.predicted.empty(), then pending_lm_state_ is the latest
+  // history-state that we've read from disk but have not yet placed in the
+  // lm_states_ array (else it contains trash).
+  NullLmState pending_lm_state_;
+
   // indexed: word * order_ + history-length.
   std::vector<int32> word_to_position_map_;
 

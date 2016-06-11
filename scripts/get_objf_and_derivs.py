@@ -3,7 +3,6 @@
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
 import re, os, argparse, sys, math, warnings, subprocess
-from collections import defaultdict
 
 parser = argparse.ArgumentParser(description="Given a counts directory and a set of "
                                  "metaparameters, this script does the language model discounting "
