@@ -61,8 +61,8 @@ class __bfgs:
         self.deriv = [ deriv0 ]
 
         deriv_magnitude = math.sqrt(np.dot(deriv0, deriv0))
-        self.LogMessage("On iteration 0, value is {0}, deriv-magnitude {1}".format(
-                value0, deriv_magnitude))
+        self.LogMessage("On iteration 0, value is %.6f, deriv-magnitude %.6f" %
+                        (value0, deriv_magnitude))
 
         # note: self.inv_hessian is referred to as H_k in the Nocedal
         # and Wright textbook.
@@ -95,8 +95,8 @@ class __bfgs:
         next_x = cur_x + alpha * self.p
         (next_value, next_deriv) = self.FunctionValueAndDerivative(next_x)
         next_deriv_magnitude = math.sqrt(np.dot(next_deriv, next_deriv))
-        self.LogMessage("On iteration {0}, value is {1}, deriv-magnitude {2}".format(
-                len(self.x), next_value, next_deriv_magnitude))
+        self.LogMessage("On iteration %d, value is %.6f, deriv-magnitude %.6f" %
+                        (len(self.x), next_value, next_deriv_magnitude))
 
         # obtain s_k = x_{k+1} - x_k, y_k = gradient_{k+1} - gradient_{k}
         # see eq. 6.5 in Nocedal and Wright.
@@ -249,7 +249,7 @@ class __bfgs:
         if gradient_magnitude < self.gradient_tolerance:
             self.LogMessage("BFGS converged on iteration {0} due to gradient magnitude {1} "
                             "less than gradient tolerance {2}".format(
-                    len(self.x), gradient_magnitude, self.gradient_tolerance))
+                    len(self.x), "%.6f" % gradient_magnitude, self.gradient_tolerance))
             return True
         if self.num_restarts > 1:
             self.LogMessage("Restarted BFGS computation twice: declaring convergence to avoid a loop")

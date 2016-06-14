@@ -86,19 +86,20 @@ def SpotCheckTextFile(text_file):
 
 
 for f in os.listdir(args.text_dir):
+    full_path = args.text_dir + "/" + f
+    if os.path.isdir(full_path):
+        continue
     if f.endswith(".txt") or f.endswith(".txt.gz"):
-        full_path = args.text_dir + "/" + f
         if f.endswith(".txt") and os.path.isfile(full_path + ".gz"):
             sys.exit("validate_text_dir.py: both {0} and {0}.gz exist.".format(full_path))
         if not os.path.isfile(full_path):
             sys.exit("validate_text_dir.py: Expected {0} to be a file.".format(full_path))
         SpotCheckTextFile(full_path)
         num_text_files += 1
-    else:
+    elif f != "unigram_weights":
         sys.exit("validate_text_dir.py: Text directory should not contain files with suffixes "
-                 "other than .txt: " + f);
+                 "other than .txt (and not called 'unigram_weights'): " + f);
 
 if num_text_files < 2:
     sys.exit("validate_text_dir.py: Directory {0} should contain at least one .txt file "
               "other than dev.txt.".format(args.text_dir));
-

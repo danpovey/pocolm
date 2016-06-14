@@ -23,6 +23,8 @@ args = parser.parse_args()
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
+# this will affect the program "sort" that we call.
+os.environ['LC_ALL'] = 'C'
 
 
 if os.system("validate_lm_dir.py " + args.lm_dir_in) != 0:
@@ -51,6 +53,9 @@ def RunCommand(command):
 
 work_dir = tempfile.mkdtemp(dir = args.lm_dir_in)
 
+# this temporary directory will be used by "sort".
+os.environ['TMPDIR'] = work_dir
+
 ngram_order = GetNgramOrder(args.lm_dir_in)
 
 # create
@@ -60,7 +65,7 @@ if args.text_in[-3:] == '.gz':
 else:
     command = "text_to_int.py {0}/words.txt <{1}".format(args.lm_dir_in,
                                                          args.text_in)
-command += "| get-text-counts {0} | LC_ALL=C sort | uniq -c | get-int-counts ".format(ngram_order)
+command += "| get-text-counts {0} | sort | uniq -c | get-int-counts ".format(ngram_order)
 if num_splits == None:
     command += "{0}/int.dev".format(work_dir)
 else:

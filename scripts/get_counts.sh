@@ -109,6 +109,12 @@ if [ -f $dir/.error ]; then
   exit 1
 fi
 
+if [ -f $int/unigram_weights ]; then
+  cp $int/unigram_weights $dir
+else
+  rm $dir/unigram_weights 2>/dev/null || true
+fi
+
 # we also want the files $dir/int.dev.{2,3,...}, i.e. the dev data split up by
 # n-gram order, because this will be required if the user specifies to fold the
 # dev data into some other set for the final build.

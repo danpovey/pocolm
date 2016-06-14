@@ -34,7 +34,7 @@ parser.add_argument("--read-inv-hessian", type=str,
                     "BFGS optimization.")
 parser.add_argument("--initial-metaparameters", type=str,
                     help="If supplied, the initial metaparameters will be taken from  "
-                    "here.  If not supplied, get_initial_metaparameters.py will be "
+                    "here.  If not supplied, initialize_metaparameters.py will be "
                     "called to initialize them.")
 parser.add_argument("--warm-start-dir", type=str,
                     help="The name of a directory where optimize_metaparameters.py was "
@@ -96,8 +96,17 @@ if args.initial_metaparameters != None:
         sys.exit("optimize_metaparameters.py: error copying or validating initial "
                  "metaparameters from {0}".format(args.initial_metaparameters))
 else:
-    command = ("get_initial_metaparameters.py --ngram-order={0} --num-train-sets={1} "
-               ">{2}/0.metaparams".format(ngram_order, num_train_sets, args.optimize_dir));
+    if os.path.exists(args.count_dir + "/unigram_weights"):
+        # initialize the corpus weights from the weights optimized for a
+        # unigram model; this is a better starting point than all-equal.
+        weight_opts = "--weights={0}/unigram_weights --names={0}/names".format(
+            args.count_dir)
+    else:
+        weight_opts = ""
+
+    command = ("initialize_metaparameters.py {0} --ngram-order={1} --num-train-sets={2} "
+               ">{3}/0.metaparams".format(weight_opts, ngram_order,
+                                          num_train_sets, args.optimize_dir));
     if os.system(command) != 0:
         sys.exit("optimize_metaparameters.py: failed to initialize parameters");
 
@@ -265,9 +274,9 @@ def GetObjfAndDeriv(x):
     barrier_free_magnitude = math.sqrt(np.vdot(derivs, derivs))
     objf += barrier_objf
     derivs += barrier_derivs
-    print("Evaluation {0}: objf={1}, deriv-magnitude={2} (with barrier function; without = {3})".format(
-            iteration, objf, math.sqrt(np.vdot(derivs, derivs)),
-            barrier_free_magnitude), file=sys.stderr)
+    print("Evaluation %d: objf=%.6f, deriv-magnitude=%.6f (with barrier function; without = %.6f" %
+          (iteration, objf, math.sqrt(np.vdot(derivs, derivs)), barrier_free_magnitude),
+           file=sys.stderr)
 
     # we need to negate the objective function and derivatives, since we are
     # minimizing.
@@ -308,13 +317,13 @@ old_objf = -1.0 * value0
 new_objf = -1.0 * value
 
 print("optimize_metaparameters.py: log-prob on dev data (with barrier function) increased "
-      "from {0} to {1} over {2} passes of derivative estimation (penalized perplexity: {3}->{4}".format(
-        old_objf, new_objf, iteration, math.exp(-old_objf), math.exp(-new_objf)),
+      "from %.6f to %.6f over %d passes of derivative estimation (penalized perplexity: %.6f->%.6f" %
+      (old_objf, new_objf, iteration, math.exp(-old_objf), math.exp(-new_objf)),
       file=sys.stderr)
 
-print("optimize_metaparameters.py: final perplexity without barrier function was {0} "
-      "(perplexity: {1})".format(new_objf - BarrierFunctionAndDeriv(x)[0],
-                                 math.exp(-(new_objf - BarrierFunctionAndDeriv(x)[0]))),
+print("optimize_metaparameters.py: final perplexity without barrier function was %.6f "
+      "(perplexity: %.6f)" % (new_objf - BarrierFunctionAndDeriv(x)[0],
+                               math.exp(-(new_objf - BarrierFunctionAndDeriv(x)[0]))),
        file=sys.stderr)
 
 print("optimize_metaparameters.py: do `diff -y {0}/{{0,final}}.metaparams` "

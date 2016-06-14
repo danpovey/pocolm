@@ -36,15 +36,21 @@ all_names = [ ]
 
 
 for f in os.listdir(args.text_dir):
+    full_path = args.text_dir + "/" + f
+    if os.path.isdir(full_path):
+        continue
     if f.endswith(".txt") and f != "dev.txt":
         all_names.append(f[:-4])
-    if  f.endswith(".txt.gz") and f != "dev.txt.gz":
+    elif f.endswith(".txt.gz") and f != "dev.txt.gz":
         all_names.append(f[:-7])
+    elif f != "dev" and f != "dev.txt" and f != 'unigram_weights':
+        sys.exit("get_names.py: unexpected file found, {0}/{1}".format(
+                args.text_dir, f))
 
 
 if len(all_names) == 0:
-    sys.exit("get_names.py: Directory {0} should contain at least one .txt file "
-              "other than dev.txt.".format(args.text_dir));
+    sys.exit("get_names.py: Directory {0} should contain at least one "
+             ".txt (or .txt.gz) file other than dev.txt.".format(args.text_dir));
 
 
 # make sure the order is well defined.

@@ -11,12 +11,21 @@ fisher_dirs="/export/corpora3/LDC/LDC2004T19/fe_03_p1_tran/ /export/corpora3/LDC
 
 local/fisher_data_prep.sh $fisher_dirs
 
-get_word_counts.py data/text data/word_counts
+fold_dev_opt=
+# If you want to fold the dev-set in to the 'swbd1' set to produce the final
+# model, un-comment the following line.  For use in the Kaldi example script for
+# ASR, this isn't suitable because the 'dev' set is the first 10k lines of the
+# switchboard data, which we also use as dev data for speech recognition
+# purposes.
+#fold_dev_opt="--fold-dev-into=swbd1"
 
-get_unigram_weights.py data/word_counts > data/weights
+get_word_counts.py data/text data/text/word_counts
+get_unigram_weights.py data/text/word_counts > data/text/unigram_weights
 
 # decide on the vocabulary.
-word_counts_to_vocab.py --num-words=40000 data/word_counts  > data/vocab_40k.txt
+# Note: you'd use wordlist_to_vocab.py if you had a previously determined word-list
+# that you wanted to use.
+word_counts_to_vocab.py --num-words=40000 data/text/word_counts  > data/vocab_40k.txt
 
 # local/srilm_baseline.sh
 
@@ -34,13 +43,11 @@ for order in 3 4 5; do
   splits=5
   subset_count_dir.sh data/counts_40k_${order} ${ratio} data/counts_40k_${order}_subset${ratio}
 
-  mkdir -p data/optimize_40k_${order}_subset${ratio}
-
-  optimize_metaparameters.py --progress-tolerance=2.0e-04 --num-splits=${splits} \
+  optimize_metaparameters.py --progress-tolerance=1.0e-05 --num-splits=${splits} \
     data/counts_40k_${order}_subset${ratio} data/optimize_40k_${order}_subset${ratio}
 
   optimize_metaparameters.py --warm-start-dir=data/optimize_40k_${order}_subset${ratio} \
-    --progress-tolerance=1.0e-04 --num-splits=${splits} \
+    --progress-tolerance=1.0e-03 --gradient-tolerance=0.01 --num-splits=${splits} \
     data/counts_40k_${order} data/optimize_40k_${order}
 
   make_lm_dir.py --num-splits=${splits} --keep-splits=true data/counts_40k_${order} \

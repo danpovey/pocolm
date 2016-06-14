@@ -62,6 +62,10 @@ for f in num_train_sets num_words ngram_order names words.txt; do
   cp $dir/$f $destdir/$f || exit 1
 done
 
+if [ -f $dir/unigram_weights ]; then  # this file is optional.
+  cp $dir/unigram_weights $destdir || exit 1
+fi
+
 num_train_sets=$(cat $dir/num_train_sets)
 ngram_order=$(cat $dir/ngram_order)
 

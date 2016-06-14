@@ -53,6 +53,19 @@ for f in os.listdir(args.count_dir):
 train_keys = train_counts.keys()
 num_train_files = len(train_keys)
 
+assert num_train_files > 0
+
+if num_train_files == 1:
+    # don't bother reading anything in: if there is only
+    # one source of data, the weight won't matter, and we'll
+    # just write one.
+    if args.verbose == "true":
+        print("get_unigram_weights.py: only one data source so not "
+              "really estimating weights.", file=sys.stderr)
+    print(train_keys[0], 1.0)
+    sys.exit(0)
+
+
 # for efficiency, change the format...
 # we'll make it a matrix, with the following format:
 # for each word that appears both in the dev counts and at least
@@ -76,7 +89,8 @@ for word, count in dev_counts.items():
         all_counts.append(this_row)
 
 if len(all_counts) == 0:
-    sys.exit("can't get unigram weights because dev and train data have no overlap in words");
+    sys.exit("can't get unigram weights because dev and train data have "
+             "no overlap in words")
 
 # print("All_counts [normalized] = " + str(all_counts))
 
@@ -132,8 +146,9 @@ for i in range(num_train_files):
     current_weights[i] /= m;
 
 if args.verbose == "true":
-    print("Final weights after renormalizing so they can be applied to the "
-          "raw counts, are: " + str(next_weights), file=sys.stderr)
+    print("get_unigram_weights.py: Final weights after renormalizing so they "
+          "can be applied to the raw counts, are: " + str(next_weights),
+          file=sys.stderr)
 
 
 for i in range(num_train_files):

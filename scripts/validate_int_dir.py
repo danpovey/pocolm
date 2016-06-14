@@ -69,6 +69,7 @@ except:
             args.int_dir))
 
 
+names = set()
 # check the 'names' file; it should have lines like:
 #  1 switchboard
 #  2 fisher
@@ -78,11 +79,47 @@ for n in range(1, num_train_sets + 1):
     line = f.readline()
     try:
         [ m, name ] = line.split()
+        if name in names:
+            sys.exit("validate_int_dir.py: repeated name {0} in {1}/names".format(
+                    name, args.int_dir))
+        names.add(name)
         assert int(m) == n
     except:
         sys.exit("validate_int_dir.py: bad {0}'th line of {1}/names: '{2}'".format(
                 n, args.int_dir, line[0:-1]))
 f.close()
+
+# validate the 'unigram_weights' file, if it exists.  the 'unigram_weights' file
+# is an optional part of the directory format; we put it here so it can be used
+# to initialize the metaparameters in a reasonable way.
+if os.path.exists("{0}/unigram_weights".format(args.int_dir)):
+    f = open("{0}/unigram_weights".format(args.int_dir))
+    names_with_weights = set()
+    while True:
+        line = f.readline()
+        if line == '':
+            break
+        try:
+            [ name, weight ] = line.split()
+            weight = float(weight)
+            assert weight >= 0.0 and weight <= 1.0
+            if not name in names:
+                sys.exit("validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: "
+                         "name {2} does not appear in {1}/names".format(
+                        line[:-1], args.int_dir, name))
+            if name in names_with_weights:
+                sys.exit("validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: "
+                         "name {2} appears twice".format(
+                        line[:-1], args.int_dir, name))
+            names_with_weights.add(name)
+        except Exception as e:
+            sys.exit("validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: {2}".format(
+                    line[:-1], args.int_dir, str(e)))
+    for name in names:
+        if not name in names_with_weights:
+            sys.exit("validate_int_dir.py: expected the name {0} to appear in "
+                     "{1}/unigram_weights".format(name, args.int_dir))
+    f.close()
 
 names = ['dev']
 for n in range(1, num_train_sets + 1):

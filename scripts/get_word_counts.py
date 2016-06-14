@@ -60,13 +60,15 @@ num_files_processed = 0;
 for f in os.listdir(args.text_dir):
     num_files_processed += 1
     text_path = args.text_dir + os.sep + f
+    if os.path.isdir(text_path):
+        continue
     if f.endswith(".txt"):
         counts_path = args.count_dir + os.sep + f[:-4] + ".counts"
         ProcessFile(text_path, counts_path)
     elif f.endswith(".txt.gz"):
         counts_path = args.count_dir + os.sep + f[:-7] + ".counts"
         ProcessFile(text_path, counts_path)
-    else:
+    elif f != "unigram_weights":
         sys.exit("get_word_counts.py: did not expect to find file {0}/{1} in "
                  "text directory".format(args.text_dir, f))
 
@@ -74,8 +76,6 @@ num_files_in_dest = 0;
 for f in os.listdir(args.count_dir):
     if f.endswith(".counts"):
         num_files_in_dest += 1
-    else:
-        sys.exit("Text directory should not contain extra files: " + f)
 
 if num_files_in_dest > num_files_processed:
     sys.exit("It looks like your destination directory " + args.count_dir +

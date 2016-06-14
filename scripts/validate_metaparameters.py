@@ -5,7 +5,7 @@ from __future__ import print_function
 import re, os, argparse, sys, math, warnings
 
 parser = argparse.ArgumentParser(description="Validates meta-parameter file as "
-                                 "produced by get_initial_metaparameters.py and "
+                                 "produced by initialize_metaparameters.py and "
                                  "other scripts",
                                  epilog="e.g. validate_metaparameters.py 10.metaparams")
 

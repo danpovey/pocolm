@@ -91,9 +91,17 @@ done < <(echo "dev dev" | cat - $dir/names)
 
 wait
 
+if [ -f $text/unigram_weights ]; then
+  cp $text/unigram_weights $dir
+else
+  rm $dir/unigram_weights 2>/dev/null || true
+fi
+
 if [ -f $dir/.error ]; then
   echo "$0: error detected; check the logs in $dir/log"
   exit 1
 fi
+
+validate_int_dir.py $dir || exit 1
 
 exit 0

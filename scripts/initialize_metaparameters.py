@@ -34,7 +34,7 @@ def ReadNames(names_file):
     try:
         f = open(names_file, "r");
     except:
-        sys.exit("get_initial_metaparameters.py: failed to open --names={0}"
+        sys.exit("initialize_metaparameters.py: failed to open --names={0}"
                  " for reading".format(names_file))
     number_to_name = { }
     for line in f:
@@ -42,10 +42,10 @@ def ReadNames(names_file):
             [ number, name ] = line.split();
             number = int(number)
         except:
-            sys.exit("get_initial_metaparameters.py: Bad line '{0}' in names file {1}".format(
+            sys.exit("initialize_metaparameters.py: Bad line '{0}' in names file {1}".format(
                     line[0:-1], names_file))
         if number in number_to_name:
-            sys.exit("get_initial_metaparameters.py: duplicate number {0} in names file {1}".format(
+            sys.exit("initialize_metaparameters.py: duplicate number {0} in names file {1}".format(
                     number, names_file))
         number_to_name[number] = name
     f.close()
@@ -59,7 +59,7 @@ def ReadWeights(weights_file):
     try:
         f = open(weights_file, "r");
     except:
-        sys.exit("get_initial_metaparameters.py: failed to open --weights={0}"
+        sys.exit("initialize_metaparameters.py: failed to open --weights={0}"
                  " for reading".format(weights_file))
     name_to_weight = { }
     for line in f:
@@ -67,20 +67,20 @@ def ReadWeights(weights_file):
             [ name, weight ] = line.split();
             weight = float(weight)
         except:
-            sys.exit("get_initial_metaparameters.py: Bad line '{0}' in weights file {1}".format(
+            sys.exit("initialize_metaparameters.py: Bad line '{0}' in weights file {1}".format(
                     line[0:-1], weights_file))
         if name in name_to_weight:
-            sys.exit("get_initial_metaparameters.py: duplicate name {0} in weights file {1}".format(
+            sys.exit("initialize_metaparameters.py: duplicate name {0} in weights file {1}".format(
                     name, weights_file))
         name_to_weight[name] = weight
     f.close()
     return name_to_weight
 
 if args.num_train_sets == None or  args.num_train_sets <= 0:
-    sys.exit("get_initial_metaparameters.py: --num-train-sets must be supplied, and >0.")
+    sys.exit("initialize_metaparameters.py: --num-train-sets must be supplied, and >0.")
 
 if args.ngram_order == None or args.ngram_order <= 1:
-    sys.exit("get_initial_metaparameters.py: --num-train-sets must be supplied, and >1.")
+    sys.exit("initialize_metaparameters.py: --num-train-sets must be supplied, and >1.")
 
 
 # set all the weights to 0.5, it will give them room to grow (since
@@ -89,7 +89,7 @@ weights = [ 0.5 ] * args.num_train_sets
 
 if args.weights != None:
     if args.names == None:
-        sys.exit("get_initial_metaparameters.py: if --weights is supplied, "
+        sys.exit("initialize_metaparameters.py: if --weights is supplied, "
                  "--names must also be supplied.")
     number_to_name = ReadNames(args.names)
     name_to_weight = ReadWeights(args.weights)
@@ -97,7 +97,7 @@ if args.weights != None:
         try:
             weights[n] = name_to_weight[number_to_name[n + 1]]
         except:
-            sys.exit("get_initial_metaparameters.py: it looks like there is a mismatch between "
+            sys.exit("initialize_metaparameters.py: it looks like there is a mismatch between "
                      "the --names, --weights, and/or --num-train-sets options; check that the "
                      "{0}'th dataset has a name in the 'names' file and that that name has a "
                      "weight in the 'weights' file.".format(n+1))
@@ -118,15 +118,29 @@ for n in range(args.num_train_sets):
 # Now make sure that all weights are strictly >0 and strictly <1.
 # we'll use a barrier function in the optimization, so we do need
 # to make sure that none of the weights are exactly 0 or 1.
-weight_lower_limit = 0.001
-weight_upper_limit = 0.999
+# First shift the weights up so none exceed 0.01.
+weight_lower_limit = 0.01
 if min(weights) < weight_lower_limit:
     shift = weight_lower_limit - min(weights)
     weights = [ x + shift for x in weights ]
 
-if max(weights) > weight_upper_limit:
-    scale = weight_upper_limit / max(weights)
-    weights = [ x * scale for x in weights ]
+# Next, in order to come reasonably close to placing the weights
+# in the 'middle' of the range [0, 1], and keeping the barrier
+# function happy, scale the weights by a value such that the
+# smallest and largest weight are equal distances from [0,1]
+# respectively.  Note: scaling all the weights by the same
+# amount does not affect the actual objective function, only
+# the barrier function.
+
+min_weight = min(weights)
+max_weight = max(weights)
+# we want to solve for scale, such that
+# (min_weight * scale - 0) == (1 - max_weight * scale).
+# That means: (min_weight + max_weight) * scale == 1,
+# or scale = 1 / (min_weight + max_weight)
+
+scale = 1.0 / (min_weight + max_weight)
+weights = [ x * scale for x in weights ]
 
 # At this point we print out the weights.
 # The general format of the meta-parameters file is:
