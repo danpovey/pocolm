@@ -22,7 +22,7 @@ if ! which g++ >&/dev/null; then
   add_packages gcc-c++ g++ gcc-c++
 fi
 
-for f in make gcc grep gzip git; do
+for f in make gcc grep gzip git bash; do
   if ! which $f >&/dev/null; then
     echo "$0: $f is not installed."
     add_packages $f $f $f
@@ -78,14 +78,6 @@ if which apt-get >&/dev/null && ! which zypper >/dev/null; then
   if ! dpkg -l | grep -E 'libatlas3gf|libatlas3-base' >/dev/null; then
     echo "You should probably do: "
     echo " sudo apt-get install libatlas3-base"
-    printed=true
-  fi
-  # Debian systems generally link /bin/sh to dash, which doesn't work
-  # with some scripts as it doesn't expand x.{1,2}.y to x.1.y x.2.y
-  if [ $(readlink /bin/sh) == "dash" ]; then
-    echo "/bin/sh is linked to dash, and currently some of the scripts will not run"
-    echo "properly.  We recommend to run:"
-    echo " sudo ln -s -f bash /bin/sh"
     printed=true
   fi
 fi

@@ -16,7 +16,7 @@ get_word_counts.py data/text data/word_counts
 get_unigram_weights.py data/word_counts > data/weights
 
 # decide on the vocabulary.
-counts_to_vocab.py --num-words=40000 data/word_counts  > data/vocab_40k.txt
+word_counts_to_vocab.py --num-words=40000 data/word_counts  > data/vocab_40k.txt
 
 # local/srilm_baseline.sh
 

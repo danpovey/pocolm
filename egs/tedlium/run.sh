@@ -28,7 +28,7 @@ time_download=`date +%s`
 get_word_counts.py data/text data/word_counts
 
 # decide on the vocabulary.
-counts_to_vocab.py --num-words=${vocab_size} data/word_counts  > data/vocab_${vocab_size}.txt
+word_counts_to_vocab.py --num-words=${vocab_size} data/word_counts  > data/vocab_${vocab_size}.txt
 
 # local/srilm_baseline.sh
 
