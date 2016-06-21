@@ -113,6 +113,12 @@ class UnigramCountDiscounterBackward {
         extra_count_deriv * (1.0 - POCOLM_UNK_PROPORTION) / (vocab_size - 2) +
         POCOLM_UNK_PROPORTION * extra_unk_count_deriv;
 
+    // the following value will actually never be accessed because the input
+    // general-counts for unigram will have zero 'discount' value (since there
+    // can be no min-count applied for unigram).  But for correctness we set the
+    // derivative value anyway.
+    input_lm_state->discount_deriv = total_discount_deriv;
+
     assert(input_lm_state->counts.size() == input_lm_state->count_derivs.size());
     int32 num_counts = input_lm_state->counts.size();
     for (int32 i = 0; i < num_counts; i++) {
