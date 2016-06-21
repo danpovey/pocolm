@@ -26,7 +26,7 @@ prepare_int_data.sh data/text data/words.txt data/int
 
 get_counts.sh data/int $ngram_order data/counts
 
-get_initial_metaparameters.py \
+initialize_metaparameters.py \
    --ngram-order=$ngram_order \
    --num-train-sets=1 > data/metaparams
 

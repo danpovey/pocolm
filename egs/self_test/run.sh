@@ -33,7 +33,7 @@ validate_count_dir.py $datasub/counts
 
 mkdir -p $datasub/optimize
 
-get_initial_metaparameters.py --weights=data/weights \
+initialize_metaparameters.py --weights=data/weights \
    --ngram-order=$ngram_order \
    --names=$datasub/counts/names \
    --num-train-sets=$(cat $datasub/counts/num_train_sets) > $datasub/optimize/0.metaparams
