@@ -93,11 +93,11 @@ void IntLmState::Read(std::istream &is) {
   int32 history_size, num_counts;
   if (discount < 0) {
     discount *= -1;  // We just read the negative of the discount.
+    ReadInt(is, &history_size);
   } else {
     history_size = discount;  // We just read the history-size, the discount was
                               // zero.
     discount = 0;
-    ReadInt(is, &history_size);
   }
   ReadInt(is, &num_counts);
 

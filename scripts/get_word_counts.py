@@ -79,7 +79,7 @@ for f in os.listdir(args.count_dir):
 
 if num_files_in_dest > num_files_processed:
     sys.exit("It looks like your destination directory " + args.count_dir +
-             "contains some extra counts files.  Please clean up.");
+             " contains some extra counts files.  Please clean up.");
 
 print("Created {0} .counts files in {1}".format(num_files_processed,
                                                 args.count_dir),
