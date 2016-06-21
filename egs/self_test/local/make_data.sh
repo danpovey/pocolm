@@ -6,7 +6,9 @@ export PATH=$PATH:$POCOLM_ROOT/scripts:$POCOLM_ROOT/src
 rm -rf data/text
 mkdir -p data/text
 
-for f in ../../src/*.cc; do
+# the pattern *-*-*-*.cc only selects  files at the moment.
+# this keeps the weights more distinct and makes the derivative testing easier.a
+for f in ../../src/*-*-*-*.cc; do
   dest_name=$(echo $(basename $f) | sed 's:\.:-:')
   cp $f data/text/${dest_name}.txt
 done
