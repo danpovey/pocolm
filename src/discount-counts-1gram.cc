@@ -91,7 +91,12 @@ class UnigramCountDiscounter {
     // is not a valid word index.
     std::vector<float> unigram_counts(vocab_size_ + 1, 0.0);
 
-    double total_count = 0.0, total_discount = 0.0;
+    // We don't expect the unigram counts to have a nonzero 'discount'
+    // value [note: this is only nonzero due to enforcing a min-count,
+    // and this is not done for bigram or unigram].
+    assert(input_lm_state.discount == 0);
+
+    double total_count = 0.0, total_discount = input_lm_state.discount;
 
     std::vector<std::pair<int32, Count> >::const_iterator
         iter = input_lm_state.counts.begin(),

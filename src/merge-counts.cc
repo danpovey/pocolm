@@ -58,16 +58,26 @@ class CountMerger {
     for (int32 i = 0; i < num_sources; i++) {
       std::string name (source_names[i]);
       float scale = -1;
-      ssize_t pos = name.find_first_of(',');
+      ssize_t pos = name.find_last_of(',');
       if (pos >= 0) {
+        const char *number_str = name.c_str() + pos + 1;
         char *endptr = NULL;
-        scale = strtod(name.c_str() + pos + 1, &endptr);
-        if (!(scale >= 0.0) && *endptr == '\0') {
-          std::cerr << "merge-counts: bad command line argument '"
-                    << source_names[i] << "'\n";
-          exit(1);
+        scale = strtod(number_str, &endptr);
+        if (*endptr == '\0' && endptr != number_str) {
+          // It was a valid number.
+          if (!(scale >= 0.0)) {
+            std::cerr << "merge-counts: bad command line argument '"
+                      << source_names[i] << "'\n";
+            exit(1);
+          }
+          name.resize(pos);
+        } else {
+          scale = -1;
+          // After the comma we did not find a valid number.  Assume that the
+          // comma may be part of the filename, so this input will be treated as
+          // general-counts.  This program will crash elsewhere if this
+          // assumption was wrong.
         }
-        name.resize(pos);
       }
       scales_[i] = scale;
       inputs_[i].open(name.c_str(), std::ios_base::binary|std::ios_base::in);
@@ -105,7 +115,7 @@ class CountMerger {
     assert(!hist_to_sources_.empty());
     std::vector<int32> hist = hist_to_sources_.begin()->first,
         sources = hist_to_sources_.begin()->second;
-    hist_to_sources_.erase(hist_to_sources_.begin());
+
     num_lm_states_written_++;
     if (sources.size() == 1 &&
         scales_[sources[0]] == -1) {
@@ -123,8 +133,7 @@ class CountMerger {
           builder.AddCounts(int_lm_states_[s], scales_[s]);
       }
       GeneralLmState output_lm_state;
-      builder.Output(&(output_lm_state.counts));
-      output_lm_state.history = hist;
+      builder.Output(hist, &output_lm_state);
       output_lm_state.Write(std::cout);
     }
     for (std::vector<int32>::const_iterator iter = sources.begin();
@@ -156,7 +165,10 @@ class CountMerger {
 
   // This is a map from the history vector to the list of source indexes that
   // currently have an LM-state with that history-vector, that needs to be
-  // processed.
+  // processed.  The keys of this map are the set of history-vectors
+  // that are currently sitting, waiting to be processed, in the vectors
+  // int_lm_states_ and general_lm_states_; the number of such keys will
+  // not exceed the number of inputs (== scales_.size()).
   std::map<std::vector<int32>, std::vector<int32> > hist_to_sources_;
 
   int64 num_lm_states_written_;

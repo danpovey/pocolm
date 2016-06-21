@@ -106,6 +106,12 @@ class FloatLmStateDerivs: public FloatLmState {
  */
 class GeneralLmStateDerivs: public GeneralLmState {
  public:
+  GeneralLmStateDerivs(): discount_deriv(0.0) { }
+
+  // This is the derivative of the objective function w.r.t.  the 'discount'
+  // value of this state (note: the 'discount' value would only be nonzero if we
+  // had applied a min-count).
+  float discount_deriv;
 
   // This vector stores derivatives of the objective function
   // (the total data likelihood) w.r.t. the individual counts.

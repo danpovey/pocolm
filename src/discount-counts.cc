@@ -91,6 +91,7 @@ class CountDiscounter {
     }
   }
 
+  // Note: we expect to process input of a single n-gram order.
   void ProcessLmState(bool first_time, const GeneralLmState &lm_state) {
     num_lm_states_processed_++;
     if (backoff_history_.size() + 1 != lm_state.history.size()) {
@@ -166,7 +167,7 @@ class CountDiscounter {
       out_iter->second = count.total - d;
     }
     discounted_state.total = lm_state_total;
-    discounted_state.discount = discount_total;
+    discounted_state.discount = lm_state.discount + discount_total;
     discounted_state.Write(discounted_output_);
   }
 
@@ -177,8 +178,8 @@ class CountDiscounter {
     // backoff_output_.
 
     GeneralLmState backoff_state;
-    backoff_state.history = backoff_history_;
-    backoff_builder_.Output(&backoff_state.counts);
+    backoff_builder_.Output(backoff_history_, &backoff_state);
+
     backoff_state.Write(backoff_output_);
     // clear the stats that we just wrote.  We'll later modify the history from
     // outside this function.
