@@ -32,6 +32,8 @@ void IntLmState::Print(std::ostream &os) const {
   for (int32 i = 0; i < hist_size; i++)
     os << history[i] << " ";
   os << "]: ";
+  if (discount != 0)
+    os << "discount=" << discount << " ";
   for (size_t i = 0; i < counts.size(); i++)
     os << counts[i].first << "->" << counts[i].second << " ";
   os << "\n";
@@ -42,6 +44,16 @@ void IntLmState::Print(std::ostream &os) const {
 void IntLmState::Write(std::ostream &os) const {
   if (rand() % 2 == 0)
     Check();
+  if (discount != 0) {
+    assert(discount > 0);
+    // We write the negative of the discount, if it's
+    // nonzero, and nothing otherwise... this gives back compatibility
+    // in the on-disk format to when there was no 'discount' class member,
+    // and also saves a little I/O.
+    int32 neg_discount = -discount;
+    os.write(reinterpret_cast<const char*>(&neg_discount),
+             sizeof(float));
+  }
   int32 history_size = history.size(),
       num_counts = counts.size(),
       buffer_size = (2 + history_size + 2 * num_counts);
@@ -64,20 +76,34 @@ void IntLmState::Write(std::ostream &os) const {
   delete[] buffer;
 }
 
-void IntLmState::Read(std::istream &is) {
-  // this will store history_size and num_counts; then we'll
-  // read the rest.
-  int32 partial_buffer[2];
-  size_t bytes_read = is.read(reinterpret_cast<char*>(partial_buffer),
-                              sizeof(int32) * 2).gcount();
-  if (bytes_read != sizeof(int32) * 2) {
-    std::cerr << "Failure reading IntLmState, expected 8 bytes, got "
+
+inline static void ReadInt(std::istream &is,
+                            int32 *i) {
+  size_t bytes_read = is.read(reinterpret_cast<char*>(i),
+                              sizeof(int32)).gcount();
+  if (bytes_read != sizeof(int32)) {
+    std::cerr << "Failure reading IntLmState, expected 4 bytes, got "
               << bytes_read;
     exit(1);
   }
-  int32 history_size = partial_buffer[0], num_counts = partial_buffer[1];
+}
+
+void IntLmState::Read(std::istream &is) {
+  ReadInt(is, &discount);
+  int32 history_size, num_counts;
+  if (discount < 0) {
+    discount *= -1;  // We just read the negative of the discount.
+  } else {
+    history_size = discount;  // We just read the history-size, the discount was
+                              // zero.
+    discount = 0;
+    ReadInt(is, &history_size);
+  }
+  ReadInt(is, &num_counts);
+
   assert(history_size >= 0 && num_counts > 0);
   history.resize(history_size);
+  size_t bytes_read;
   if (history_size > 0) {
     size_t expected_bytes = sizeof(int32) * history_size;
     bytes_read = is.read(reinterpret_cast<char*>(&(history[0])),
@@ -106,6 +132,7 @@ void IntLmState::Read(std::istream &is) {
 }
 
 void IntLmState::Check() const {
+  assert(discount >= 0);
   for (size_t i = 0; i < history.size(); i++)
     assert(history[i] > 0 && history[i] != static_cast<int32>(kEosSymbol));
   assert(counts.size() > 0);
@@ -261,6 +288,7 @@ void FloatLmState::Check() const {
     if (i + 1 < counts.size())
       assert(counts[i].first < counts[i+1].first);
   }
+  assert(discount >= 0.0);
   double my_total = discount;
   for (std::vector<std::pair<int32,float> >::const_iterator iter =
            counts.begin(); iter != counts.end(); ++iter)
@@ -298,6 +326,8 @@ void GeneralLmState::Print(std::ostream &os) const {
   for (int32 i = 0; i < hist_size; i++)
     os << history[i] << " ";
   os << "]: ";
+  if (discount != 0.0)
+    os << "discount=" << discount << " ";
   int32 counts_size = counts.size();
   for (int32 i = 0; i < counts_size; i++)
     os << counts[i].first << "->" << counts[i].second << " ";
@@ -310,6 +340,10 @@ void GeneralLmState::Write(std::ostream &os) const {
   int32 history_size = history.size(),
       num_counts = counts.size();
   assert(num_counts > 0);
+  // declare a variable so this code won't compile if discount is changed to
+  // double, since we use sizeof(float).
+  const float *discount_ptr = &discount;
+  os.write(reinterpret_cast<const char*>(discount_ptr), sizeof(float));
   os.write(reinterpret_cast<const char*>(&history_size), sizeof(int32));
   os.write(reinterpret_cast<const char*>(&num_counts), sizeof(int32));
   if (history_size > 0) {
@@ -336,8 +370,16 @@ void GeneralLmState::Write(std::ostream &os) const {
 void GeneralLmState::Read(std::istream &is) {
   int32 history_size, num_counts;
 
-  size_t bytes_read = is.read(reinterpret_cast<char*>(&history_size),
-                              sizeof(int32)).gcount();
+  size_t bytes_read = is.read(reinterpret_cast<char*>(&discount),
+                              sizeof(float)).gcount();
+  if (bytes_read != sizeof(float)) {
+    std::cerr << "Failure reading GeneralLmState, expected 4 bytes, got "
+              << bytes_read;
+    exit(1);
+  }
+  assert(discount >= 0.0 && "Reading GeneralLmState, got bad data");
+  bytes_read = is.read(reinterpret_cast<char*>(&history_size),
+                       sizeof(int32)).gcount();
   if (bytes_read != sizeof(int32)) {
     std::cerr << "Failure reading GeneralLmState, expected 4 bytes, got "
               << bytes_read;
@@ -390,6 +432,7 @@ void GeneralLmState::Read(std::istream &is) {
 
 
 void GeneralLmState::Check() const {
+  assert(discount >= 0.0);
   for (size_t i = 0; i < history.size(); i++)
     assert(history[i] > 0 && history[i] != static_cast<int32>(kEosSymbol));
   assert(counts.size() > 0);
@@ -403,6 +446,7 @@ void GeneralLmState::Check() const {
 }
 
 void GeneralLmStateBuilder::Clear() {
+  discount = 0.0;
   word_to_pos.clear();
   counts.clear();
 }
@@ -438,6 +482,7 @@ void GeneralLmStateBuilder::AddCount(int32 word, float scale, int32 num_pieces) 
 
 
 void GeneralLmStateBuilder::AddCounts(const IntLmState &lm_state, float scale) {
+  discount += scale * lm_state.discount;
   for (std::vector<std::pair<int32, int32> >::const_iterator iter =
            lm_state.counts.begin(); iter != lm_state.counts.end();
        ++iter)
@@ -457,34 +502,76 @@ void GeneralLmStateBuilder::AddCount(int32 word, const Count &count) {
   }
 }
 void GeneralLmStateBuilder::AddCounts(const GeneralLmState &lm_state) {
+  discount += lm_state.discount;
   for (std::vector<std::pair<int32, Count> >::const_iterator iter =
            lm_state.counts.begin(); iter != lm_state.counts.end();
        ++iter)
     AddCount(iter->first, iter->second);
 }
 
-void GeneralLmStateBuilder::Output(
-    std::vector<std::pair<int32, Count> > *output) const {
+void GeneralLmStateBuilder::Output(const std::vector<int32> &history,
+                                   GeneralLmState *output_state) const {
+  output_state->history = history;
   size_t size = counts.size();
   assert(counts.size() == word_to_pos.size());
+  output_state->discount = discount;
   std::vector<std::pair<int32, int32> > pairs;
   pairs.reserve(size);
   for (unordered_map<int32, int32>::const_iterator iter =
            word_to_pos.begin(); iter != word_to_pos.end(); ++iter)
     pairs.push_back(std::pair<int32,int32>(iter->first, iter->second));
   std::sort(pairs.begin(), pairs.end());
-  output->clear();
-  output->resize(size);
+  output_state->counts.clear();
+  output_state->counts.resize(size);
   for (size_t i = 0; i < size; i++) {
-    (*output)[i].first = pairs[i].first;
-    (*output)[i].second = counts[pairs[i].second];
+    output_state->counts[i].first = pairs[i].first;
+    output_state->counts[i].second = counts[pairs[i].second];
   }
 }
 
 void GeneralLmState::Swap(GeneralLmState *other) {
   history.swap(other->history);
   counts.swap(other->counts);
+  std::swap(discount, other->discount);
 }
+
+// This is an inefficient implementation.  I hope Ke and Zhouyang will be able
+// to improve it.
+void MergeIntLmStates(const std::vector<const IntLmState*> &source_pointers,
+                      IntLmState *merged_state) {
+  assert(source_pointers.size() > 1);
+  std::vector<std::pair<int32, int32> > temp_counts;
+  merged_state->history = source_pointers[0]->history;
+  size_t total_size = 0;
+  for (size_t i = 0; i < source_pointers.size(); i++)
+    total_size += source_pointers[i]->counts.size();
+
+  temp_counts.reserve(total_size);
+  for (size_t i = 0; i < source_pointers.size(); i++) {
+    const IntLmState &src = *(source_pointers[i]);
+    temp_counts.insert(temp_counts.end(),
+                       src.counts.begin(), src.counts.end());
+  }
+  std::sort(temp_counts.begin(), temp_counts.end());
+  // now merge any identical counts.
+  std::vector<std::pair<int32, int32> >::const_iterator
+      src = temp_counts.begin(), end = temp_counts.end();
+  std::vector<std::pair<int32, int32> >::iterator
+      dest = temp_counts.begin();
+  while (src != end) {
+    int32 cur_word = src->first;
+    *dest = *src;
+    src++;
+    while (src != end && src->first == cur_word) {
+      dest->second += src->second;
+      src++;
+    }
+    dest++;
+  }
+  temp_counts.resize(dest - temp_counts.begin());
+  merged_state->counts.swap(temp_counts);
+}
+
 
 }
 

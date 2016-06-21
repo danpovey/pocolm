@@ -120,7 +120,18 @@ class CountDiscounterBackward {
       word_map_[word] = i;
     }
   }
-
+  /*
+    This does the core of the backwards differentiation.  'discounted_lm_state'
+    is the discounted version of this LM-state (i.e. with discount amounts removed),
+    with derivatives.
+    'lm_state' is the original LM-state before discounting (in the form of
+    GeneralCounts), together with its derivatives; and we're backprop-ing through
+    the discounting operation.  The output of this function is the derivatives
+    stored in 'lm_state'.
+    A 'hidden' input to this function is 'backoff_lm_state_', which is the
+    lower-order version of this LM state, and which stores the derivatives
+    w.r.t. the backed-off parts.
+   */
   void ProcessLmState(const FloatLmStateDerivs &discounted_lm_state,
                       GeneralLmStateDerivs *lm_state) {
     assert(discounted_lm_state.counts.size() ==
@@ -139,6 +150,10 @@ class CountDiscounterBackward {
     // The derivative of the objective function w.r.t. the 'total backoff count'
     // discounted_lm_state.discount_deriv.
     float total_backoff_count_deriv = discounted_lm_state.discount_deriv;
+    // lm_state->discount_deriv is the derivative w.r.t. lm_state->discount,
+    // which is nonzero only if we applied min-counts to the stats, and which
+    // gets added into discounted_lm_state.discount.
+    lm_state->discount_deriv = discounted_lm_state.discount_deriv;
     for (; count_iter != count_end;
          ++count_iter, ++discounted_deriv_iter, ++deriv_iter) {
       int32 word = count_iter->first;

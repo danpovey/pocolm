@@ -208,15 +208,27 @@ class CountMergerBackward {
       // to 'deriv'.
       merged_count.AddBackward(count, &merged_deriv, &deriv);
     }
+    // the following backprops through the statement
+    // 'discount += lm_state.discount;' in lm-state.cc, in
+    // GeneralLmStateBuider::AddCounts.
+    source_state.discount_deriv = merged_state_.discount_deriv;
   }
 
   // This propagates the derivative back from the merged-counts to the i'th
   // source; this version is called if the i'th source is an IntLmState.
+  // We don't compute derivatives w.r.t. the actual counts in the int-state,
+  // because they are integers and not differentiable; instead, we are
+  // computing derivatives w.r.t. the scales.
   void ProcessSourceInt(int32 i) {
     float scale = scales_[i];
-    double scale_deriv = 0.0;
 
     IntLmState &source_state = int_lm_states_[i];
+
+    // scale_deriv accumulates this function's contribution to scale_derivs_[i].
+    // the first term arises from the 'discount' count in the source_state
+    // (which will only be nonzero if min-counts were applied).
+    double scale_deriv = source_state.discount * merged_state_.discount_deriv;
+
     std::vector<std::pair<int32, int32> >::const_iterator iter =
         source_state.counts.begin(), end = source_state.counts.end();
     for (; iter != end; ++iter) {
