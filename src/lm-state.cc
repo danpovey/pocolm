@@ -52,7 +52,7 @@ void IntLmState::Write(std::ostream &os) const {
     // and also saves a little I/O.
     int32 neg_discount = -discount;
     os.write(reinterpret_cast<const char*>(&neg_discount),
-             sizeof(float));
+             sizeof(int32));
   }
   int32 history_size = history.size(),
       num_counts = counts.size(),
