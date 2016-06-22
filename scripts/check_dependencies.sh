@@ -59,7 +59,7 @@ if ! python -c 'import numpy' >&/dev/null; then
   echo "$0: python-numpy is not installed"
   # I'm not sure if this package name is OK for all distributions, this is what
   # it seems to be called on Debian.  We'll have to investigate this.
-  add_packages python-numpy python-numpy python-numpy
+  add_packages numpy python-numpy python-numpy
 fi
 
 printed=false
@@ -82,16 +82,22 @@ if which apt-get >&/dev/null && ! which zypper >/dev/null; then
   fi
 fi
 
-if which yum >&/dev/null; then
+redhat_pkg_mgr=
+if which dnf >&/dev/null; then
+  redhat_pkg_mgr=dnf
+elif which yum >&/dev/null; then
+  redhat_pkg_mgr=yum
+fi
+if [ -n "$redhat_pkg_mgr" ]; then
   if [ ! -z "$redhat_packages" ]; then
     echo "$0: we recommend that you run (our best guess):"
-    echo " sudo yum install $redhat_packages"
+    echo " sudo $redhat_pkg_mgr install $redhat_packages"
     printed=true
     status=1
   fi
   if ! rpm -qa|  grep atlas >/dev/null; then
     echo "You should probably do something like: "
-    echo "sudo yum install atlas.x86_64"
+    echo "sudo $redhat_pkg_mgr install atlas.x86_64"
     printed=true
   fi
 fi
