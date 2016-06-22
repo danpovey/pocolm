@@ -80,6 +80,7 @@ class IntLmState {
 
   void Swap(IntLmState *other) {
     std::swap(discount, other->discount);
+    history.swap(other->history);
     counts.swap(other->counts);
   }
 };

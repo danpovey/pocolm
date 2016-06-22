@@ -197,8 +197,13 @@ int main (int argc, const char **argv) {
 
 /*
 
-  some testing:
+  some very basic testing:
 
- ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/null /dev/stdout | merge-counts /dev/stdin,0.5 | print-int-counts
+ ( echo 11 12 13; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/null  /dev/null /dev/stdout | merge-counts /dev/stdin,0.5 /dev/null | print-counts
+
+ [ 11 1 ]: 12->(1,0.5,0.5)
+ [ 12 11 ]: 13->(1,0.5,0.5)
+ [ 13 12 ]: 2->(0.5,0.5) 14->(0.5,0.5)
+ [ 14 13 ]: 2->(0.5,0.5)
 
  */

@@ -85,11 +85,22 @@ class IntCountMinEnforcer {
       ReadStream(d);
     while (!hist_to_data_types_.empty())
       ProcessNextHistoryState();
-    FlushThisLengthAndGreater(1);
+    while (history_.size() > 0)
+      FlushCurrentHistory();
   }
 
   void InitMembers() {
     lm_states_.resize((ngram_order_ - 1) * num_data_types_);
+    // Give the history members of lm_states_ the correct length,
+    // which saves having to check their size is correct in the rest of
+    // the program
+    for (int32 data_type = 0; data_type < num_data_types_; data_type++) {
+      for (int32 history_length = 1; history_length < ngram_order_;
+           history_length++) {
+        int32 index = (history_length - 1) * num_data_types_ + data_type;
+        lm_states_[index].history.resize(history_length);
+      }
+    }
     weighted_total_counts_.resize(ngram_order_ - 1);
     pending_lm_states_.resize(num_data_types_);
   }
@@ -145,8 +156,9 @@ class IntCountMinEnforcer {
     // Eventually, for efficiency, we might wan to handle the case where
     // just one source has an LM-state with this history, as a special case.
 
+    FlushConflictingHistories(hist);
+    history_ = hist;
     int32 history_length = hist.size();
-    FlushThisLengthAndGreater(history_length);
     for (std::vector<int32>::const_iterator iter = data_types.begin();
          iter != data_types.end(); ++iter) {
       int32 data_type = *iter;
@@ -161,9 +173,24 @@ class IntCountMinEnforcer {
     }
   }
 
-  void FlushThisLengthAndGreater(int32 history_length) {
-    for (int32 h = ngram_order_ - 1; h >= history_length; h--)
-      FlushThisLength(h);
+  // This function returns true if vec1 is a prefix of vec2,
+  // i.e.
+  static inline bool IsPrefixOf(const std::vector<int32> &vec1,
+                                const std::vector<int32> &vec2) {
+    return vec1.size() <= vec2.size() &&
+        std::equal(vec1.begin(), vec1.end(), vec2.begin());
+  }
+
+
+  // This flushes any history-states whose histories are are *not* a postfix of
+  // 'hist'.  [a post-fix in natural word order, but a prefix if you consider
+  // how we actually store them].
+  // This is done before setting 'history_' to 'hist'.
+  void FlushConflictingHistories(const std::vector<int32> &hist) {
+    while (history_.size() > hist.size())
+      FlushCurrentHistory();
+    while (!IsPrefixOf(history_, hist))
+      FlushCurrentHistory();
   }
 
   // This function sorts counts and combines multiple entries with the
@@ -212,31 +239,50 @@ class IntCountMinEnforcer {
 
 
   /*
-    This function writes out, and destroys any LM-states we have in lm_states_,
-    of this history length.  It assumes that any histories of higher orders have
-    already been flushed.  It also clears the weighted_total_counts_ of this
-    history length.
+    This function writes out, and destroys any LM-states we have in lm_states_
+    with nonzero counts, for histories of the current history length
+    history_.size().   [It assumes that any LM-states of higher orders have
+    already been flushed.]  It also clears the weighted_total_counts_ of this
+    history length, and pops something off history_ to reduce the history length.
   */
-  void FlushThisLength(int32 history_length) {
-    assert(history_length >= 1);
+  void FlushCurrentHistory() {
+    int32 history_length = history_.size();
+    assert(history_length > 0);
     int32 num_data_types = num_data_types_;
     for (int32 data_type = 0; data_type < num_data_types; data_type++) {
-      int32 index = (history_length - 1) * num_data_types + data_type;
-      IntLmState &lm_state = lm_states_[index];
-      if (!lm_state.counts.empty()) {
-        if (history_length > 2) {
-          CombineSameWordCounts(&lm_state.counts);
-          BackOffLmState(history_length, data_type);
-        }
-        RemoveZerosFromCounts(&lm_state.counts);
-        // Normalizing the counts may have made them empty, so check again.
-        if (!lm_state.counts.empty()) {
-          lm_state.Write(outputs_[index]);
-          lm_state.counts.clear();
-        }
-      }
+      FlushThisHistory(history_length, data_type);
     }
     weighted_total_counts_[history_length - 1].clear();
+    history_.pop_back();
+  }
+
+  /*
+    This function normalizes, then writes out if nonempty, the counts for this
+    history-length and data-type. It assumes that the same function has been
+    called for any higher-order histories of the same data-type.
+  */
+  void FlushThisHistory(int32 history_length, int32 data_type) {
+    int32 index = (history_length - 1) * num_data_types_ + data_type;
+    IntLmState &lm_state = lm_states_[index];
+    if (!lm_state.counts.empty()) {
+      if (history_length + 1 < ngram_order_)
+        CombineSameWordCounts(&lm_state.counts);
+      if (history_length >= 2)
+        BackOffLmState(history_length, data_type);
+      RemoveZerosFromCounts(&lm_state.counts);
+      // Normalizing the counts may have made them empty, so check again.
+      if (!lm_state.counts.empty()) {
+        // Before writing we have to make sure that lm_state.history is correct.
+        // Most of the time lm_state.history is not guaranteed canonically correct,
+        // it's this->history_ (or prefixes thereof) that give the 'correct'
+        // history for each LM-state.
+        assert(history_length == history_.size());
+        lm_state.history = history_;
+        lm_state.Write(outputs_[index]);
+        lm_state.counts.clear();
+      }
+      lm_state.discount = 0.0;
+    }
   }
 
   /*
@@ -362,12 +408,13 @@ class IntCountMinEnforcer {
     for (int32 hist_length = 2; hist_length < ngram_order_; hist_length++) {
       const char *this_min_count_str = argv[hist_length];
       char *endptr;
-      // this_min_count_str will either be a single integer, meaning we have the
-      // same min-count for all data-types (although we first add the count
-      // across all data-types before testing whether to keep a word); or it
-      // will be a comma- separated list of floating point numbers.
+      // this_min_count_str will either be a single floating-point value
+      // (although normally it will be an integer), meaning we have the same
+      // min-count for all data-types (although we first add the count across
+      // all data-types before testing whether to keep a word); or it will be a
+      // comma- separated list of floating point numbers.
       if (strchr(this_min_count_str, ',') == NULL) {
-        int this_min_count = strtol(this_min_count_str, &endptr, 10);
+        float this_min_count = strtof(this_min_count_str, &endptr);
         if (!(*endptr == '\0' && this_min_count >= 1)) {
           std::cerr << "int-counts-enforce-min-counts: bad min-count '"
                     << this_min_count_str << "'\n";
@@ -412,7 +459,7 @@ class IntCountMinEnforcer {
       }
     }
     for (size_t i = 0; i < min_counts_.size(); i++)
-      inverse_min_counts_[i] = min_counts_[i];
+      inverse_min_counts_[i] = 1.0 / min_counts_[i];
   }
 
   void OpenInputs(int argc, const char **argv){
@@ -452,7 +499,7 @@ class IntCountMinEnforcer {
     }
   }
 
-  // The lm-states for each history-length > 0 and each data-type, indexed by
+  // The LM-states for each history-length > 0 and each data-type, indexed by
   // ((history_length - 1) * num_data_types_) + data_type.  These are read in
   // from the streams in inputs_, but before writing them out to outputs_, we
   // discount the counts that are below the relevant min-counts, and add them to
@@ -461,7 +508,20 @@ class IntCountMinEnforcer {
   // discount counts we just append them to the backoff state's 'counts' vector.
   // These lm-states may contain counts that were backed off from higher-order
   // states.
+  // Note: some of the time the 'history' elements of these LM-states may not be
+  // valid.  The history in 'history_' is always the canonical history, and
+  // we'll set the history members in the LM-states before writing them out; see
+  // the comment for 'history_.'
   std::vector<IntLmState> lm_states_;
+
+  // The current history-state we're processing.  The counts and discounts in
+  // the lm_states_ for history-lengths greater than this history's length must
+  // be empty/zero, and the counts and discounts for history-lengths <= this
+  // history's length must correspond to postfixes of this history (in the
+  // natural word-order; or prefixes in the order we store them).
+  // Note: it may be that the actual 'history' members of the lm_states_ may
+  // differ from the prefixes of this vector; this vector is canonical.
+  std::vector<int32> history_;
 
   // Indexed first by history-length - 1, and then by word-id, this
   // contains the weighted-total-count, which is a summation over all
@@ -543,4 +603,32 @@ int main (int argc, const char **argv) {
   return 0;
 }
 
+/*
 
+  ( for n in $(seq 4); do echo 11 12 13; done; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/stdout | print-int-counts
+
+get-text-counts: processed 5 lines, with (on average) 5.2 words per line.
+get-int-counts: processed 5 LM states, with 6 individual n-grams.
+ [ 1 ]: 11->5
+ [ 11 1 ]: 12->5
+ [ 12 11 ]: 13->5
+ [ 13 12 ]: 2->4 14->1
+ [ 14 13 ]: 2->1
+print-int-counts: printed 5 LM states, with 6 individual n-grams.
+
+
+  ( for n in $(seq 4); do echo 11 12 13; done; echo 11 12 13 14 ) | get-text-counts 3 | sort | uniq -c | get-int-counts /dev/stdout | int-counts-enforce-min-counts 3 2.0 /dev/stdin foo.{2,3}
+
+merge-int-counts foo.{2,3} | print-int-counts
+
+merge-int-counts: read 3 + 3 = 6 LM states.
+ [ 1 ]: 11->5
+ [ 11 1 ]: 12->5
+ [ 12 11 ]: 13->5
+ [ 13 ]: 14->1
+ [ 13 12 ]: discount=1 2->4
+ [ 14 ]: 2->1
+print-int-counts: printed 6 LM states, with 6 individual n-grams.
+
+
+ */
