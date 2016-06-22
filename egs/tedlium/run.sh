@@ -22,7 +22,7 @@ if [ ! -d data ]; then
 fi
 
 head -n $num_dev_sentences < cantab-TEDLIUM/cantab-TEDLIUM.txt | sed 's/ <\/s>//g'  > data/text/dev.txt
-tail -n +$num_dev_sentences < cantab-TEDLIUM/cantab-TEDLIUM.txt | sed 's/ <\/s>//g'  > data/text/cantap_tedlium.txt
+tail -n +$(($num_dev_sentences+1)) < cantab-TEDLIUM/cantab-TEDLIUM.txt | sed 's/ <\/s>//g'  > data/text/cantap_tedlium.txt
 time_download=`date +%s`
 
 get_word_counts.py data/text data/word_counts
@@ -39,7 +39,7 @@ time_optimization[2]=`date +%s`
 
 for order in 3 4 5; do
 
-  get_counts.sh data/int_${vocab_size} ${order} data/counts_${vocab_size}_${order}
+  get_counts.py data/int_${vocab_size} ${order} data/counts_${vocab_size}_${order}
 
   ratio=10
   splits=5

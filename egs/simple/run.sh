@@ -24,7 +24,7 @@ ngram_order=3
 
 prepare_int_data.sh data/text data/words.txt data/int
 
-get_counts.sh data/int $ngram_order data/counts
+get_counts.py data/int $ngram_order data/counts
 
 initialize_metaparameters.py \
    --ngram-order=$ngram_order \

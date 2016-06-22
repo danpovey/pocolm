@@ -29,7 +29,7 @@ prepare_int_data.sh data/text data/vocab_20k.txt data/int_20k
 
 for order in 3 4 5; do
 
-  get_counts.sh data/int_20k ${order} data/counts_20k_${order}
+  get_counts.py data/int_20k ${order} data/counts_20k_${order}
 
   ratio=10
   splits=5

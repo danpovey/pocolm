@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-get_counts.sh data/int_20k 3 data/counts_20k_3
+get_counts.py data/int_20k 3 data/counts_20k_3
 
 mkdir -p data/optimize_20k_3
 get_initial_metaparameters.py \
