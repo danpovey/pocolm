@@ -258,7 +258,7 @@ void FloatLmState::Read(std::istream &is) {
     std::cerr << "Failure reading FloatLmState from stream\n";
     exit(1);
   }
-  if (rand() % 10 == 0)
+  if (rand() % 4 == 0)
     Check();
 }
 
