@@ -43,11 +43,11 @@ if [ $# != 3 ]; then
   echo
   echo "Options"
   echo "   --dump-counts-parallel <true|false>  [default: false]"
-  echo "      Setting --dump-counnts-parallel true will enable parallel"
+  echo "      Setting --dump-counts-parallel true will enable parallel"
   echo "      processing over the different sources of training data when"
   echo "      dumping the original counts."
   echo "   --num-jobs <n>   [default: 5]"
-  echo "      The number of parallel jobs used when applying the min-counts."
+  echo "      The number of parallel jobs per data source used when applying the min-counts."
   echo "   --min-counts <mincounts>  [required option; no default]"
   echo "     The min-counts for each order >= 3, e.g. '2' for trigram or '2 2'"
   echo "     for 4-gram.  You may also supply different min-counts per dataset,"
