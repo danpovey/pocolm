@@ -83,7 +83,7 @@ assert deriv_f.readline() == ''
 f.close()
 deriv_f.close()
 
-print("validate_metaparamter_derivs.py: deriv w.r.t. scaling "
+print("validate_metaparameter_derivs.py: deriv w.r.t. scaling "
       "is {0} (should be close to zero)".format(scaling_deriv),
       file=sys.stderr)
 

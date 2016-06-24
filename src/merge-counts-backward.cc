@@ -30,8 +30,9 @@
 
 
 /**
-  This program reads both int-counts and regular counts, merges them as regular
-  counts, and writes the merged counts. */
+  merge-counts reads both int-counts and regular counts, merges them as regular
+  counts, and writes the merged counts.  This program does backwards
+  differentiation through merge-counts. */
 
 namespace pocolm {
 

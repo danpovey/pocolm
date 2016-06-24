@@ -132,8 +132,8 @@ class CountDiscounter {
         lm_state.counts.begin(), in_end = lm_state.counts.end();
     std::vector<std::pair<int32, float> >::iterator out_iter =
         discounted_state.counts.begin();
-    double lm_state_total = 0.0,
-        discount_total = 0.0;
+    double lm_state_total = lm_state.discount,
+        discount_total = lm_state.discount;
     for (; in_iter != in_end; ++in_iter,++out_iter) {
       int32 word = in_iter->first;
       const Count &count = in_iter->second;
@@ -167,7 +167,7 @@ class CountDiscounter {
       out_iter->second = count.total - d;
     }
     discounted_state.total = lm_state_total;
-    discounted_state.discount = lm_state.discount + discount_total;
+    discounted_state.discount = discount_total;
     discounted_state.Write(discounted_output_);
   }
 
