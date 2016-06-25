@@ -11,9 +11,9 @@ export PATH=$PATH:$POCOLM_ROOT/scripts
 
 num_words=500
 ngram_order=3
-# the "2" is the min-count for order 3.
-min_counts="2"
-datasub=data/${num_words}_${ngram_order}_mc2
+# the "2" is the min-count for orders 3 and above.
+min=2
+datasub=data/${num_words}_${ngram_order}_mc${min}
 mkdir -p $datasub
 
 
@@ -22,12 +22,7 @@ word_counts_to_vocab.py --num-words=$num_words --weights=data/weights data/word_
 
 prepare_int_data.sh data/text $datasub/words.txt $datasub/int
 
-get_counts.sh $datasub/int $ngram_order $datasub/counts_no_mincount
-
-min=2
-min_counts="$(for n in $(seq 3 $ngram_order); do echo -n $min ''; done)"
-get_counts_mincounts.sh --min-counts "$min_counts"  $datasub/int $ngram_order $datasub/counts
-
+get_counts.py --min-counts=$min  $datasub/int $ngram_order $datasub/counts
 
 validate_count_dir.py $datasub/counts
 
@@ -37,7 +32,6 @@ initialize_metaparameters.py --weights=data/weights \
    --ngram-order=$ngram_order \
    --names=$datasub/counts/names \
    --num-train-sets=$(cat $datasub/counts/num_train_sets) > $datasub/optimize/0.metaparams
-
 
 get_objf_and_derivs.py --derivs-out=$datasub/optimize/0.derivs \
   $datasub/counts  $datasub/optimize/0.{metaparams,objf} $datasub/work.0
