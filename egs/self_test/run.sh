@@ -13,7 +13,7 @@ get_word_counts.py data/text data/word_counts
 
 get_unigram_weights.py data/word_counts > data/weights
 
-# local/run_mincount.sh
+#local/run_mincount.sh
 
 num_words=500
 ngram_order=3

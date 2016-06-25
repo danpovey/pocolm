@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# This script is deprecated and will be deleted.
 
 # by default, we don't process the different files into counts in parallel because
 # 'sort' might take up too much memory.
@@ -13,6 +14,7 @@ fi
 
 if [ $# != 3 ]; then
   echo "Usage:"
+  echo "This script is deprecated and will be deleted; use get_counts.py."
   echo "  $0 [options] <source-int-dir> <ngram-order> <dest-count-dir>"
   echo "e.g.:  $0 data/int 3 data/counts_3"
   echo

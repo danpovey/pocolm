@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# This script is deprecated and will be deleted.
 
 # by default, we don't process the different files into counts in parallel because
 # 'sort' might take up too much memory.
@@ -30,10 +31,9 @@ for n in $(seq 4); do
 done
 
 
-
-
 if [ $# != 3 ]; then
   echo "Usage:"
+  echo "This script is deprecated and will be deleted; use get_counts.py."
   echo "  $0 [options] <source-int-dir> <ngram-order> <dest-count-dir>"
   echo "e.g.:  $0 data/int 3 data/counts_3"
   echo
@@ -47,7 +47,7 @@ if [ $# != 3 ]; then
   echo "      processing over the different sources of training data when"
   echo "      dumping the original counts."
   echo "   --num-jobs <n>   [default: 5]"
-  echo "      The number of parallel jobs per data source used when applying the min-counts."
+  echo "      The number of parallel jobs used when applying the min-counts."
   echo "   --min-counts <mincounts>  [required option; no default]"
   echo "     The min-counts for each order >= 3, e.g. '2' for trigram or '2 2'"
   echo "     for 4-gram.  You may also supply different min-counts per dataset,"

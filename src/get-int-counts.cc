@@ -68,7 +68,8 @@ int main (int argc, const char **argv) {
   for (int32 i = 0; i < num_outputs; i++) {
     outputs[i].open(argv[i + 1], std::ios_base::binary|std::ios_base::out);
     if (!outputs[i]) {
-      std::cerr << "get-int-counts: Failed to open '" << argv[i + 1] << "' for output.";
+      std::cerr << "get-int-counts: Failed to open '" << argv[i + 1]
+                << "' for output.\n";
       exit(1);
     }
   }
