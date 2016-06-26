@@ -29,7 +29,8 @@ args = parser.parse_args()
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
+                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src" + os.pathsep +
+                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal") 
 
 # do some checking
 if os.system("validate_text_dir.py " + args.text_dir) != 0:
@@ -42,9 +43,6 @@ if not os.path.exists(os.path.abspath(os.path.dirname(sys.argv[0])) + "/text_to_
   sys.exit("prepare_int_data.py: expected text_to_int.py to be on the path")
 
 # create the output data directory
-if not os.path.exists(args.int_dir):
-  os.makedirs(args.int_dir)
-
 if not os.path.exists(args.int_dir + "/log"):
   os.makedirs(args.int_dir + "/log")
 
@@ -55,6 +53,13 @@ for f in filelist:
     os.remove(f)
   except OSError:
     pass
+
+# read the variables 'num_train_sets' and 'num_words' from the corresponding
+# files in in_dir.
+for name in [ 'num_train_sets', 'num_words' ]:
+    f = open(args.int_dir + os.sep + name)
+    globals()[name] = int(f.readline())
+    f.close()
 
 def ExitProgram(message):
   print(message, file=sys.stderr)
@@ -75,89 +80,47 @@ def GetCommandStdout(command):
     ExitProgram("prepare_int_data.py: error running command: " + command)
   return output
 
-def GetNames(script_dir, text_dir, int_dir):
-  command = "{0}/internal/get_names.py {1} > {2}/names".format(
-              script_dir, text_dir, int_dir) 
+def GetNames(text_dir, int_dir):
+  command = "get_names.py {0} > {1}/names".format(
+              text_dir, int_dir) 
   RunCommand(command)
-
-def GetNumTrainSets(int_dir):
-  command = "cat {0}/names | wc -l".format(int_dir)
-  line = subprocess.check_output(command, shell = True) 
-  try:
-    a = line.split()
-    assert len(a) == 1
-    ans = int(a[0])
-  except:
-    sys.exit("prepare_int_data.py: error: unexpected output '{0}' from command {1}".format(
-                line, command))
-  return ans
 
 def CopyFile(src, dest):
   try:
-    shutil.copyfile(src, dest)
+    shutil.copy(src, dest)
   except: 
     sys.exit("prepare_int_data.py: error copying {0} to {1}".format(src, dest))
 
-# returns num-words in vocab.
-def GetNumWords(vocab):
-  command = "tail -n 1 {0}".format(vocab)
-  line = subprocess.check_output(command, shell = True)
-  try:
-    a = line.split()
-    assert len(a) == 2
-    ans = int(a[1])
-  except:
-    sys.exit("prepare_int_data.py: error: unexpected output '{0}' from command {1}".format(
-                line, command))
-  return ans
-
 # we can include the preparation of the dev data in the following
 # by adding "dev dev" to the contents of int_dir/names
-def PrepareData(line):
-  [int, name] = line.split()
+def PrepareData(int, name):
   if os.path.exists(args.text_dir + "/" + name + ".txt.gz"):
-    command = "set -o pipefail; gunzip -c {text_dir}/{name}.txt.gz | text_to_int.py {vocab} | gzip -c > {int_dir}/{int}.txt.gz 2>{int_dir}/log/{int}.log".format(
-                  text_dir = args.text_dir, name = name, vocab = args.vocab, int_dir = args.int_dir, int = int)
+    command = "set -o pipefail; gunzip -c {text_dir}/{name}.txt.gz | \
+               text_to_int.py {vocab} | gzip -c > {int_dir}/{int}.txt.gz \
+               2>{int_dir}/log/{int}.log".format(text_dir = args.text_dir, \
+               name = name, vocab = args.vocab, int_dir = args.int_dir, int = int)
     output = GetCommandStdout(command)
   else:
-    command = "set -o pipefail; cat {text_dir}/{name}.txt | text_to_int.py {vocab} | gzip -c > {int_dir}/{int}.txt.gz 2>{int_dir}/log/{int}.log".format(
-                  text_dir = args.text_dir, name = name, vocab = args.vocab, int_dir = args.int_dir, int = int)
+    command = "set -o pipefail; cat {text_dir}/{name}.txt | text_to_int.py {vocab} \
+               | gzip -c > {int_dir}/{int}.txt.gz 2>{int_dir}/log/{int}.log".format(
+               text_dir = args.text_dir, name = name, vocab = args.vocab, \
+               int_dir = args.int_dir, int = int)
     output = GetCommandStdout(command)
 
 # return the names of train and dev datasets 
-scriptdir = os.path.abspath(os.path.dirname(sys.argv[0]))
-GetNames(scriptdir, args.text_dir, args.int_dir)
+GetNames(args.text_dir, args.int_dir)
 
 # copy vocab to the output directory 
-src = args.vocab 
-dest = args.int_dir + "/words.txt"
-CopyFile(src, dest)
-
-# return the number of train sets 
-with open(args.int_dir + "/num_train_sets", "w") as file:
-  file.write(str(GetNumTrainSets(args.int_dir)))
-
-# return num-words in vocab 
-with open(args.int_dir + "/num_words", "w") as file:
-  file.write(str(GetNumWords(args.vocab)))
-
-src = args.int_dir + "/names"
-dest = args.int_dir + "/names_modified"
-file = open(dest, "w")
-file.write("dev dev \n")
-sourcefile = open(src, "r")
-lines = sourcefile.readlines()
-for line in lines:
-  file.write(line)
-file.close()
+CopyFile(args.vocab, args.int_dir + "/words.txt")
 
 # parallel/sequential processing
 threads = [] 
-f = open(dest, "r")
+f = open(args.int_dir + "/names", "r")
 for line in f:
-  threads.append(threading.Thread(target = PrepareData, args = [line]))
+  [int, name] = line.split()
+  threads.append(threading.Thread(target = PrepareData, args = [int, name]))
 f.close()
-os.remove(dest)
+threads.append(threading.Thread(target = PrepareData, args = ["dev", "dev"]))
 
 if args.parallel=="true":
   for t in threads: 
@@ -170,13 +133,11 @@ else:
     t.join()
 
 # copy the unigram_weights to the output data directory  
-src = args.text_dir + "/unigram_weights"
-dest = args.int_dir
-if os.path.exists(src):
-  CopyFile(src, dest)
+if os.path.exists(args.text_dir + "/unigram_weights"):
+  CopyFile(args.text_dir + "/unigram_weights", args.int_dir)
 else:
   try:
-    os.remove(dest + "/unigram_weights")
+    os.remove(args.int_dir + "/unigram_weights")
   except OSError:
     pass
 
