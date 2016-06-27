@@ -27,9 +27,7 @@ word_counts_to_vocab.py --num-words=$num_words --weights=data/weights data/word_
 
 prepare_int_data.sh data/text $datasub/words.txt $datasub/int
 
-# note, get_counts.sh may later be called by another script.
-
-get_counts.sh $datasub/int $ngram_order $datasub/counts
+get_counts.py $datasub/int $ngram_order $datasub/counts
 
 validate_count_dir.py $datasub/counts
 

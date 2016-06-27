@@ -4,10 +4,17 @@
 from __future__ import print_function
 import re, os, argparse, sys, math, warnings, subprocess
 
+# make sure scripts/internal is on the pythonpath.
+sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys.path
+
+# for ExitProgram, RunCommand and GetCommandStdout
+from pocolm_common import *
+
+
 parser = argparse.ArgumentParser(description="Given a counts directory and a set of "
                                  "metaparameters, this script does the language model discounting "
                                  "and computes the objective function, which is the log-probability "
-                                 "per word on the dev set.");
+                                 "per word on the dev set.")
 
 
 parser.add_argument("--fold-dev-into-int", type=int,
@@ -32,13 +39,13 @@ args = parser.parse_args()
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
+                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src")
 
 if not os.path.exists(args.work_dir):
     os.makedirs(args.work_dir)
 
 if os.system("validate_count_dir.py " + args.count_dir) != 0:
-    sys.exit("get_objf_and_derivs.py: count-dir validation failed");
+    sys.exit("get_objf_and_derivs.py: count-dir validation failed")
 
 # read the variables 'ngram_order', 'num_train_sets' and 'num_words'
 # from the corresponding files in count_dir.
@@ -86,22 +93,6 @@ for o in range(2, ngram_order + 1):
 f.close()
 
 
-def RunCommand(command):
-    # print the command for logging
-    print(command, file=sys.stderr)
-    if os.system(command) != 0:
-        sys.exit("get_objf_and_derivs.py: error running command: " + command)
-
-def GetCommandStdout(command):
-    # print the command for logging
-    print(command, file=sys.stderr)
-    try:
-        output = subprocess.check_output(command, shell = True)
-    except:
-        sys.exit("get_objf_and_derivs.py: error running command: " + command)
-    return output
-
-
 # This function does the count merging for the specified
 # n-gram order, writing to $work_dir/merged.$order
 # For the highest order we merge count_dir/int.*.order,
@@ -132,7 +123,8 @@ def MergeCounts(order):
     # the output gets redirected to the output file.
     command += " >{work}/merged.{order}".format(
         work = args.work_dir, order = order)
-    RunCommand(command)
+    log_file = "{0}/log/merge_counts.{1}.log".format(args.work_dir, order)
+    RunCommand(command, log_file)
 
 def MergeCountsBackward(order):
     global scale_derivs
@@ -151,7 +143,8 @@ def MergeCountsBackward(order):
     if order < ngram_order:
         command += " {work}/discounted.{order} {work}/discounted_derivs.{order}".format(
             work = args.work_dir, order = order)
-    output = GetCommandStdout(command)
+    log_file = "{0}/log/merge_counts_backward.{1}.log".format(args.work_dir, order)
+    output = GetCommandStdout(command, log_file)
     try:
         this_scale_derivs = [ float(n) / num_dev_set_words for n in output.split() ]
         assert len(scale_derivs) == num_train_sets
@@ -170,7 +163,8 @@ def DiscountCounts(order):
     command = "discount-counts {d1} {d2} {d3} {d4} {work}/merged.{order} {work}/float.{order} {work}/discounted.{orderm1} ".format(
         d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
         work = args.work_dir, order = order, orderm1 = order - 1)
-    RunCommand(command)
+    log_file = "{0}/log/discount_counts.{1}.log".format(args.work_dir, order)
+    RunCommand(command, log_file)
 
 def DiscountCountsBackward(order):
     # discount counts of the specified order > 1; backprop version.
@@ -180,7 +174,8 @@ def DiscountCountsBackward(order):
                "{work}/merged_derivs.{order}".format(
             d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
             work = args.work_dir, order = order, orderm1 = order - 1))
-    output = GetCommandStdout(command);
+    log_file = "{0}/log/discount_counts_backward.{1}.log".format(args.work_dir, order)
+    output = GetCommandStdout(command, log_file)
     try:
         [ deriv1, deriv2, deriv3, deriv4 ] = output.split()
     except:
@@ -194,27 +189,31 @@ def DiscountCountsBackward(order):
 def DiscountCountsOrder1():
     command = "discount-counts-1gram {num_words} <{work}/discounted.1 >{work}/float.1".format(
         num_words = num_words, work = args.work_dir)
-    RunCommand(command)
+    log_file = "{0}/log/discount_counts_order1.log".format(args.work_dir)
+    RunCommand(command, log_file)
 
 def DiscountCountsOrder1Backward():
     command = ("discount-counts-1gram-backward {work}/discounted.1 {work}/float.1 "
                "{work}/float_derivs.1 {work}/discounted_derivs.1".format(work = args.work_dir))
-    RunCommand(command)
+    log_file = "{0}/log/discount_counts_order1_backward.log".format(args.work_dir)
+    RunCommand(command, log_file)
 
 def MergeAllOrders():
     command = ("merge-float-counts " +
                " ".join([ "{0}/float.{1}".format(args.work_dir, n) for n in range(1, ngram_order + 1) ])
                + ">{0}/float.all".format(args.work_dir))
-    RunCommand(command)
+    log_file = "{0}/log/merge_all_orders.log".format(args.work_dir)
+    RunCommand(command, log_file)
 
 def ComputeObjfAndFinalDerivs(need_derivs):
     global num_dev_set_words, objf
     command = "compute-probs {work}/float.all {counts}/int.dev ".format(
-        work = args.work_dir, counts = args.count_dir);
+        work = args.work_dir, counts = args.count_dir)
     if need_derivs:
         command +=" ".join([ "{work}/float_derivs.{order}".format(work = args.work_dir, order = n)
                              for n in range(1, ngram_order + 1) ])
-    output = GetCommandStdout(command)
+    log_file = "{0}/log/compute_objf_and_final_derivs.log".format(args.work_dir)
+    output = GetCommandStdout(command, log_file)
     try:
         [ num_dev_set_words, tot_objf ] = output.split()
         num_dev_set_words = int(num_dev_set_words)
@@ -247,6 +246,13 @@ def WriteDerivs():
         print("order{0}_D3 {1}".format(o, d3_deriv[o]), file=f)
         print("order{0}_D4 {1}".format(o, d4_deriv[o]), file=f)
     f.close()
+
+
+if not os.path.isdir(args.work_dir + "/log"):
+    try:
+        os.makedirs(args.work_dir + "/log")
+    except:
+        ExitProgram("error creating directory {0}/log".format(args.work_dir))
 
 # for n-gram orders down to 2, do the merging and discounting.
 for o in range(ngram_order, 1, -1):

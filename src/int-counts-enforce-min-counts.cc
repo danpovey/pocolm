@@ -276,7 +276,7 @@ class IntCountMinEnforcer {
         // Most of the time lm_state.history is not guaranteed canonically correct,
         // it's this->history_ (or prefixes thereof) that give the 'correct'
         // history for each LM-state.
-        assert(history_length == history_.size());
+        assert(history_length == static_cast<int32>(history_.size()));
         lm_state.history = history_;
         lm_state.Write(outputs_[index]);
         lm_state.counts.clear();

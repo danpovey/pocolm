@@ -10,7 +10,6 @@ parser = argparse.ArgumentParser(description="This script turns a pocolm languag
                                  "language model.  The ARPA LM is written to the standard "
                                  "output and may be redirected as desired.")
 
-
 parser.add_argument("--temp-dir", type=str,
                     help="Temporary directory for use by 'sort'; if not provided, "
                     "we use the destination directory lm_dir")
@@ -67,7 +66,7 @@ else:
     # sort -m <(command1) <(command2) ... <(commandN) | pre-arpa-to-arpa ...
     # we put it all inside bash -c, because the process substitution <(command)
     # won't always work in /bin/sh.
-    command = ("bash -c 'sort -m " + # merge-sort
+    command = ("bash -c 'sort -m " +  # sort -m merges already-sorted files.
                " ".join([ "<(float-counts-to-pre-arpa {opt} {ngram_order} {num_words} "
                           "{lm_dir}/float.all.{n} | sort)".format(
                     opt = ('--no-unigram' if n > 1 else ''),
