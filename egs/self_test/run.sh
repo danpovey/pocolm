@@ -25,7 +25,7 @@ mkdir -p $datasub
 
 word_counts_to_vocab.py --num-words=$num_words --weights=data/weights data/word_counts  > $datasub/words.txt
 
-prepare_int_data.sh data/text $datasub/words.txt $datasub/int
+prepare_int_data.py data/text $datasub/words.txt $datasub/int
 
 get_counts.py $datasub/int $ngram_order $datasub/counts
 

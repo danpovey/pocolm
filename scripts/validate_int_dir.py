@@ -10,7 +10,7 @@ except:
 
 
 parser = argparse.ArgumentParser(description="Validates directory containing integerized "
-                                 "text data, as produced by prepare_int_data.sh",
+                                 "text data, as produced by prepare_int_data.py",
                                  epilog="E.g. validate_int_dir.py data/int.100k");
 
 parser.add_argument("int_dir",

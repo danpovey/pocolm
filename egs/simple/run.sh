@@ -22,7 +22,7 @@ wordlist_to_vocab.py wordlist > data/words.txt
 
 ngram_order=3
 
-prepare_int_data.sh data/text data/words.txt data/int
+prepare_int_data.py data/text data/words.txt data/int
 
 get_counts.sh data/int $ngram_order data/counts
 
