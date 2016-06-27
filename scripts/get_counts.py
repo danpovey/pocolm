@@ -434,7 +434,7 @@ f.close()
 
 if not os.path.isdir(args.dest_count_dir):
     try:
-        os.makedirs(args.dest_count_dir)
+        os.makedirs(args.dest_count_dir+'/log')
     except:
         ExitProgram("error creating directory " + args.dest_count_dir)
 
