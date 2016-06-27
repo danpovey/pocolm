@@ -33,14 +33,14 @@ parser.add_argument("int_dir",
 args = parser.parse_args()
 
 def GetNumTrainSets(int_dir):
-  f = open(int_dir)
-  line = f.readline()
-  try:
-    a = line.split()
-    assert len(a) == 2
-    ans = int(a[0])
-  except:
-    ExitProgram("failed to get the num_train_sets from {0}".format(int_dir))
+  with open(int_dir) as f:
+    for line in f: 
+      try:
+        a = line.split()
+        assert len(a) == 2
+        ans = int(a[0])
+      except:
+        ExitProgram("failed to get the num_train_sets from {0}".format(int_dir))
 
   return ans 
 
@@ -120,19 +120,19 @@ CopyFile(args.vocab, args.int_dir + "/words.txt")
 # get file 'num_train_sets' in int_dir from file 'names' in int_dir
 with open(args.int_dir + os.sep + "num_train_sets", "w") as f:
   num_train_sets = GetNumTrainSets(args.int_dir + os.sep + "names")
-  f.write(str(num_train_sets))
+  f.write(str(num_train_sets) + "\n")
 
 # get file 'num_words' in int_dir from vocab
 with open(args.int_dir + os.sep + "num_words", "w") as f:
   num_words = GetNumWords(args.vocab)
-  f.write(str(num_words))
+  f.write(str(num_words) + "\n")
 
 # parallel/sequential processing
 threads = [] 
 with open(args.int_dir + "/names", "r") as f:
-  line = f.readline()
-  [int, name] = line.split()
-  threads.append(threading.Thread(target = GetData, args = [int, name]))
+  for line in f:
+    [int, name] = line.split()
+    threads.append(threading.Thread(target = GetData, args = [int, name]))
 threads.append(threading.Thread(target = GetData, args = ["dev", "dev"]))
 
 if args.parallel == "true":
