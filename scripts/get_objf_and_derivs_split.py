@@ -25,6 +25,8 @@ parser.add_argument("--num-splits", type=int,
                     help="Number of splits in count directory.  You must previously have "
                     "split the counts directory with this number of splits.  This option is "
                     "required (if you're not using splitting, then use get_objf_and_deriv.py)")
+parser.add_argument("--verbose", type=str, default='false', choices=['true','false'],
+                    help="If true, print commands as we execute them.")
 parser.add_argument("--fold-dev-into-int", type=int,
                     help="Integer identifier of dataset into which the dev data "
                     "should be folded (not compatible with the --derivs-out option)")
@@ -146,7 +148,7 @@ def MergeCounts(split_index, order):
     command += " >{0}/{1}/merged.{2}".format(split_work_dir, split_index, order)
 
     log_file = "{0}/log/merge_counts.{1}.{2}.log".format(args.work_dir, split_index, order)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def MergeCountsBackward(split_index, order):
     global scale_derivs
@@ -168,7 +170,7 @@ def MergeCountsBackward(split_index, order):
             swork = split_work_dir, s = split_index, order = order)
 
     log_file = "{0}/log/merge_counts_backward.{1}.{2}.log".format(args.work_dir, split_index, order)
-    output = GetCommandStdout(command, log_file)
+    output = GetCommandStdout(command, log_file, args.verbose=='true')
     try:
         this_scale_derivs = [ float(n) / num_dev_set_words_total for n in output.split() ]
         assert len(scale_derivs) == num_train_sets
@@ -190,7 +192,7 @@ def DiscountCounts(split_index, order):
         sdir = this_split_work, order = order, orderm1 = order - 1)
     log_file = "{0}/log/discount_counts.{1}.{2}.log".format(args.work_dir,
                                                             split_index, order)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def DiscountCountsBackward(split_index, order):
     # discount counts of the specified order > 1; backprop version.
@@ -203,7 +205,7 @@ def DiscountCountsBackward(split_index, order):
             sdir = this_split_work, order = order, orderm1 = order - 1))
     log_file = "{0}/log/discount_counts_backward.{1}.{2}.log".format(args.work_dir,
                                                                      split_index, order)
-    output = GetCommandStdout(command, log_file)
+    output = GetCommandStdout(command, log_file, args.verbose=='true')
     try:
         [ deriv1, deriv2, deriv3, deriv4 ] = output.split()
     except:
@@ -221,7 +223,7 @@ def MergeCountsOrder1():
                           for s in range(1, args.num_splits + 1) ]) +
                " >{0}/discounted.1".format(args.work_dir))
     log_file = "{0}/log/merge_counts_order1.log".format(args.work_dir)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def MergeCountsOrder1Backward():
     # This function merges the order-1 discounted counts across all splits.
@@ -234,13 +236,13 @@ def MergeCountsOrder1Backward():
                           for s in range(1, args.num_splits + 1) ]) +
                ">/dev/null")
     log_file = "{0}/log/merge_counts_order1_backward.log".format(args.work_dir)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def DiscountCountsOrder1():
     command = "discount-counts-1gram {num_words} <{work}/discounted.1 >{work}/float.1".format(
         num_words = num_words, work = args.work_dir)
     log_file = "{0}/log/discount_counts_order1.log".format(args.work_dir)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def SumFloatDerivsOrder1():
     # this has to be called before DiscountCountsOrder1Backward, to sum up the
@@ -251,13 +253,13 @@ def SumFloatDerivsOrder1():
                           for s in range(1, args.num_splits + 1) ]) +
                " >{0}/float_derivs.1".format(args.work_dir))
     log_file = "{0}/log/sum_float_counts_order1.log".format(args.work_dir)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def DiscountCountsOrder1Backward():
     command = ("discount-counts-1gram-backward {work}/discounted.1 {work}/float.1 "
                "{work}/float_derivs.1 {work}/discounted_derivs.1".format(work = args.work_dir))
     log_file = "{0}/log/discount_counts_order1_backward.log".format(args.work_dir)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def MergeAllOrders(split_index):
     this_split_work = "{0}/{1}".format(split_work_dir, split_index)
@@ -269,7 +271,7 @@ def MergeAllOrders(split_index):
                           for n in range(1, ngram_order + 1) ])
                + ">{0}/float.all".format(this_split_work))
     log_file = "{0}/log/merge_all_orders.{1}.log".format(args.work_dir, split_index)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def MergeAllSplits():
     # merges the float.all acros all splits.
@@ -278,7 +280,7 @@ def MergeAllSplits():
                           for split_index in range(1, args.num_splits + 1) ]) +
                ">{0}/float.all".format(args.work_dir))
     log_file = "{0}/log/merge_all_splits.log".format(args.work_dir)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def ComputeObjfAndFinalDerivs(split_index, need_derivs):
     global num_dev_set_words_total, loglike_total
@@ -291,7 +293,7 @@ def ComputeObjfAndFinalDerivs(split_index, need_derivs):
 
     log_file = "{0}/log/compute_objf_and_final_derivs.{1}.log".format(args.work_dir,
                                                                       split_index)
-    output = GetCommandStdout(command, log_file)
+    output = GetCommandStdout(command, log_file, args.verbose=='true')
     try:
         [ num_dev_set_words, tot_objf ] = output.split()
         num_dev_set_words_total += int(num_dev_set_words)

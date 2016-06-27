@@ -22,6 +22,8 @@ parser.add_argument("--fold-dev-into-int", type=int,
                     "should be folded (not compatible with the --derivs-out option)")
 parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)")
+parser.add_argument("--verbose", type=str, default='false', choices=['true','false'],
+                    help="If true, print commands as we execute them.")
 parser.add_argument("count_dir",
                     help="Directory from which to obtain counts files\n")
 parser.add_argument("metaparameters",
@@ -124,7 +126,7 @@ def MergeCounts(order):
     command += " >{work}/merged.{order}".format(
         work = args.work_dir, order = order)
     log_file = "{0}/log/merge_counts.{1}.log".format(args.work_dir, order)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def MergeCountsBackward(order):
     global scale_derivs
@@ -144,7 +146,7 @@ def MergeCountsBackward(order):
         command += " {work}/discounted.{order} {work}/discounted_derivs.{order}".format(
             work = args.work_dir, order = order)
     log_file = "{0}/log/merge_counts_backward.{1}.log".format(args.work_dir, order)
-    output = GetCommandStdout(command, log_file)
+    output = GetCommandStdout(command, log_file, args.verbose=='true')
     try:
         this_scale_derivs = [ float(n) / num_dev_set_words for n in output.split() ]
         assert len(scale_derivs) == num_train_sets
@@ -164,7 +166,7 @@ def DiscountCounts(order):
         d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
         work = args.work_dir, order = order, orderm1 = order - 1)
     log_file = "{0}/log/discount_counts.{1}.log".format(args.work_dir, order)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def DiscountCountsBackward(order):
     # discount counts of the specified order > 1; backprop version.
@@ -175,7 +177,7 @@ def DiscountCountsBackward(order):
             d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
             work = args.work_dir, order = order, orderm1 = order - 1))
     log_file = "{0}/log/discount_counts_backward.{1}.log".format(args.work_dir, order)
-    output = GetCommandStdout(command, log_file)
+    output = GetCommandStdout(command, log_file, args.verbose=='true')
     try:
         [ deriv1, deriv2, deriv3, deriv4 ] = output.split()
     except:
@@ -190,20 +192,20 @@ def DiscountCountsOrder1():
     command = "discount-counts-1gram {num_words} <{work}/discounted.1 >{work}/float.1".format(
         num_words = num_words, work = args.work_dir)
     log_file = "{0}/log/discount_counts_order1.log".format(args.work_dir)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def DiscountCountsOrder1Backward():
     command = ("discount-counts-1gram-backward {work}/discounted.1 {work}/float.1 "
                "{work}/float_derivs.1 {work}/discounted_derivs.1".format(work = args.work_dir))
     log_file = "{0}/log/discount_counts_order1_backward.log".format(args.work_dir)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def MergeAllOrders():
     command = ("merge-float-counts " +
                " ".join([ "{0}/float.{1}".format(args.work_dir, n) for n in range(1, ngram_order + 1) ])
                + ">{0}/float.all".format(args.work_dir))
     log_file = "{0}/log/merge_all_orders.log".format(args.work_dir)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 def ComputeObjfAndFinalDerivs(need_derivs):
     global num_dev_set_words, objf
@@ -213,7 +215,7 @@ def ComputeObjfAndFinalDerivs(need_derivs):
         command +=" ".join([ "{work}/float_derivs.{order}".format(work = args.work_dir, order = n)
                              for n in range(1, ngram_order + 1) ])
     log_file = "{0}/log/compute_objf_and_final_derivs.log".format(args.work_dir)
-    output = GetCommandStdout(command, log_file)
+    output = GetCommandStdout(command, log_file, args.verbose=='true')
     try:
         [ num_dev_set_words, tot_objf ] = output.split()
         num_dev_set_words = int(num_dev_set_words)

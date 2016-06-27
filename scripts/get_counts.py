@@ -275,7 +275,7 @@ def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_s
                                               int_counts_output = int_counts_output)
     log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
         dest_count_dir = dest_count_dir, n = n)
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose == 'true')
 
 
 # This function uses multiple parallel processes to dumps the counts to files.
@@ -287,15 +287,23 @@ def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_s
 ## {dest_count_dir}/int.{i}.split{j} with n = 1..num_train_sets, j=1..num_splits.
 
 # This function uses multiple processes (num_proc) in parallel to run
-# 'get-text-counts' (this tends to be the bottleneck).  note, this uses named
-# pipes so it won't work on cygwin; you have to check for the cygwin platform
-# before calling this.
+# 'get-text-counts' (this tends to be the bottleneck).
+# It will use just one process if the amount of data is quite small or if
+# the platform is Cygwin (where named pipes don't work)
 def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_proc,
                           num_splits = 0):
-    if IsCygwin() or num_proc <= 1:
-        if num_proc > 1:
+    try:
+        file_size = os.path.getsize('{0}/{1}.txt.gz'.format(source_int_dir, n))
+    except:
+        ExitProgram('get_counts.py: error getting file size of '
+                    '{0}/{1}.txt.gz'.format(source_int_dir, n))
+
+    if IsCygwin() or num_proc <= 1 or file_size < 1000000:
+        if num_proc > 1 and file_size >= 1000000:
+            # it's only because of Cygwin that we're not using multiple
+            # processes this merits a warning.
             print("get_counts.py: cygwin platform detected so named pipes won't work; "
-                  "using a single process")
+                  "using a single process (will be slower)")
         return GetCountsSingleProcess(source_int_dir, dest_count_dir,
                                       ngram_order, n, num_splits)
 
@@ -319,6 +327,14 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
     # from other internal pipes; and we can't do this using '|' in the shell, we
     # need to use mkfifo.  This does not work properly on cygwin.
 
+    log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
+        dest_count_dir = dest_count_dir, n = n)
+    test_command = "bash -c 'set -o pipefail; (echo a; echo b) | "\
+        "distribute-input-lines /dev/stdout /dev/null'";
+    # We run the following command just to make sure distribute-input-lines is
+    # on the path and compiled, since we get hard-to-debug errors if it fails.
+    RunCommand(test_command, log_file)
+
     # we use "bash -c '...'" to make sure it gets run in bash, since
     # for example 'set -o pipefail' would only work in bash.
     command = ("bash -c 'set -o pipefail; set -e; mkdir -p {0}; ".format(tempdir) +
@@ -333,10 +349,7 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
                '| uniq -c | get-int-counts {0}'.format(int_counts_output) +
                "'") # end the quote from the 'bash -c'.
 
-    log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
-        dest_count_dir = dest_count_dir, n = n)
-
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 
 # This function applies the min-counts (it is only called if you supplied the
@@ -362,7 +375,7 @@ def EnforceMinCounts(dest_count_dir, formatted_min_counts, ngram_order, num_trai
 
     log_file = '{0}/log/enforce_min_counts.{1}.log'.format(dest_count_dir, j)
 
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 
 # This function merges counts from multiple jobs, that have been split up by
@@ -376,7 +389,7 @@ def MergeCounts(dest_count_dir, num_jobs, n, o):
                              for j in range(1, num_jobs + 1)]) +
                    '>{0}/int.{1}.{2}'.format(dest_count_dir, n, o))
         log_file = '{0}/log/merge_counts.{1}.{2}.log'.format(dest_count_dir, n, o)
-        RunCommand(command, log_file)
+        RunCommand(command, log_file, args.verbose=='true')
     else:
         assert num_jobs == 1
         # we can just move the file if num-jobs == 1.
@@ -395,7 +408,7 @@ def MergeDevData(dest_count_dir, ngram_order):
                                                 for n in range(2, ngram_order + 1) ]) +
                ">{0}/int.dev".format(dest_count_dir))
     log_file = dest_count_dir + '/log/merge_dev_counts.log'
-    RunCommand(command, log_file)
+    RunCommand(command, log_file, args.verbose=='true')
 
 
 # make sure 'scripts' and 'src' directory are on the path
