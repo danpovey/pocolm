@@ -37,7 +37,9 @@ prepare_int_data.sh data/text data/vocab_40k.txt data/int_40k
 
 for order in 3 4 5; do
 
-  get_counts.sh data/int_40k ${order} data/counts_40k_${order}
+  # Note: the following might be a more reasonable setting:
+  # get_counts.py --min-counts='fisher=2 swbd1=1' data/int_40k ${order} data/counts_40k_${order}
+  get_counts.py  data/int_40k ${order} data/counts_40k_${order}
 
   ratio=10
   splits=5

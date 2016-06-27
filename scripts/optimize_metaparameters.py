@@ -11,6 +11,8 @@ from math import log
 # 'bfgs'.
 sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys.path
 import bfgs
+# for ExitProgram, RunCommand and GetCommandStdout
+from pocolm_common import *
 
 parser = argparse.ArgumentParser(description="Optimizes metaparameters for LM estimation; "
                                  "this utility uses derivatives from get_objf_and_derivs.py or "
@@ -108,8 +110,8 @@ else:
                ">{3}/0.metaparams".format(weight_opts, ngram_order,
                                           num_train_sets, args.optimize_dir));
     if os.system(command) != 0:
-        sys.exit("optimize_metaparameters.py: failed to initialize parameters");
-
+        sys.exit("optimize_metaparameters.py: failed to initialize parameters, command was: " +
+                 command)
 
 def ReadObjf(file):
     f = open(file, "r")
@@ -248,18 +250,13 @@ def GetObjfAndDeriv(x):
         else:
             # we need to call get_objf_and_derivs.py
             command = ("get_objf_and_derivs{maybe_split}.py {split_opt} --derivs-out={derivs} {counts} {metaparams} "
-                       "{objf} {work} 2>{log}".format(derivs = deriv_file, counts = args.count_dir,
-                                                      metaparams = metaparameter_file,
+                       "{objf} {work}".format(derivs = deriv_file, counts = args.count_dir,
+                                              metaparams = metaparameter_file,
                                                       maybe_split = "_split" if args.num_splits > 1 else "",
                                                       split_opt= ("--num-splits={0}".format(args.num_splits) if
                                                                   args.num_splits > 1 else ""),
-                                                      objf = objf_file, log = log_file,
-                                                      work = args.optimize_dir + "/work"))
-            print("optimize_metaparameters.py: getting objf and derivs on "
-                  "iteration {0}, command is: {1}".format(iteration, command),
-                  file=sys.stderr)
-            if os.system(command) != 0:
-                sys.exit("optimize_metaparameters.py: error running command.")
+                                              objf = objf_file, work = args.optimize_dir + "/work"))
+            RunCommand(command, log_file, verbose = True)
         derivs = ReadMetaparametersOrDerivs(deriv_file)
         objf = ReadObjf(objf_file)
         iteration += 1
@@ -274,7 +271,7 @@ def GetObjfAndDeriv(x):
     barrier_free_magnitude = math.sqrt(np.vdot(derivs, derivs))
     objf += barrier_objf
     derivs += barrier_derivs
-    print("Evaluation %d: objf=%.6f, deriv-magnitude=%.6f (with barrier function; without = %.6f" %
+    print("Evaluation %d: objf=%.6f, deriv-magnitude=%.6f (with barrier function; without = %.6f)" %
           (iteration, objf, math.sqrt(np.vdot(derivs, derivs)), barrier_free_magnitude),
            file=sys.stderr)
 

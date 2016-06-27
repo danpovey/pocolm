@@ -91,6 +91,7 @@ class CountDiscounter {
     }
   }
 
+  // Note: we expect to process input of a single n-gram order.
   void ProcessLmState(bool first_time, const GeneralLmState &lm_state) {
     num_lm_states_processed_++;
     if (backoff_history_.size() + 1 != lm_state.history.size()) {
@@ -131,8 +132,8 @@ class CountDiscounter {
         lm_state.counts.begin(), in_end = lm_state.counts.end();
     std::vector<std::pair<int32, float> >::iterator out_iter =
         discounted_state.counts.begin();
-    double lm_state_total = 0.0,
-        discount_total = 0.0;
+    double lm_state_total = lm_state.discount,
+        discount_total = lm_state.discount;
     for (; in_iter != in_end; ++in_iter,++out_iter) {
       int32 word = in_iter->first;
       const Count &count = in_iter->second;
@@ -177,8 +178,8 @@ class CountDiscounter {
     // backoff_output_.
 
     GeneralLmState backoff_state;
-    backoff_state.history = backoff_history_;
-    backoff_builder_.Output(&backoff_state.counts);
+    backoff_builder_.Output(backoff_history_, &backoff_state);
+
     backoff_state.Write(backoff_output_);
     // clear the stats that we just wrote.  We'll later modify the history from
     // outside this function.

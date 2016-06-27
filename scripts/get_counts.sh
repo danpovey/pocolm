@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# This script is deprecated and will be deleted.
 
 # by default, we don't process the different files into counts in parallel because
 # 'sort' might take up too much memory.
@@ -13,6 +14,7 @@ fi
 
 if [ $# != 3 ]; then
   echo "Usage:"
+  echo "This script is deprecated and will be deleted; use get_counts.py."
   echo "  $0 [options] <source-int-dir> <ngram-order> <dest-count-dir>"
   echo "e.g.:  $0 data/int 3 data/counts_3"
   echo
@@ -79,11 +81,7 @@ for n in $(seq $num_train_sets) dev; do
   # but can be as low as 2 for the 1st word of the sentence). So just put the
   # output for order 1 in /dev/null.
 
-  if [ $n == dev ]; then
-    args=$dir/int.dev  # we write all the orders as one file for the dev data.
-  else
-    args="/dev/null $(for o in $(seq 2 $ngram_order); do echo -n $dir/int.$n.$o ''; done)"
-  fi
+  args="/dev/null $(for o in $(seq 2 $ngram_order); do echo -n $dir/int.$n.$o ''; done)"
 
   export LC_ALL=C
   export TMPDIR=$dir
@@ -115,11 +113,10 @@ else
   rm $dir/unigram_weights 2>/dev/null || true
 fi
 
-# we also want the files $dir/int.dev.{2,3,...}, i.e. the dev data split up by
-# n-gram order, because this will be required if the user specifies to fold the
-# dev data into some other set for the final build.
-
-cmd="split-int-counts-by-order /dev/null $(for o in $(seq 2 $ngram_order); do echo -n $dir/int.dev.$o ''; done) <$dir/int.dev 2>$dir/log/split_int_counts.log"
+# we also want the files $dir/int.dev i.e. the dev data not split up by n-gram
+# order, which is required for evaluating dev-set log-probs.
+cmd="merge-int-counts $(for o in $(seq 2 $ngram_order); do echo -n $dir/int.dev.$o ''; done) >$dir/int.dev 2>$dir/log/merge_dev_counts.log"
+# cmd="split-int-counts-by-order /dev/null $(for o in $(seq 2 $ngram_order); do echo -n $dir/int.dev.$o ''; done) <$dir/int.dev 2>$dir/log/split_int_counts.log"
 echo "# $cmd"
 eval $cmd
 

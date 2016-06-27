@@ -41,12 +41,18 @@ class IntLmState {
   // b a ] as 'history'.
   std::vector<int32> history;
 
+  // The total counts discounted from this state to the lower-order
+  // state.  This will be zero unless a min-count has been applied to the
+  // stats.
+  int32 discount;
+
   // These counts are pairs of (next-word, count).  These are assumed to always
   // be sorted on the next-word.  We don't have to explicitly do the sorting,
   // because in the pipeline we use, 'sort' does it for us.
   std::vector<std::pair<int32, int32> > counts;
 
   void Init(const std::vector<int32> &h) {
+    discount = 0;
     history = h;
     counts.clear();
   }
@@ -71,7 +77,20 @@ class IntLmState {
 
   // checks the data for validity, dies if that fails.
   void Check() const;
+
+  void Swap(IntLmState *other) {
+    std::swap(discount, other->discount);
+    history.swap(other->history);
+    counts.swap(other->counts);
+  }
 };
+
+
+// This function adds together the counts in the source LM-states,
+// which are assumed to have the same histories.  source_pointers.size()
+// is assumed to have size > 1.
+void MergeIntLmStates(const std::vector<const IntLmState*> &source_pointers,
+                      IntLmState *merged_state);
 
 
 /**
@@ -174,9 +193,14 @@ class NullLmState {
  */
 class GeneralLmState {
  public:
+
   // Reversed history, e.g. count of "a b c" would have c as 'next-word', and [
   // b a ] as 'history'.
   std::vector<int32> history;
+
+  // The count that was already discounted from this state when dumping
+  // the integer stats (due to min-count constraints).
+  float discount;
 
   // These counts are pairs of (next-word, count).  These are assumed to always
   // be sorted on the next-word.  We don't have to explicitly do the sorting,
@@ -193,6 +217,8 @@ class GeneralLmState {
   // Throws on error.
   void Read(std::istream &is);
 
+  GeneralLmState(): discount(0.0f) { }
+
   // checks the data for validity, dies if that fails.
   void Check() const;
 
@@ -205,9 +231,12 @@ class GeneralLmState {
  */
 class GeneralLmStateBuilder {
  public:
-
+  GeneralLmStateBuilder(): discount(0.0) { }
   unordered_map<int32, int32> word_to_pos;
   std::vector<Count> counts;
+  // 'discount' will only be nonzero if we enforce min-counts (so things will
+  // have been discounted before the discounting code gets to them).
+  double discount;
 
   void Clear();
 
@@ -221,8 +250,9 @@ class GeneralLmStateBuilder {
   void AddCount(int32 word, const Count &count);
   // Add counts from a GeneralLmState.
   void AddCounts(const GeneralLmState &lm_state);
-  // Output its contents to a sorted vector.
-  void Output(std::vector<std::pair<int32, Count> > *output) const;
+  // Output its contents to a GeneralLmState (setting its history to 'history').
+  void Output(const std::vector<int32> &history,
+              GeneralLmState *output) const;
 };
 
 }  // namespace pocolm

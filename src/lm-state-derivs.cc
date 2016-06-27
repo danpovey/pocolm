@@ -153,6 +153,7 @@ void FloatLmStateDerivs::Print(std::ostream &os) const {
 // derivatives.
 void GeneralLmStateDerivs::Read(std::istream &is) {
   GeneralLmState::Read(is);
+  discount_deriv = 0.0;
   count_derivs.clear();
   count_derivs.resize(counts.size(), 0.0);
 }
@@ -163,6 +164,8 @@ void GeneralLmStateDerivs::ReadDerivs(std::istream &is) {
   // that there is no mismatch.
   int32 count_size;
   is.read(reinterpret_cast<char*>(&count_size), sizeof(int32));
+  is.read(reinterpret_cast<char*>(&discount_deriv), sizeof(float));
+
   if (is.fail() || is.eof()) {
     std::cerr << "Error reading derivatives for counts "
         "(empty or truncated input?)\n";
@@ -233,6 +236,7 @@ void GeneralLmStateDerivs::WriteDerivs(std::ostream &os) const {
   // that there is no mismatch.
   int32 count_size = count_derivs.size();
   os.write(reinterpret_cast<const char*>(&count_size), sizeof(int32));
+  os.write(reinterpret_cast<const char*>(&discount_deriv), sizeof(float));
   os.write(reinterpret_cast<const char*>(&(count_derivs[0])),
            sizeof(Count) * count_size);
   if (os.fail()) {
