@@ -302,7 +302,13 @@ class FloatStatsGenerator {
         // Note: count_iter->second won't be exactly zero; see FloorCounts().
         float proportion_remaining = *work_count_iter / count_iter->second;
 
-        assert(proportion_remaining > -1.0e-3);
+        if (proportion_remaining < -1.0e-3) {
+          std::cerr << "float-counts-to-float-stats: warning [roundoff error]: "
+                    << "proportion-remaining = " << proportion_remaining
+                    << " = " << (*work_count_iter) << " / "
+                    << count_iter->second << "[hist-len = "
+                    << history_length << "]\n";
+        }
         if (proportion_remaining < 1.0e-05) {
           // save by time by skipping the rest of this block.
           continue;
