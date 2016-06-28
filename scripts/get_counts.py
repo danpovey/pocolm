@@ -268,9 +268,9 @@ def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_s
             ' '.join([ "{0}/int.{1}.split{2}".format(dest_count_dir, n, j)
                        for j in range(1, num_splits + 1) ])
 
-    command = "set -o pipefail; gunzip -c {source_int_dir}/{n}.txt.gz | "\
+    command = "bash -c 'set -o pipefail; LC_ALL=C; gunzip -c {source_int_dir}/{n}.txt.gz | "\
             "get-text-counts {ngram_order} | sort | uniq -c | "\
-            "get-int-counts {int_counts_output}".format(source_int_dir = source_int_dir,
+            "get-int-counts {int_counts_output}'".format(source_int_dir = source_int_dir,
                                               n = n , ngram_order = ngram_order,
                                               int_counts_output = int_counts_output)
     log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
@@ -337,13 +337,13 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
 
     # we use "bash -c '...'" to make sure it gets run in bash, since
     # for example 'set -o pipefail' would only work in bash.
-    command = ("bash -c 'set -o pipefail; set -e; mkdir -p {0}; ".format(tempdir) +
+    command = ("bash -c 'set -o pipefail; set -e; LC_ALL=C; mkdir -p {0}; ".format(tempdir) +
                ''.join(['mkfifo {0}/{1}; '.format(tempdir, p)
                         for p in range(num_proc) ]) +
                'trap "rm -r {0}" SIGINT SIGKILL SIGTERM EXIT; '.format(tempdir) +
                'gunzip -c {0}/{1}.txt.gz | distribute-input-lines '.format(source_int_dir, n) +
                ' '.join(['{0}/{1}'.format(tempdir, p) for p in range(num_proc)]) + '& ' +
-               'LC_ALL=C sort -m ' +
+               'sort -m ' +
                ' '.join([ '<(get-text-counts {0} <{1}/{2} | sort )'.format(ngram_order, tempdir, p)
                                        for p in range(num_proc) ]) +
                '| uniq -c | get-int-counts {0}'.format(int_counts_output) +
