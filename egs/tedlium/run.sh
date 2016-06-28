@@ -32,7 +32,7 @@ word_counts_to_vocab.py --num-words=${vocab_size} data/word_counts  > data/vocab
 
 # local/srilm_baseline.sh
 
-prepare_int_data.sh data/text data/vocab_${vocab_size}.txt data/int_${vocab_size}
+prepare_int_data.py data/text data/vocab_${vocab_size}.txt data/int_${vocab_size}
 time_preprocessing=`date +%s`
 time_optimization[2]=`date +%s`
 # local/self_test.sh

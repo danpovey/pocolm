@@ -23,7 +23,7 @@ word_counts_to_vocab.py --num-words=20000 data/text/word_counts  > data/vocab_20
 
 # local/srilm_baseline.sh
 
-prepare_int_data.sh data/text data/vocab_20k.txt data/int_20k
+prepare_int_data.py data/text data/vocab_20k.txt data/int_20k
 
 # local/self_test.sh
 
