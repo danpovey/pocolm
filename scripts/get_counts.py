@@ -268,7 +268,7 @@ def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_s
             ' '.join([ "{0}/int.{1}.split{2}".format(dest_count_dir, n, j)
                        for j in range(1, num_splits + 1) ])
 
-    command = "bash -c 'set -o pipefail; LC_ALL=C; gunzip -c {source_int_dir}/{n}.txt.gz | "\
+    command = "bash -c 'set -o pipefail; export LC_ALL=C; gunzip -c {source_int_dir}/{n}.txt.gz | "\
             "get-text-counts {ngram_order} | sort | uniq -c | "\
             "get-int-counts {int_counts_output}'".format(source_int_dir = source_int_dir,
                                               n = n , ngram_order = ngram_order,
@@ -337,7 +337,7 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
 
     # we use "bash -c '...'" to make sure it gets run in bash, since
     # for example 'set -o pipefail' would only work in bash.
-    command = ("bash -c 'set -o pipefail; set -e; LC_ALL=C; mkdir -p {0}; ".format(tempdir) +
+    command = ("bash -c 'set -o pipefail; set -e; export LC_ALL=C; mkdir -p {0}; ".format(tempdir) +
                ''.join(['mkfifo {0}/{1}; '.format(tempdir, p)
                         for p in range(num_proc) ]) +
                'trap "rm -r {0}" SIGINT SIGKILL SIGTERM EXIT; '.format(tempdir) +
