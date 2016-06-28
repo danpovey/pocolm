@@ -114,10 +114,9 @@ class FloatStatsGenerator {
       // this helps verify that the code works.
       if (fabs(total_input_count_ - total_output_count_) >
           1.0e-04 * total_input_count_) {
-        std::cerr << "float-counts-to-float-stats: total input and output "
+        std::cerr << "warning: float-counts-to-float-stats: total input and output "
                   << "count disagree too much: " << total_input_count_
                   << " vs. " << total_output_count_ << "\n";
-        exit(1);
       }
     }
     for (int32 o = 0; o < order_; o++) {
@@ -181,6 +180,8 @@ class FloatStatsGenerator {
     FlushOutput(0);
   }
 
+  // we don't expect zero counts in these stats and we can't deal with them so
+  // we floor them to a small value.
   static void FloorCounts(float floor, FloatLmState *lm_state) {
     float extra_count = 0.0;
     std::vector<std::pair<int32, float> >::iterator
@@ -251,7 +252,10 @@ class FloatStatsGenerator {
       if (src_count < 0.0) {
         // the next line makes sure that if there are any negative values, they
         // are very small in magnitude
-        assert(src_count > -1.0e-04 * old_total);
+        if (src_count > -1.0e-04 * old_total) {
+          std::cerr << "float-counts-to-float-stats: warning: possible excessive "
+                    << "roundoff: " << src_count << " vs " << old_total << "\n";
+        }
         src_count = 0.0;
       }
       counts_iter->second = src_count;
