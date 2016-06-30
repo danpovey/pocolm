@@ -6,11 +6,15 @@ set -e
 export POCOLM_ROOT=$(cd ../..; pwd -P)
 export PATH=$PATH:$POCOLM_ROOT/scripts
 
-# this assumes the first few lines of run.sh have been run-- see in run.sh
-# at what point you can run this script.
+# the following creates a text-data directory in data/text.
+local/make_data.sh
+
+get_word_counts.py data/text data/word_counts
+
+get_unigram_weights.py data/word_counts > data/weights
 
 num_words=500
-ngram_order=3
+ngram_order=4
 # the "2" is the min-count for orders 3 and above.
 min=2
 datasub=data/${num_words}_${ngram_order}_mc${min}
@@ -57,7 +61,7 @@ optimize_metaparameters.py \
 make_lm_dir.py $datasub/counts \
     $datasub/optimize/final.metaparams $datasub/lm
 
- prune_lm_dir.py data/500_3/lm 2.0 data/500_3/lm_pruned
+ prune_lm_dir.py $datasub/lm 2.0 $datasub/lm_pruned
  mkdir -p $datasub/arpa_pruned
  format_arpa_lm.py $datasub/lm_pruned | gzip -c > $datasub/arpa_pruned/${ngram_order}.arpa.gz
 
