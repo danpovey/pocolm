@@ -276,7 +276,7 @@ int main (int argc, const char **argv) {
               << "so that string order will coincide with numeric order).  These will be processed\n"
               << "into the arpa header.\n"
               << "The output of this program will be sorted and then piped into\n"
-              << "pre-arpa-to-pre-arpa.\n";
+              << "pre-arpa-to-arpa.\n";
     exit(1);
   }
 

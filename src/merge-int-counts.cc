@@ -31,7 +31,7 @@
 
 /**
   This program reads multiple streams of int-counts, merge-sorts them, and
-  writes them out as float counts.  It's like merge-counts except it both reads
+  writes them out as int-counts.  It's like merge-counts except it both reads
   and writes int-counts (which are typically generated directly from text).
 */
 

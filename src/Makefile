@@ -16,7 +16,8 @@ BINFILES = get-text-counts get-int-counts print-int-counts \
     float-counts-to-float-stats float-counts-estimate float-counts-to-histories \
     histories-to-null-counts print-null-counts float-counts-prune \
 	float-counts-remove-zeros split-float-counts float-counts-stats-remove-zeros \
-    merge-int-counts int-counts-enforce-min-counts distribute-input-lines
+    merge-int-counts int-counts-enforce-min-counts distribute-input-lines \
+	filter-int-counts
 
 $(BINFILES): $(OBJFILES)
 
