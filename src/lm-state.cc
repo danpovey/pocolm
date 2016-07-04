@@ -32,6 +32,12 @@ void IntLmState::Print(std::ostream &os) const {
   for (int32 i = 0; i < hist_size; i++)
     os << history[i] << " ";
   os << "]: ";
+  { //  print the total
+    int32 total = discount;
+    for (size_t i = 0; i < counts.size(); i++)
+      total += counts[i].second;
+    os << "total=" << total << " ";
+  }
   if (discount != 0)
     os << "discount=" << discount << " ";
   for (size_t i = 0; i < counts.size(); i++)
@@ -57,7 +63,11 @@ void IntLmState::Write(std::ostream &os) const {
   int32 history_size = history.size(),
       num_counts = counts.size(),
       buffer_size = (2 + history_size + 2 * num_counts);
-  assert(num_counts > 0);
+  // Nnote: we allow num-counts to be zero because it's possible
+  // when applying min-counts that for some not-higher-order states,
+  // we may have a nonzero 'discount' that needs to be written, but
+  // no actual counts.
+  assert(num_counts >= 0);
   int32 *buffer = new int32[buffer_size];
   buffer[0] = history_size;
   buffer[1] = num_counts;
@@ -101,7 +111,7 @@ void IntLmState::Read(std::istream &is) {
   }
   ReadInt(is, &num_counts);
 
-  assert(history_size >= 0 && num_counts > 0);
+  assert(history_size >= 0 && num_counts >= 0);
   history.resize(history_size);
   size_t bytes_read;
   if (history_size > 0) {
@@ -116,16 +126,18 @@ void IntLmState::Read(std::istream &is) {
     }
   }
   counts.resize(num_counts);
-  assert(sizeof(std::pair<int32,int32>) == 8);
 
-  size_t expected_bytes = sizeof(int32) * 2 * num_counts;
-  bytes_read = is.read(reinterpret_cast<char*>(&(counts[0])),
-                       expected_bytes).gcount();
-  if (bytes_read != expected_bytes) {
-    std::cerr << "Failure reading IntLmState counts, expected "
-              << expected_bytes << " bytes, got "
-              << bytes_read;
-    exit(1);
+  if (num_counts > 0) {
+    assert(sizeof(std::pair<int32,int32>) == 8);
+    size_t expected_bytes = sizeof(int32) * 2 * num_counts;
+    bytes_read = is.read(reinterpret_cast<char*>(&(counts[0])),
+                         expected_bytes).gcount();
+    if (bytes_read != expected_bytes) {
+      std::cerr << "Failure reading IntLmState counts, expected "
+                << expected_bytes << " bytes, got "
+                << bytes_read;
+      exit(1);
+    }
   }
   if (rand() % 10 == 0)
     Check();
@@ -135,7 +147,7 @@ void IntLmState::Check() const {
   assert(discount >= 0);
   for (size_t i = 0; i < history.size(); i++)
     assert(history[i] > 0 && history[i] != static_cast<int32>(kEosSymbol));
-  assert(counts.size() > 0);
+  assert(counts.size() >= 0);
   for (size_t i = 0; i < counts.size(); i++) {
     assert(counts[i].first > 0 && counts[i].first != kBosSymbol);
     assert(counts[i].second > 0);
@@ -326,6 +338,12 @@ void GeneralLmState::Print(std::ostream &os) const {
   for (int32 i = 0; i < hist_size; i++)
     os << history[i] << " ";
   os << "]: ";
+  { //  print the total
+    float total = discount;
+    for (size_t i = 0; i < counts.size(); i++)
+      total += counts[i].second.total;
+    os << "total=" << total << " ";
+  }
   if (discount != 0.0)
     os << "discount=" << discount << " ";
   int32 counts_size = counts.size();

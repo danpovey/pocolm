@@ -5,6 +5,12 @@ from __future__ import print_function
 import re, os, argparse, sys, math, warnings, subprocess, shutil, threading
 from collections import defaultdict
 
+# make sure scripts/internal is on the pythonpath.
+sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys.path
+
+# for ExitProgram and RunCommand
+from pocolm_common import *
+
 parser = argparse.ArgumentParser(description="This script takes an lm-dir, as produced by make_lm_dir.py, "
                                  "that should not have the counts split up into pieces, and it prunes "
                                  "the counts and writes out to a new lm-dir.")
@@ -15,6 +21,9 @@ parser.add_argument("--steps", type=str,
                     'prune*X, with X <= 1.0, tells it to prune with X times the threshold '
                     'specified with the --threshold option.  EM specifies one iteration of '
                     'E-M on the model. ')
+parser.add_argument("--verbose", type=str, default='false',
+                    choices=['true','false'],
+                    help="If true, print commands as we execute them.")
 parser.add_argument("--cleanup",  type=str, choices=['true','false'],
                     default='true', help='Set this to false to disable clean up of the '
                     'work directory.')
@@ -79,23 +88,14 @@ def GetNgramOrder(lm_dir_in):
     f = open(lm_dir_in + "/ngram_order");
     return int(f.readline())
 
-def RunCommand(command):
-    # print the command for logging
-    print(command, file=sys.stderr)
-    if os.system(command) != 0:
-        sys.exit("get_objf_and_derivs_split.py: error running command: " + command)
-
-
-
-
 # This script creates work/protected.all (listing protected
 # counts which may not be removed); it requires work/float.all
 # to exist.
 def CreateProtectedCounts(work):
-    command = ('float-counts-to-histories <{0}/float.all | LC_ALL=C sort |'
-               ' histories-to-null-counts >{0}/protected.all'.format(work))
-    RunCommand(command)
-
+    command = ("bash -c 'float-counts-to-histories <{0}/float.all | LC_ALL=C sort |"
+               " histories-to-null-counts >{0}/protected.all'".format(work))
+    log_file = work + "/log/create_protected_counts.log"
+    RunCommand(command, log_file, args.verbose == 'true')
 
 def SoftLink(src, dest):
     if os.path.exists(dest):
@@ -109,15 +109,16 @@ def CreateInitialWorkDir():
     # Creates float.all, stats.all, and protected.all in work_dir/iter
     work0dir = work_dir + "/iter0"
     # create float.all
-    if not os.path.isdir(work0dir):
-        os.makedirs(work0dir)
+    if not os.path.isdir(work0dir + "/log"):
+        os.makedirs(work0dir + "/log")
     if num_splits == None:
         SoftLink(args.lm_dir_in + "/float.all", work0dir + "/float.all")
     else:
         splits_star = ' '.join([ args.lm_dir_in + "/float.all." + str(n)
                                  for n in range(1, num_splits + 1) ])
         command = "merge-float-counts " + splits_star + " >{0}/float.all".format(work0dir)
-        RunCommand(command)
+        log_file = work0dir + "/log/merge_initial_float_counts.log"
+        RunCommand(command, log_file, args.verbose == 'true')
 
     # create protected.all
     CreateProtectedCounts(work0dir)
@@ -131,12 +132,14 @@ def CreateInitialWorkDir():
     command = ("float-counts-to-float-stats {0} ".format(num_words) +
                stats_star +
                " <{0}/float.all".format(work0dir))
-    RunCommand(command)
+    log_file = work0dir + "/log/float_counts_to_float_stats.log"
+    RunCommand(command, log_file, args.verbose == 'true')
     command = "merge-float-counts {0} > {1}/stats.all".format(
         stats_star, work0dir)
-    RunCommand(command)
-    command = "rm " + stats_star
-    RunCommand(command)
+    log_file = work0dir + "/log/merge_float_counts.log"
+    RunCommand(command, log_file, args.verbose == 'true')
+    for f in stats_star.split():
+        os.remove(f);
 
 # sets initial_logprob_per_word.
 def GetInitialLogprob():
@@ -200,10 +203,12 @@ def RunPruneStep(work_in, work_out, threshold):
 
     if args.remove_zeros == 'false':
         # create work_out/float.all.
-        command = 'merge-float-counts {0} >{1}/float.all'.format(float_star, work_out)
-        RunCommand(command)
-        command = 'rm ' + float_star
-        RunCommand(command)
+        command = 'merge-float-counts {0} >{1}/float.all'.format(float_star,
+                                                                 work_out)
+        log_file = work_out + '/log/merge_float_counts.log'
+        RunCommand(command, log_file, args.verbose == 'true')
+        for f in float_star.split():
+            os.remove(f)
         # soft-link work_out/stats.all to work_in/stats.all
         SoftLink(work_in + "/stats.all",
                  work_out + "/stats.all")
@@ -220,13 +225,14 @@ def RunPruneStep(work_in, work_out, threshold):
                 num_words = num_words, float_star = float_star,
                 work_in = work_in, work_out = work_out,
                 stats_star = stats_star))
-        RunCommand(command)
-
+        log_file = work_out + '/log/remove_zeros.log'
+        RunCommand(command, log_file, args.verbose == 'true')
         # create work_out/stats.all
         command = 'merge-float-counts {0} >{1}/stats.all'.format(stats_star, work_out)
-        RunCommand(command)
-        command = 'rm ' + float_star + ' ' + stats_star
-        RunCommand(command)
+        log_file = work_out + '/log/merge_float_counts.log'
+        RunCommand(command, log_file, args.verbose == 'true')
+        for f in float_star.split() + stats_star.split():
+            os.remove(f)
 
     # create work_out/protected.all
     CreateProtectedCounts(work_out)
@@ -241,16 +247,14 @@ def RunEmStep(work_in, work_out):
     command = ('float-counts-estimate {num_words} {work_in}/float.all {work_in}/stats.all '
                '{float_star}'.format(num_words = num_words, work_in = work_in,
                                      float_star = float_star))
+    log_file = work_out + "/log/float_counts_estimate.log"
     try:
-        print(command, file=sys.stderr)
-        p = subprocess.Popen(command, stdout = subprocess.PIPE, shell = True)
+        output = GetCommandStdout(command, log_file, args.verbose == 'true')
         # the stdout of this program will be something like:
         # 1.63388e+06 -7.39182e+06 10.5411 41.237 49.6758
         # representing: total-count, total-like, and for each order, the like-change
         # for that order.
-        line = p.stdout.readline()
-        print(line, file=sys.stderr)
-        a = line.split()
+        a = output.split()
         tot_count = float(a[0])
         tot_like = float(a[1])
         like_change = 0.0
@@ -264,9 +268,10 @@ def RunEmStep(work_in, work_out):
                 command, str(e)))
 
     command = 'merge-float-counts {0} >{1}/float.all'.format(float_star, work_out)
-    RunCommand(command)
-    command = 'rm ' + float_star
-    RunCommand(command)
+    log_file = work_out + '/log/merge_float_counts.log'
+    RunCommand(command, log_file, args.verbose == 'true')
+    for f in float_star.split():
+        os.remove(f)
     # soft-link work_out/stats.all to work_in/stats.all
     SoftLink(work_in + "/stats.all",
              work_out + "/stats.all")
@@ -283,8 +288,8 @@ def RunEmStep(work_in, work_out):
 def RunStep(step_number):
     work_in = work_dir + "/iter" + str(step_number)
     work_out = work_dir + "/iter" + str(step_number + 1)
-    if not os.path.isdir(work_out):
-        os.makedirs(work_out)
+    if not os.path.isdir(work_out + "/log"):
+        os.makedirs(work_out + "/log")
     step_text = steps[step_number]
     if step_text[0:6] == 'prune*':
         try:

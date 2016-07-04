@@ -29,7 +29,7 @@ word_counts_to_vocab.py --num-words=40000 data/text/word_counts  > data/vocab_40
 
 # local/srilm_baseline.sh
 
-prepare_int_data.sh data/text data/vocab_40k.txt data/int_40k
+prepare_int_data.py data/text data/vocab_40k.txt data/int_40k
 
 # the following does does some self-testing, including
 # that the computed derivatives are accurate.

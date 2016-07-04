@@ -103,6 +103,7 @@ class IntCountMinEnforcer {
     }
     weighted_total_counts_.resize(ngram_order_ - 1);
     pending_lm_states_.resize(num_data_types_);
+    discount_must_be_written_.resize(ngram_order_ - 1, false);
   }
 
   inline void AddToMap(
@@ -153,7 +154,7 @@ class IntCountMinEnforcer {
         data_types = hist_to_data_types_.begin()->second;
     hist_to_data_types_.erase(hist_to_data_types_.begin());
 
-    // Eventually, for efficiency, we might wan to handle the case where
+    // Eventually, for efficiency, we might want to handle the case where
     // just one source has an LM-state with this history, as a special case.
 
     FlushConflictingHistories(hist);
@@ -183,7 +184,7 @@ class IntCountMinEnforcer {
 
 
   // This flushes any history-states whose histories are are *not* a postfix of
-  // 'hist'.  [a post-fix in natural word order, but a prefix if you consider
+  // 'hist'.  [a postfix in natural word order, but a prefix if you consider
   // how we actually store them].
   // This is done before setting 'history_' to 'hist'.
   void FlushConflictingHistories(const std::vector<int32> &hist) {
@@ -244,24 +245,41 @@ class IntCountMinEnforcer {
     history_.size().   [It assumes that any LM-states of higher orders have
     already been flushed.]  It also clears the weighted_total_counts_ of this
     history length, and pops something off history_ to reduce the history length.
+
+    It also sets discount_must_be_written_ to the appropriate value (see comment
+    by that variable for explanation).
   */
   void FlushCurrentHistory() {
     int32 history_length = history_.size();
     assert(history_length > 0);
     int32 num_data_types = num_data_types_;
-    for (int32 data_type = 0; data_type < num_data_types; data_type++) {
-      FlushThisHistory(history_length, data_type);
-    }
+    bool wrote_something = false;
+    for (int32 data_type = 0; data_type < num_data_types; data_type++)
+      if (FlushThisHistory(history_length, data_type))
+        wrote_something = true;
+
     weighted_total_counts_[history_length - 1].clear();
+    if (wrote_something) {
+      // we wrote something, so the backoff history state now needs to be
+      // written even if it has no counts, if it has a discount value.
+      int32 backoff_history_length = history_length - 1;
+      if (backoff_history_length > 0)
+        discount_must_be_written_[backoff_history_length - 1] = true;
+    }
     history_.pop_back();
-  }
+    // this history-state no longer exists and has been written if
+    // needed, so set its discount_must_be_written_ variable to false.
+    discount_must_be_written_[history_length - 1] = false;
+    }
 
   /*
     This function normalizes, then writes out if nonempty, the counts for this
     history-length and data-type. It assumes that the same function has been
     called for any higher-order histories of the same data-type.
+
+    It returns true if anything was actually written, false otherwise.
   */
-  void FlushThisHistory(int32 history_length, int32 data_type) {
+  bool FlushThisHistory(int32 history_length, int32 data_type) {
     int32 index = (history_length - 1) * num_data_types_ + data_type;
     IntLmState &lm_state = lm_states_[index];
     if (!lm_state.counts.empty()) {
@@ -270,18 +288,24 @@ class IntCountMinEnforcer {
       if (history_length >= 2)
         BackOffLmState(history_length, data_type);
       RemoveZerosFromCounts(&lm_state.counts);
-      // Normalizing the counts may have made them empty, so check again.
-      if (!lm_state.counts.empty()) {
-        // Before writing we have to make sure that lm_state.history is correct.
-        // Most of the time lm_state.history is not guaranteed canonically correct,
-        // it's this->history_ (or prefixes thereof) that give the 'correct'
-        // history for each LM-state.
-        assert(history_length == static_cast<int32>(history_.size()));
-        lm_state.history = history_;
-        lm_state.Write(outputs_[index]);
-        lm_state.counts.clear();
-      }
+    }
+
+    if (!lm_state.counts.empty() ||
+        (lm_state.discount != 0 &&
+         discount_must_be_written_[history_length - 1])) {
+      // Before writing we have to make sure that lm_state.history is correct.
+      // Most of the time lm_state.history is not guaranteed canonically correct,
+      // it's this->history_ (or prefixes thereof) that give the 'correct'
+      // history for each LM-state.
+      assert(history_length == static_cast<int32>(history_.size()));
+      lm_state.history = history_;
+      lm_state.Write(outputs_[index]);
+      lm_state.counts.clear();
       lm_state.discount = 0.0;
+      return true;  // We wrote something.
+    } else {
+      lm_state.discount = 0.0;
+      return false;  // We did not write anything.
     }
   }
 
@@ -298,7 +322,7 @@ class IntCountMinEnforcer {
     const unordered_map<int32, float> &weighted_total_counts =
         weighted_total_counts_[history_length - 1];
     IntLmState &lm_state = lm_states_[index],
-        &backoff_lm_state = lm_states_[backoff_index];
+       &backoff_lm_state = lm_states_[backoff_index];
     std::vector<std::pair<int32, int32> >::iterator
         iter = lm_state.counts.begin(),
         end = lm_state.counts.end();
@@ -522,6 +546,29 @@ class IntCountMinEnforcer {
   // Note: it may be that the actual 'history' members of the lm_states_ may
   // differ from the prefixes of this vector; this vector is canonical.
   std::vector<int32> history_;
+
+  // The variable discount_must_be_written_, indexed by history-length - 1,
+  // is to be set to true when we're in a condition where the currently existing lm-state associated
+  // with this length of history must be written even if it has no counts,
+  // if it has a nonzero "discount" value.  Before I explain the specifics of
+  // how this works, I'll explain the problem we're trying to solve.  Imagine
+  // we have a 4-gram history state (history_length == 3) and it's an order-4
+  // model.  And imagine we discount all the counts as they're below the
+  // min-count.  The state ends up with a nonzero "discount" value, reflecting
+  // that we discounted those counts, but no actual counts.  It's fine to
+  // not write this LM-state to disk, because it wouldn't affect the language
+  // model (this state is fully discounted to the backoff state).
+  //
+  // However, consider the [rarer] case where an LM state has empty counts [fully
+  // discounted], but a *higher-order* version of the same LM-state still has counts.
+  // In this case it's not correct to forget about the "discount" value, because
+  // later this LM state will have counts due to discounting, and we need to
+  // consider the "discount" value while estimating the LM.  So we need to write
+  // to disk the "discount" values for these otherwise-empty LM states.
+  //
+  // This variable exists in order to fix this problem; it keeps track of
+  // whether any higher-order histories than this one has been written to disk.
+  std::vector<bool> discount_must_be_written_;
 
   // Indexed first by history-length - 1, and then by word-id, this
   // contains the weighted-total-count, which is a summation over all

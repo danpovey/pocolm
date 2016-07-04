@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # this script tests pocolm on its own code.
+# see also local/run_mincount.sh
 
 set -e
 export POCOLM_ROOT=$(cd ../..; pwd -P)
@@ -13,10 +14,9 @@ get_word_counts.py data/text data/word_counts
 
 get_unigram_weights.py data/word_counts > data/weights
 
-#local/run_mincount.sh
 
 num_words=500
-ngram_order=3
+ngram_order=4
 
 mkdir -p data/${num_words}_${ngram_order}
 
@@ -25,7 +25,7 @@ mkdir -p $datasub
 
 word_counts_to_vocab.py --num-words=$num_words --weights=data/weights data/word_counts  > $datasub/words.txt
 
-prepare_int_data.sh data/text $datasub/words.txt $datasub/int
+prepare_int_data.py data/text $datasub/words.txt $datasub/int
 
 get_counts.py $datasub/int $ngram_order $datasub/counts
 
@@ -67,7 +67,7 @@ optimize_metaparameters.py \
 make_lm_dir.py $datasub/counts \
     $datasub/optimize/final.metaparams $datasub/lm
 
- prune_lm_dir.py data/500_3/lm 2.0 data/500_3/lm_pruned
+ prune_lm_dir.py data/500_$ngram_order/lm 2.0 data/500_$ngram_order/lm_pruned
  mkdir -p $datasub/arpa_pruned
  format_arpa_lm.py $datasub/lm_pruned | gzip -c > $datasub/arpa_pruned/${ngram_order}.arpa.gz
 
