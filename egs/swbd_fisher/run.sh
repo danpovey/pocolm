@@ -54,6 +54,16 @@ for order in 3 4 5; do
 
   make_lm_dir.py --num-splits=${splits} --keep-splits=true data/counts_40k_${order} \
      data/optimize_40k_${order}/final.metaparams data/lm_40k_${order}
+
+  mkdir -p data/arpa
+  format_arpa_lm.py data/lm_40k_${order} | gzip -c > data/arpa/poco_poco_combination.${order}g.gz
+  
+  echo "Perplexity for poco-with-poco-combination ${order}-gram before pruning"
+  get_data_prob.py data/text/dev.txt data/lm_40k_${order} 2>&1 | grep -F '[perplexity' 
+    
+  echo "Ngram counts before pruning:"
+  gunzip -c data/arpa/poco_poco_combination.${order}g.gz | head -n 50 | grep '^ngram' | cut -d '=' -f 2 | awk '{n +=$1}END{print n}'
+    
 done
 
 # order 3: optimize_metaparameters.py: final perplexity without barrier function was -4.35843985217 (perplexity: 78.1351369165)
