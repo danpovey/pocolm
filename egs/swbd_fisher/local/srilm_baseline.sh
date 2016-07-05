@@ -63,9 +63,9 @@ for order in 3 4; do
       -mix-lm data/srilm/fisher.${order}g.kn.gz \
       -unk -write-lm data/srilm/combined.${order}g.kn.gz
 
-  echo "Perplexity for sri-with-sri-combination $order-gram LM:"
+  echo "Perplexity for combined $order-gram LM:"
   ngram -unk -order $order -lm data/srilm/combined.${order}g.kn.gz -ppl data/text/dev.txt
-  echo "Ngram counts for sri-with-sri-combination $order-gram LM:"
+  echo "Ngram counts:"
   gunzip -c data/srilm/combined.${order}g.kn.gz | head -n 50 | grep '^ngram' | cut -d '=' -f 2 | awk '{n +=$1}END{print n}'
 
 done
@@ -78,7 +78,7 @@ done
 # file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
 # 0 zeroprobs, logprob= -259224 ppl= 104.998 ppl1= 155.632
 # For 3-gram LMs, giving weight of 0.59544 to SWBD1 and 0.40456 to Fisher
-# Perplexity for sri-with-sri-combination 3-gram LM:
+# Perplexity for combined 3-gram LM:
 # file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
 # 0 zeroprobs, logprob= -243312 ppl= **78.9056** ppl1= 114.165
 
@@ -90,6 +90,6 @@ done
 # file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
 # 0 zeroprobs, logprob= -257773 ppl= 102.297 ppl1= 151.295
 # For 4-gram LMs, giving weight of 0.578637 to SWBD1 and 0.421363 to Fisher
-# Perplexity for sri-with-sri-combination 4-gram LM:
+# Perplexity for combined 4-gram LM:
 # file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
 # 0 zeroprobs, logprob= -240893 ppl= **75.5528** ppl1= 108.914

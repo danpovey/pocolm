@@ -108,6 +108,31 @@ for order in 3 4; do
   ngram -unk -order $order -lm data/arpa/poco_sri_combination.${order}g.gz -ppl data/text/dev.txt
 done
 
-rm -r data/text/swbd1
-rm -r data/text/fisher
-rm -r data/poco_sri_combination                  
+for source in swbd1 fisher; do
+  rm -r data/text/$source
+  rm -r data/poco_sri_combination/$source                  
+done
+
+# local/pocolm_with_srilm_combination.sh: estimating 3-gram
+# Perplexity for swbd1 3-gram LM:
+# file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
+# 0 zeroprobs, logprob= -247822 ppl= 85.5614 ppl1= 124.646
+# Perplexity for fisher 3-gram LM:
+# file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
+# 0 zeroprobs, logprob= -259247 ppl= 105.04 ppl1= 155.7
+# For 3-gram LMs, giving weight of 0.601896 to SWBD1 and 0.398104 to Fisher
+# Perplexity for combined 3-gram LM:
+# file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
+# 0 zeroprobs, logprob= -243269 ppl= **78.8449** ppl1= 114.07
+
+# local/pocolm_with_srilm_combination.sh: estimating 4-gram
+# Perplexity for swbd1 4-gram LM:
+# file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
+# 0 zeroprobs, logprob= -246145 ppl= 83.0226 ppl1= 120.64
+# Perplexity for fisher 4-gram LM:
+# file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
+# 0 zeroprobs, logprob= -256598 ppl= 100.162 ppl1= 147.873
+# For 4-gram LMs, giving weight of 0.573878 to SWBD1 and 0.426122 to Fisher
+# Perplexity for combined 4-gram LM:
+# file data/text/dev.txt: 10000 sentences, 118254 words, 0 OOVs
+# 0 zeroprobs, logprob= -240647 ppl= **75.2202** ppl1= 108.394
