@@ -125,16 +125,19 @@ print("false", file=f)
 f.close()
 
 if args.num_splits == 1:
-    command = ("get_objf_and_derivs.py {fold_dev_opt} {count_dir} {metaparameters} "
+    need_model_opt = '--need-model=true'
+    command = ("get_objf_and_derivs.py {need_model_opt} {fold_dev_opt} {count_dir} {metaparameters} "
                "{work_dir}/objf {work_dir} 2>{work_dir}/log.txt".format(fold_dev_opt = fold_dev_opt,
                                                         count_dir = args.count_dir,
                                                         metaparameters = args.metaparameters,
                                                         work_dir = work_dir))
 else:
     need_model_opt = '--need-model=true' if args.keep_splits == 'false' else ''
-    command = ("get_objf_and_derivs_split.py --num-splits={num_splits} {need_model_opt} "
+    clean_up = '--clean-up=false' if need_model_opt == '' else '--clean-up=true'
+    command = ("get_objf_and_derivs_split.py --num-splits={num_splits} {need_model_opt} {clean_up}"
                "{fold_dev_opt} {count_dir} {metaparameters} {work_dir}/objf "
                "{work_dir} 2>{work_dir}/log.txt".format(
+            clean_up = clean_up,
             need_model_opt = need_model_opt, fold_dev_opt = fold_dev_opt,
             num_splits = args.num_splits, count_dir = args.count_dir,
             metaparameters = args.metaparameters, work_dir = work_dir))

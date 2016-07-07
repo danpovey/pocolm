@@ -49,7 +49,7 @@ def RunCommand(command):
     # print the command for logging
     print(command, file=sys.stderr)
     if os.system(command) != 0:
-        sys.exit("get_objf_and_derivs_split.py: error running command: " + command)
+        sys.exit("get_data_prob.py: error running command: " + command)
 
 work_dir = tempfile.mkdtemp(dir = args.lm_dir_in)
 

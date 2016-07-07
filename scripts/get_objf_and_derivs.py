@@ -24,6 +24,12 @@ parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)")
 parser.add_argument("--verbose", type=str, default='false', choices=['true','false'],
                     help="If true, print commands as we execute them.")
+parser.add_argument("--need-model", type=str, default="false", choices=["true","false"],
+                    help="If true, work_dir/float.all (the merged file of counts) "
+                    "will not be removed after clean-up")
+parser.add_argument("--clean-up", type=str, default='true', choices=['true','false'],
+                    help="If true, remove the data that won't be used in the future to "
+                    "save space (use 'false' for debug purpose). ")
 parser.add_argument("count_dir",
                     help="Directory from which to obtain counts files\n")
 parser.add_argument("metaparameters",
@@ -35,8 +41,8 @@ parser.add_argument("work_dir",
 
 
 
-args = parser.parse_args()
 
+args = parser.parse_args()
 
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
@@ -249,6 +255,24 @@ def WriteDerivs():
         print("order{0}_D4 {1}".format(o, d4_deriv[o]), file=f)
     f.close()
 
+def CleanUp(need_model):
+    work_dir = args.work_dir
+    try:
+        if need_model == "false":
+            for file in os.listdir(work_dir):
+                if file != "log" and file[0] != "." and :
+                    os.remove(work_dir+"/"+file)
+        else:
+            for file in os.listdir(work_dir):
+                if file != "log" and file != "float.all" and file[0] != "." :
+                    os.remove(work_dir+"/"+file)
+    except:
+        sys.exit("get_objf_and_drivs.py: error removing stats that won't be used in future")
+
+
+
+
+
 
 if not os.path.isdir(args.work_dir + "/log"):
     try:
@@ -292,3 +316,6 @@ for o in range(2, ngram_order + 1):
     MergeCountsBackward(o)
 
 WriteDerivs()
+if args.clean_up == "true":
+    CleanUp(args.need_model)
+

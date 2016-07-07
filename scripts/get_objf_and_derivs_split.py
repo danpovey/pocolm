@@ -10,6 +10,7 @@ sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys
 # for ExitProgram, RunCommand and GetCommandStdout
 from pocolm_common import *
 
+
 parser = argparse.ArgumentParser(description="This does the same as get_objf_and_derivs.py "
                                  "(i.e. it computes the log-prob per word and the derivatives), "
                                  "except it works with split-up counts directories.  For example, "
@@ -32,7 +33,10 @@ parser.add_argument("--fold-dev-into-int", type=int,
                     "should be folded (not compatible with the --derivs-out option)")
 parser.add_argument("--need-model", type=str, default="false", choices=["true","false"],
                     help="If true, this script will create work_dir/float.all (the merged "
-                    "file of counts")
+                    "file of counts), and will not be removed after clean-up ")
+parser.add_argument("--clean-up", type=str, default='true', choices=['true','false'],
+                    help="If true, remove the data that won't be used in the future to "
+                    "save space (use 'false' for debug purpose). ")
 parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)")
 parser.add_argument("count_dir",
@@ -351,8 +355,23 @@ def MergeAndComputeObjfForSplit(split_index):
     MergeAllOrders(split_index)
     ComputeObjfAndFinalDerivs(split_index, args.derivs_out != None)
 
+def CleanUp(split_index, need_model):
+    swork_split = "{swork}/{s}".format(swork = split_work_dir, s = split_index)
+    try:
+        if need_model == "true":
+            for file in os.listdir(swork_split):
+                if file != "float.all" and file[0] != "." :
+                    os.remove(swork_split+"/"+file)
+        else:
+            for file in os.listdir(swork_split):
+                if file[0] != "." :
+                    os.remove(swork_split+"/"+file)
+    except:
+        sys.exit("get_objf_and_drivs.py: error removing stats that won't be used in future")
+
 # do the 'forward' computation (merging and discounting) for all the orders from
 # the highest down to order 2.
+
 threads = []
 for split_index in range(1, args.num_splits + 1):
     threads.append(threading.Thread(target = ForwardAllButFirstOrder,
@@ -380,8 +399,13 @@ WriteObjectiveFunction()
 if args.need_model == "true":
     MergeAllSplits()
 
+
+
 if args.derivs_out == None:
-    sys.exit(0)
+  if args.clean_up == "true":
+    for split_index in range(1, args.num_splits + 1):
+      CleanUp(split_index, args.need_model)
+  sys.exit(0)
 
 # scale_derivs will be an array of the derivatives of the objective function
 # w.r.t. the scaling factors of the training sets.
@@ -421,3 +445,12 @@ for t in threads:
     t.join()
 
 WriteDerivs()
+
+if args.clean_up == "true":
+  for split_index in range(1, args.num_splits + 1):
+    CleanUp(split_index, args.need_model)
+
+
+
+
+
