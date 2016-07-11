@@ -24,6 +24,12 @@ parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)")
 parser.add_argument("--verbose", type=str, default='false', choices=['true','false'],
                     help="If true, print commands as we execute them.")
+parser.add_argument("--clean-up", type=str, default="true", choices=["true","false"],
+                    help="If true, clean-up will remove intermediate files in work_dir "
+                    "that won't be used in future")
+parser.add_argument("--need-model", type=str, default="false", choices=["true","false"],
+                    help="If true, work_dir/float.all (the merged file of counts) "
+                    "will not be removed after clean-up")
 parser.add_argument("count_dir",
                     help="Directory from which to obtain counts files\n")
 parser.add_argument("metaparameters",
@@ -249,6 +255,26 @@ def WriteDerivs():
         print("order{0}_D4 {1}".format(o, d4_deriv[o]), file=f)
     f.close()
 
+def CleanUp():
+    if args.clean_up == 'true':
+        try:
+            if not os.path.isdir(args.work_dir):
+                ExitProgram("error finding working directory {0}".format(args.work_dir))
+            for file in os.listdir(args.work_dir):
+                need_float='\d+' if args.need_model == 'true' else ''
+                if re.match('(discounted|discounted_derivs|float|float_derivs|merged|merged_derivs)\.'+need_float,file):
+                    os.remove(args.work_dir+"/"+file)
+        except:
+            sys.exit("get_objf_and_drivs.py: error removing files in working dir")
+    try:
+        f = open(args.work_dir+'/cleaned', "w")
+        print(args.clean_up, file=f)
+        f.close()
+    except:
+        sys.exit("get_objf_and_derivs.py: error opening --cleaned={0} for writing".format(
+                  args.work_dir+'/cleaned'))
+
+
 
 if not os.path.isdir(args.work_dir + "/log"):
     try:
@@ -266,7 +292,9 @@ MergeAllOrders()
 ComputeObjfAndFinalDerivs(args.derivs_out != None)
 
 if args.derivs_out == None:
+    CleanUp()
     sys.exit(0)
+    
 
 # scale_derivs will be an array of the derivatives of the objective function
 # w.r.t. the scaling factors of the training sets.
@@ -292,3 +320,7 @@ for o in range(2, ngram_order + 1):
     MergeCountsBackward(o)
 
 WriteDerivs()
+# Do Clean-up if needed and write whether or not the clean-up had been done
+CleanUp()
+
+

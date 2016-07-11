@@ -26,10 +26,13 @@ parser.add_argument("--num-splits", type=int, default=1,
 parser.add_argument("--keep-splits", type=str, choices=['true','false'],
                     default='false',
                     help="If true, instead of creating float.all, we'll create "
-                    "float.all.1, float.2 and so on, split by history-state according "
+                    "float.all.1, float.all.2 and so on, split by history-state according "
                     "to the most recent history-word (the unigram state is repeated), "
                     "and the file num_splits containing the --num-splits argument, which "
                     "must be >1.")
+parser.add_argument("--clean-up", type=str, default="true", choices=["true","false"],
+                    help="If true, clean-up will remove intermediate files optimization process "
+                    "generated that won't be used in future")
 parser.add_argument("count_dir",
                     help="Directory from which to obtain counts files\n")
 parser.add_argument("metaparameters",
@@ -123,18 +126,19 @@ except:
 f = open(args.lm_dir + "/was_pruned", "w")
 print("false", file=f)
 f.close()
-
+clean_up_opt = "--clean-up false" if args.clean_up == "false" else ""
 if args.num_splits == 1:
-    command = ("get_objf_and_derivs.py {fold_dev_opt} {count_dir} {metaparameters} "
-               "{work_dir}/objf {work_dir} 2>{work_dir}/log.txt".format(fold_dev_opt = fold_dev_opt,
+    command = ("get_objf_and_derivs.py {clean_up_opt} {fold_dev_opt} {count_dir} {metaparameters} "
+               "{work_dir}/objf {work_dir} 2>{work_dir}/log.txt".format(clean_up_opt=clean_up_opt,
+                                                        fold_dev_opt = fold_dev_opt,
                                                         count_dir = args.count_dir,
                                                         metaparameters = args.metaparameters,
                                                         work_dir = work_dir))
 else:
     need_model_opt = '--need-model=true' if args.keep_splits == 'false' else ''
-    command = ("get_objf_and_derivs_split.py --num-splits={num_splits} {need_model_opt} "
+    command = ("get_objf_and_derivs_split.py --num-splits={num_splits} {clean_up_opt} {need_model_opt} "
                "{fold_dev_opt} {count_dir} {metaparameters} {work_dir}/objf "
-               "{work_dir} 2>{work_dir}/log.txt".format(
+               "{work_dir} 2>{work_dir}/log.txt".format( clean_up_opt = clean_up_opt,
             need_model_opt = need_model_opt, fold_dev_opt = fold_dev_opt,
             num_splits = args.num_splits, count_dir = args.count_dir,
             metaparameters = args.metaparameters, work_dir = work_dir))
