@@ -230,7 +230,7 @@ def GetObjfAndDeriv(x):
         # return negative infinity, and a zero derivative.
         print("Metaparameters not allowed: ", x)
         return (1.0e+10, np.array([0.0]*len(x)))
-   
+
     metaparameter_file = "{0}/{1}.metaparams".format(args.optimize_dir, iteration)
     deriv_file = "{0}/{1}.derivs".format(args.optimize_dir, iteration)
     objf_file = "{0}/{1}.objf".format(args.optimize_dir, iteration)
@@ -257,9 +257,9 @@ def GetObjfAndDeriv(x):
                        "{objf} {work}".format(derivs = deriv_file, counts = args.count_dir,
                                               metaparams = metaparameter_file,
                                                       maybe_split = "_split" if args.num_splits > 1 else "",
-                                                      split_opt= ("--num-splits={0}".format(args.num_splits) if
+                                                      split_opt = ("--num-splits={0}".format(args.num_splits) if
                                                                   args.num_splits > 1 else ""),
-                                                      clean_up_opt=clean_up_opt,
+                                                      clean_up_opt = clean_up_opt,
                                               objf = objf_file, work = args.optimize_dir + "/work"))
             RunCommand(command, log_file, verbose = True)
         derivs = ReadMetaparametersOrDerivs(deriv_file)

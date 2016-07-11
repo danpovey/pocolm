@@ -135,7 +135,7 @@ if args.num_splits == 1:
                                                         metaparameters = args.metaparameters,
                                                         work_dir = work_dir))
 else:
-    need_model_opt = '--need-model=true' if args.keep_splits == 'false' else ''
+    need_model_opt = '--need-model true' if args.keep_splits == 'false' else ''
     command = ("get_objf_and_derivs_split.py --num-splits={num_splits} {clean_up_opt} {need_model_opt} "
                "{fold_dev_opt} {count_dir} {metaparameters} {work_dir}/objf "
                "{work_dir} 2>{work_dir}/log.txt".format( clean_up_opt = clean_up_opt,

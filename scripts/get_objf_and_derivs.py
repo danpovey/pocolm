@@ -255,14 +255,17 @@ def WriteDerivs():
         print("order{0}_D4 {1}".format(o, d4_deriv[o]), file=f)
     f.close()
 
-def CleanUp():
+def CleanUpIfNeeded():
     if args.clean_up == 'true':
         try:
             if not os.path.isdir(args.work_dir):
                 ExitProgram("error finding working directory {0}".format(args.work_dir))
+            need_float=True if args.need_model == 'true' else False
             for file in os.listdir(args.work_dir):
-                need_float='\d+' if args.need_model == 'true' else ''
-                if re.match('(discounted|discounted_derivs|float|float_derivs|merged|merged_derivs)\.'+need_float,file):
+                if re.match('(discounted|discounted_derivs|float|float_derivs|merged|merged_derivs)\.',file):
+                    # If need_model option set to be true, this script will keep "float.all" in working dir
+                    if need_float and file == "float.all":
+                        continue
                     os.remove(args.work_dir+"/"+file)
         except:
             sys.exit("get_objf_and_drivs.py: error removing files in working dir")
@@ -292,9 +295,9 @@ MergeAllOrders()
 ComputeObjfAndFinalDerivs(args.derivs_out != None)
 
 if args.derivs_out == None:
-    CleanUp()
+    CleanUpIfNeeded()
     sys.exit(0)
-    
+
 
 # scale_derivs will be an array of the derivatives of the objective function
 # w.r.t. the scaling factors of the training sets.
@@ -321,6 +324,6 @@ for o in range(2, ngram_order + 1):
 
 WriteDerivs()
 # Do Clean-up if needed and write whether or not the clean-up had been done
-CleanUp()
+CleanUpIfNeeded()
 
 
