@@ -136,11 +136,12 @@ if args.num_splits == 1:
                                                         work_dir = work_dir))
 else:
     need_model_opt = '--need-model true' if args.keep_splits == 'false' else ''
+    need_split_float_opt = '--need-split-float true' if args.keep_splits == 'true' else ''
     command = ("get_objf_and_derivs_split.py --num-splits={num_splits} {clean_up_opt} {need_model_opt} "
-               "{fold_dev_opt} {count_dir} {metaparameters} {work_dir}/objf "
+               "{need_split_float_opt} {fold_dev_opt} {count_dir} {metaparameters} {work_dir}/objf "
                "{work_dir} 2>{work_dir}/log.txt".format( clean_up_opt = clean_up_opt,
-            need_model_opt = need_model_opt, fold_dev_opt = fold_dev_opt,
-            num_splits = args.num_splits, count_dir = args.count_dir,
+            need_model_opt = need_model_opt, need_split_float_opt = need_split_float_opt,
+            fold_dev_opt = fold_dev_opt, num_splits = args.num_splits, count_dir = args.count_dir,
             metaparameters = args.metaparameters, work_dir = work_dir))
 
 print("make_lm_dir.py: running command {0}".format(command), file=sys.stderr)
@@ -154,13 +155,19 @@ if args.keep_splits == 'true':
     print(str(args.num_splits), file=f)
     f.close()
     for i in range(1, args.num_splits + 1):
+        src_dir = "{0}/split{1}/{2}".format(work_dir, args.num_splits, i)
         src_file = "{0}/split{1}/{2}/float.all".format(work_dir, args.num_splits, i)
         dest_file = "{0}/float.all.{1}".format(args.lm_dir, i)
         try:
             shutil.move(src_file, dest_file)
+            if os.listdir(src_dir) == []:
+                os.rmdir(src_dir)
         except:
             sys.exit("make_lm_dir.py: error moving {0} to {1}".format(src_file,
                                                                       dest_file))
+    split_dir = src_dir = "{0}/split{1}".format(work_dir, args.num_splits)
+    if os.listdir(split_dir) == []:
+        os.rmdir(split_dir)
 else:
     try:
         shutil.move(work_dir + "/float.all",

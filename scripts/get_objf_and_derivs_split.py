@@ -36,6 +36,9 @@ parser.add_argument("--clean-up", type=str, default="true", choices=["true","fal
 parser.add_argument("--need-model", type=str, default="false", choices=["true","false"],
                     help="If true, work_dir/float.all (the merged file of counts) "
                     "will not be removed after clean-up")
+parser.add_argument("--need-split-float", type=str, default="false", choices=["true","false"],
+                    help="If ture, float.all will be kept in work_dir/split[n]/[n] after "
+                    "clean up. Note, set this be true only if you want to make lm and keep splits ")
 parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)")
 parser.add_argument("count_dir",
@@ -361,9 +364,9 @@ def CleanUpIfNeeded():
         try:
             if not os.path.isdir(args.work_dir):
                 ExitProgram("error finding working directory {0}".format(args.work_dir))
-            # If need_model option set to be false, this script will keep "float.all" in
+            # If need_split_float option set to be true, this script will keep "float.all" in
             # each split dir for future use
-            need_split_float = True if args.need_model == 'false' else False
+            need_split_float = True if args.need_split_float == 'true' else False
             for split_index in range(1, args.num_splits + 1):
                 split_dir = '{0}/split{1}/{2}'.format(args.work_dir,args.num_splits,split_index)
                 if not os.path.isdir(split_dir):
