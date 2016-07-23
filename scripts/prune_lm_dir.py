@@ -4,6 +4,7 @@
 from __future__ import print_function
 import re, os, argparse, sys, math, warnings, subprocess, shutil, threading
 from collections import defaultdict
+from subprocess import CalledProcessError
 
 # make sure scripts/internal is on the pythonpath.
 sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys.path
@@ -21,6 +22,17 @@ parser.add_argument("--steps", type=str,
                     'prune*X, with X <= 1.0, tells it to prune with X times the threshold '
                     'specified with the --threshold option.  EM specifies one iteration of '
                     'E-M on the model. ')
+parser.add_argument("--target-size", type=int, default=0,
+                    help="Target size of final LM after pruning. "
+                    "If setting this to a positive value, the --steps would be "
+                    "ignored and a few steps may be worked out util the size "
+                    "of pruned LM match the target-size.")
+parser.add_argument("--tolerance", type=float, default=0.05,
+                    help="Tolerance of actual size of final LM and the target-size. ")
+parser.add_argument("--increment", type=float, default=0.05,
+                    help="Increment of threshold for each step during finding target size LM. ")
+parser.add_argument("--max-attempt", type=int, default=20,
+                    help="Max attempts to find target size LM. ")
 parser.add_argument("--verbose", type=str, default='false',
                     choices=['true','false'],
                     help="If true, print commands as we execute them.")
@@ -66,10 +78,20 @@ if args.threshold <= 0.0:
 
 work_dir = args.lm_dir_out + "/work"
 
-steps = args.steps.split()
+if args.target_size > 0:
+    if args.tolerance <= 0.0 or args.tolerance >= 0.5:
+        sys.exit("prune_lm_dir.py: illegal tolerance: " + str(args.tolerance))
+    if args.increment <= 0.0:
+        sys.exit("prune_lm_dir.py: --incremtn must be positive, got : " + str(args.inc_scale))
+    if args.max_attempt <= 1:
+        sys.exit("prune_lm_dir.py: --max-attempt must be bigger than 1, got : " + str(args.max_attempt))
 
-if len(steps) == 0:
-    sys.exit("prune_lm_dir.py: 'steps' cannot be empty.")
+    steps = 'prune*1.0 EM EM EM'.split()
+else:
+    steps = args.steps.split()
+
+    if len(steps) == 0:
+        sys.exit("prune_lm_dir.py: 'steps' cannot be empty.")
 
 # returns num-words in this lm-dir.
 def GetNumWords(lm_dir_in):
@@ -314,8 +336,11 @@ def RunEmStep(work_in, work_out):
 # directory we'll get the input from (the output will be that plus one).
 # returns the expected log-prob change (on data generated from the model
 # itself.. this will be negative for pruning steps and positive for E-M steps.
-def RunStep(step_number):
-    work_in = work_dir + "/iter" + str(step_number)
+def RunStep(step_number, **kwargs):
+    if 'in_step' in kwargs:
+        work_in = work_dir + "/iter" + str(kwargs['in_step'])
+    else:
+        work_in = work_dir + "/iter" + str(step_number)
     work_out = work_dir + "/iter" + str(step_number + 1)
     if not os.path.isdir(work_out + "/log"):
         os.makedirs(work_out + "/log")
@@ -323,7 +348,7 @@ def RunStep(step_number):
     if step_text[0:6] == 'prune*':
         try:
             scale = float(step_text[6:])
-            assert scale <= 1.0
+            assert scale != 0.0
         except:
             sys.exit("prune_lm_dir.py: invalid step (wrong --steps "
                      "option): '{0}'".format(step_text))
@@ -389,8 +414,52 @@ if args.check_exact_divergence == 'true':
     waiting_thread = threading.Thread(target=GetInitialLogprob)
     waiting_thread.start()
 
-for step in range(len(steps)):
-    logprob_changes.append(RunStep(step))
+if args.target_size > 0:
+    step = 0
+    low_step = step
+    scale = 1.0
+    high = 0.0
+    low = 0.0
+    attempt = 0
+    while True:
+        # prune step
+        logprob_changes.append(RunStep(step, in_step=low_step))
+        step += 1
+        while step < len(steps): # EM steps
+          logprob_changes.append(RunStep(step))
+          step += 1
+
+        if abs(final_num_ngrams - args.target_size) / float(args.target_size) < args.tolerance:
+            break;
+
+        if attempt > args.max_attempt:
+            sys.exit("prune_lm_dir.py: Too many attempts, please set a higher threshold and rerun.")
+
+        if high > 0.0: # started binary search
+            if final_num_ngrams > args.target_size:
+                low = scale
+                low_step = step
+            else:
+                high = scale
+            assert(high > row)
+            scale += (high + low) / 2
+        else:
+            if final_num_ngrams > args.target_size:
+                scale += args.increment
+                low_step = step
+            else:
+                if scale == 1.0:
+                    sys.exit("prune_lm_dir.py: Initial threshold is too big. final_num_ngrams is: " + str(final_num_ngrams) + "t:" + str(args.target_size))
+
+                high = scale
+                low = scale - args.increment
+                scale = (high + low) / 2
+
+        steps += 'prune*{0} EM EM EM'.format(scale).split()
+        attempt += 1
+else:
+    for step in range(len(steps)):
+        logprob_changes.append(RunStep(step))
 
 FinalizeOutput(work_dir + "/iter" + str(len(steps)))
 
@@ -418,4 +487,4 @@ if args.cleanup == 'true':
     shutil.rmtree(work_dir)
 
 if os.system("validate_lm_dir.py " + args.lm_dir_out) != 0:
-    sys.exit("split_lm_dir.py: failed to validate output LM-dir")
+    sys.exit("prune_lm_dir.py: failed to validate output LM-dir")
