@@ -58,9 +58,10 @@ for order in 3 4 5; do
 
   done
 
+# example of pruning by size.
   total_num_ngram=`get_ngram_num.py data/lm_20k_${order} 2>/dev/null`
-  threshold=0.1
-  for proportion in 0.1 0.2 0.3 0.4; do
+  threshold=0.2
+  for proportion in 0.1; do
     size=$(echo $proportion $total_num_ngram | awk '{ printf "%.0f", $1 * $2 }')
     prune_lm_dir.py --target-size=${size} data/lm_20k_${order} $threshold data/lm_20k_${order}_prune${size} 2>&1 | tail -n 5 | head -n 3
     get_data_prob.py data/text/dev.txt data/lm_20k_${order}_prune${size} 2>&1 | grep -F '[perplexity'

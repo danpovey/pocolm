@@ -387,14 +387,14 @@ def FinalizeOutput(final_work_out):
 def MatchTargetSize(num_ngrams):
     return abs(num_ngrams - args.target_size) / float(args.target_size) < args.tolerance
 
-def AttempOnce(scale, step, attempt, in_step, in_size):
+def AttempOnce(scale, step, attempt, recovery_step, recovery_size):
     global logprob_changes, steps, final_num_ngrams
 
     if step > 0:
         steps += 'prune*{0} EM EM EM'.format(scale).split()
 
     # Prune step
-    logprob_changes.append(RunStep(step, in_step=in_step))
+    logprob_changes.append(RunStep(step, in_step=recovery_step))
     step += 1
     while step < len(steps): # EM steps
       logprob_changes.append(RunStep(step))
@@ -402,17 +402,17 @@ def AttempOnce(scale, step, attempt, in_step, in_size):
     attempt += 1
 
     if MatchTargetSize(final_num_ngrams):
-        return (True, step, attempt, in_step, in_size);
+        return (True, step, attempt, recovery_step, recovery_size);
 
     if attempt > args.max_attempt:
         sys.exit("prune_lm_dir.py: Too many attempts, please set a higher threshold and rerun.")
 
     # always prune from LM larger than target_size
-    if final_num_ngrams > args.target_size and (in_size <= 0 or final_num_ngrams < in_size):
-        in_step = step
-        in_size = final_num_ngrams
+    if final_num_ngrams > args.target_size and (recovery_size <= 0 or final_num_ngrams < recovery_size):
+        recovery_step = step
+        recovery_size = final_num_ngrams
 
-    return (False, step, attempt, in_step, in_size)
+    return (False, step, attempt, recovery_step, recovery_size)
 
 class LeastSquares(object):
     # y = alpha + beta * x
@@ -440,8 +440,8 @@ class LeastSquares(object):
         self.n += 1
 
     def Estimate(self, x):
-        beta = (self.sum_xy - 1 / self.n * self.sum_x * self.sum_y) / (self.sum_x2 - 1 / self.n * self.sum_x * self.sum_x)
-        alpha = 1 / self.n * self.sum_y - beta * 1 / self.n * self.sum_x
+        beta = (self.sum_xy - 1.0 / self.n * self.sum_x * self.sum_y) / (self.sum_x2 - 1.0 / self.n * self.sum_x * self.sum_x)
+        alpha = 1.0 / self.n * self.sum_y - beta * 1.0 / self.n * self.sum_x
 
         return alpha + beta * x
 
@@ -454,15 +454,15 @@ def FindThreshold():
     global final_num_ngrams
 
     step = 0
-    in_step = step
-    in_size = 0
+    recovery_step = step
+    recovery_size = 0
     attempt = 0
     scale = 1.0
 
     ols = LeastSquares()
 
     # get initial two points
-    (succeed, step, attempt, in_step, in_size) = AttempOnce(0.0, step, attempt, in_step, in_size)
+    (succeed, step, attempt, recovery_step, recovery_size) = AttempOnce(0.0, step, attempt, recovery_step, recovery_size)
     if succeed:
         return (scale, attempt)
 
@@ -470,10 +470,9 @@ def FindThreshold():
         sys.exit("prune_lm_dir.py: Initial threshold is too big. final_num_ngrams is: " + str(final_num_ngrams) + ", target:" + str(args.target_size))
 
     ols.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
-    in_step = step
 
     scale = 1.5
-    (succeed, step, attempt, in_step, in_size) = AttempOnce(scale, step, attempt, in_step, in_size)
+    (succeed, step, attempt, recovery_step, recovery_size) = AttempOnce(scale, step, attempt, recovery_step, recovery_size)
     if succeed:
         return (scale, attempt)
 
@@ -481,10 +480,10 @@ def FindThreshold():
 
     while True:
         # we go half-way in one time
-        threshold = ols.Estimate((math.log(args.target_size) + math.log(in_size)) / 2)
+        threshold = ols.Estimate((math.log(args.target_size) + math.log(recovery_size)) / 2.0)
         scale = math.exp(threshold) / args.threshold
 
-        (succeed, step, attempt, in_step, in_size) = AttempOnce(scale, step, attempt, in_step, in_size)
+        (succeed, step, attempt, recovery_step, recovery_size) = AttempOnce(scale, step, attempt, recovery_step, recovery_size)
         if succeed:
             return (scale, attempt)
 
