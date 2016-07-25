@@ -29,8 +29,6 @@ parser.add_argument("--target-size", type=int, default=0,
                     "of pruned LM match the target-size.")
 parser.add_argument("--tolerance", type=float, default=0.05,
                     help="Tolerance of actual size of final LM and the target-size. ")
-parser.add_argument("--increment", type=float, default=0.05,
-                    help="Increment of threshold for each step during finding target size LM. ")
 parser.add_argument("--max-attempt", type=int, default=20,
                     help="Max attempts to find target size LM. ")
 parser.add_argument("--verbose", type=str, default='false',
@@ -81,8 +79,6 @@ work_dir = args.lm_dir_out + "/work"
 if args.target_size > 0:
     if args.tolerance <= 0.0 or args.tolerance >= 0.5:
         sys.exit("prune_lm_dir.py: illegal tolerance: " + str(args.tolerance))
-    if args.increment <= 0.0:
-        sys.exit("prune_lm_dir.py: --incremtn must be positive, got : " + str(args.inc_scale))
     if args.max_attempt <= 1:
         sys.exit("prune_lm_dir.py: --max-attempt must be bigger than 1, got : " + str(args.max_attempt))
 
@@ -388,6 +384,112 @@ def FinalizeOutput(final_work_out):
         os.remove(args.lm_dir_out + "/num_splits")
 
 
+def MatchTargetSize(num_ngrams):
+    return abs(num_ngrams - args.target_size) / float(args.target_size) < args.tolerance
+
+def AttempOnce(scale, step, attempt, in_step, in_size):
+    global logprob_changes, steps, final_num_ngrams
+
+    if step > 0:
+        steps += 'prune*{0} EM EM EM'.format(scale).split()
+
+    # Prune step
+    logprob_changes.append(RunStep(step, in_step=in_step))
+    step += 1
+    while step < len(steps): # EM steps
+      logprob_changes.append(RunStep(step))
+      step += 1
+    attempt += 1
+
+    if MatchTargetSize(final_num_ngrams):
+        return (True, step, attempt, in_step, in_size);
+
+    if attempt > args.max_attempt:
+        sys.exit("prune_lm_dir.py: Too many attempts, please set a higher threshold and rerun.")
+
+    # always prune from LM larger than target_size
+    if final_num_ngrams > args.target_size and (in_size <= 0 or final_num_ngrams < in_size):
+        in_step = step
+        in_size = final_num_ngrams
+
+    return (False, step, attempt, in_step, in_size)
+
+class LeastSquares(object):
+    # y = alpha + beta * x
+    #
+    #        sum{x_i*y_i} - 1/N*sum{x_i}*sum{y_i}
+    # beta = --------------------------------------
+    #            sum{x_i^2} - 1/N*(sum{x_i})^2
+    #
+    # alpha = 1/N*sum{y_i} - beta*1/N*sum{x_i}
+    #
+    # x is log(num-ngrams), y is log(threshold)
+
+    def __init__(self):
+        self.sum_xy = 0.0
+        self.sum_x = 0.0
+        self.sum_x2 = 0.0
+        self.sum_y = 0.0
+        self.n = 0
+
+    def AddPoint(self, x, y):
+        self.sum_xy += x * y
+        self.sum_x += x
+        self.sum_x2 += x * x
+        self.sum_y += y
+        self.n += 1
+
+    def Estimate(self, x):
+        beta = (self.sum_xy - 1 / self.n * self.sum_x * self.sum_y) / (self.sum_x2 - 1 / self.n * self.sum_x * self.sum_x)
+        alpha = 1 / self.n * self.sum_y - beta * 1 / self.n * self.sum_x
+
+        return alpha + beta * x
+
+# find threshold in order to match the target size with final LM
+#
+# Here we use ordinary least squares to fit a linear regression
+# of log(num-ngrams) versus log(threshold), and approach the target size
+# gradually.
+def FindThreshold():
+    global final_num_ngrams
+
+    step = 0
+    in_step = step
+    in_size = 0
+    attempt = 0
+    scale = 1.0
+
+    ols = LeastSquares()
+
+    # get initial two points
+    (succeed, step, attempt, in_step, in_size) = AttempOnce(0.0, step, attempt, in_step, in_size)
+    if succeed:
+        return (scale, attempt)
+
+    if final_num_ngrams < args.target_size:
+        sys.exit("prune_lm_dir.py: Initial threshold is too big. final_num_ngrams is: " + str(final_num_ngrams) + ", target:" + str(args.target_size))
+
+    ols.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
+    in_step = step
+
+    scale = 1.5
+    (succeed, step, attempt, in_step, in_size) = AttempOnce(scale, step, attempt, in_step, in_size)
+    if succeed:
+        return (scale, attempt)
+
+    ols.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
+
+    while True:
+        # we go half-way in one time
+        threshold = ols.Estimate((math.log(args.target_size) + math.log(in_size)) / 2)
+        scale = math.exp(threshold) / args.threshold
+
+        (succeed, step, attempt, in_step, in_size) = AttempOnce(scale, step, attempt, in_step, in_size)
+        if succeed:
+            return (scale, attempt)
+
+        ols.AddPoint(math.log(final_num_ngrams), threshold)
+
 if not os.path.isdir(work_dir):
     try:
         os.makedirs(work_dir)
@@ -415,48 +517,10 @@ if args.check_exact_divergence == 'true':
     waiting_thread.start()
 
 if args.target_size > 0:
-    step = 0
-    low_step = step
-    scale = 1.0
-    high = 0.0
-    low = 0.0
-    attempt = 0
-    while True:
-        # prune step
-        logprob_changes.append(RunStep(step, in_step=low_step))
-        step += 1
-        while step < len(steps): # EM steps
-          logprob_changes.append(RunStep(step))
-          step += 1
-
-        if abs(final_num_ngrams - args.target_size) / float(args.target_size) < args.tolerance:
-            break;
-
-        if attempt > args.max_attempt:
-            sys.exit("prune_lm_dir.py: Too many attempts, please set a higher threshold and rerun.")
-
-        if high > 0.0: # started binary search
-            if final_num_ngrams > args.target_size:
-                low = scale
-                low_step = step
-            else:
-                high = scale
-            assert(high > row)
-            scale += (high + low) / 2
-        else:
-            if final_num_ngrams > args.target_size:
-                scale += args.increment
-                low_step = step
-            else:
-                if scale == 1.0:
-                    sys.exit("prune_lm_dir.py: Initial threshold is too big. final_num_ngrams is: " + str(final_num_ngrams) + "t:" + str(args.target_size))
-
-                high = scale
-                low = scale - args.increment
-                scale = (high + low) / 2
-
-        steps += 'prune*{0} EM EM EM'.format(scale).split()
-        attempt += 1
+    (scale, attempt) = FindThreshold()
+    print ("prune_lm_dir.py: Find the threshold "
+        + str(scale * args.threshold) + " in " + str(attempt) + " attempt(s)",
+        file=sys.stderr)
 else:
     for step in range(len(steps)):
         logprob_changes.append(RunStep(step))
