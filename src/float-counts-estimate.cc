@@ -355,7 +355,7 @@ class FloatCountsEstimator {
       double work_count = *work_counts_iter,
           old_prob = counts_iter->second / old_total,
           new_prob = work_count / work_total;
-      if (work_count != 0.0) {
+      if (new_prob != 0.0) {
         this_auxf_impr += work_count * log(new_prob / old_prob);
         assert(this_auxf_impr - this_auxf_impr == 0.0); // check for NaN.
       }
