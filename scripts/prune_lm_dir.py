@@ -414,41 +414,36 @@ def AttempOnce(scale, step, attempt, recovery_step, recovery_size):
 
     return (False, step, attempt, recovery_step, recovery_size)
 
-class LeastSquares(object):
-    # y = alpha + beta * x
-    #
-    #        sum{x_i*y_i} - 1/N*sum{x_i}*sum{y_i}
-    # beta = --------------------------------------
-    #            sum{x_i^2} - 1/N*(sum{x_i})^2
-    #
-    # alpha = 1/N*sum{y_i} - beta*1/N*sum{x_i}
-    #
-    # x is log(num-ngrams), y is log(threshold)
-
+class LinearEstimator(object):
     def __init__(self):
-        self.sum_xy = 0.0
-        self.sum_x = 0.0
-        self.sum_x2 = 0.0
-        self.sum_y = 0.0
+        self.switch = True
+        self.x0 = 0.0
+        self.x1 = 0.0
+        self.y0 = 0.0
+        self.y1 = 0.0
         self.n = 0
 
     def AddPoint(self, x, y):
-        self.sum_xy += x * y
-        self.sum_x += x
-        self.sum_x2 += x * x
-        self.sum_y += y
+        if self.switch:
+            self.x0 = x
+            self.y0 = y
+        else:
+            self.x1 = x
+            self.y1 = y
+        self.switch = not self.switch
         self.n += 1
 
     def Estimate(self, x):
-        beta = (self.sum_xy - 1.0 / self.n * self.sum_x * self.sum_y) / (self.sum_x2 - 1.0 / self.n * self.sum_x * self.sum_x)
-        alpha = 1.0 / self.n * self.sum_y - beta * 1.0 / self.n * self.sum_x
+        assert self.n >= 2
+        alpha = (self.y1 - self.y0) / (self.x1 - self.x0)
+        beta = self.y0 - alpha * self.x0
 
-        return alpha + beta * x
+        return alpha * x + beta
 
 # find threshold in order to match the target size with final LM
 #
-# Here we use ordinary least squares to fit a linear regression
-# of log(num-ngrams) versus log(threshold), and approach the target size
+# Here we fit a linear of log(num-ngrams) versus log(threshold)
+# with the latest two points, and approach the target size
 # gradually.
 def FindThreshold():
     global final_num_ngrams
@@ -459,7 +454,7 @@ def FindThreshold():
     attempt = 0
     scale = 1.0
 
-    ols = LeastSquares()
+    ls = LinearEstimator()
 
     # get initial two points
     (succeed, step, attempt, recovery_step, recovery_size) = AttempOnce(0.0, step, attempt, recovery_step, recovery_size)
@@ -469,25 +464,25 @@ def FindThreshold():
     if final_num_ngrams < args.target_size:
         sys.exit("prune_lm_dir.py: Initial threshold is too big. final_num_ngrams is: " + str(final_num_ngrams) + ", target:" + str(args.target_size))
 
-    ols.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
+    ls.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
 
     scale = 1.5
     (succeed, step, attempt, recovery_step, recovery_size) = AttempOnce(scale, step, attempt, recovery_step, recovery_size)
     if succeed:
         return (scale, attempt)
 
-    ols.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
+    ls.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
 
     while True:
         # we go half-way in one time
-        threshold = ols.Estimate((math.log(args.target_size) + math.log(recovery_size)) / 2.0)
+        threshold = ls.Estimate(math.log(args.target_size))
         scale = math.exp(threshold) / args.threshold
 
         (succeed, step, attempt, recovery_step, recovery_size) = AttempOnce(scale, step, attempt, recovery_step, recovery_size)
         if succeed:
             return (scale, attempt)
 
-        ols.AddPoint(math.log(final_num_ngrams), threshold)
+        ls.AddPoint(math.log(final_num_ngrams), threshold)
 
 if not os.path.isdir(work_dir):
     try:

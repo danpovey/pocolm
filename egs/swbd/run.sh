@@ -63,7 +63,7 @@ for order in 3 4 5; do
   threshold=0.2
   for proportion in 0.1; do
     size=$(echo $proportion $total_num_ngram | awk '{ printf "%.0f", $1 * $2 }')
-    prune_lm_dir.py --target-size=${size} data/lm_20k_${order} $threshold data/lm_20k_${order}_prune${size} 2>&1 | tail -n 5 | head -n 3
+    prune_lm_dir.py --target-size=${size} data/lm_20k_${order} $threshold data/lm_20k_${order}_prune${size} 2>&1 | tail -n 7 | head -n 5 | grep -v 'log-prob changes'
     get_data_prob.py data/text/dev.txt data/lm_20k_${order}_prune${size} 2>&1 | grep -F '[perplexity'
 
     format_arpa_lm.py data/lm_20k_${order}_prune${size} | gzip -c > data/arpa/20k_${order}gram_prune${size}.arpa.gz
