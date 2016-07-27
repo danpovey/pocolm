@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# This script is inefficient, it should not be used by any other scripts under scripts/ dir
+# Once we have someway to store the num-ngrams in pocolm lm dir, this script should
+# only involve opening and reading a file under the lm dir.
+#
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
 import re, os, argparse, sys, math, warnings, subprocess, shutil, tempfile, threading

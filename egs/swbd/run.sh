@@ -59,7 +59,7 @@ for order in 3 4 5; do
   done
 
 # example of pruning by size.
-  total_num_ngram=`get_ngram_num.py data/lm_20k_${order} 2>/dev/null`
+  total_num_ngram=`get_num_ngrams.py data/lm_20k_${order} 2>/dev/null`
   threshold=0.2
   for proportion in 0.1; do
     size=$(echo $proportion $total_num_ngram | awk '{ printf "%.0f", $1 * $2 }')
