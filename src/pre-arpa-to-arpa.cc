@@ -31,7 +31,7 @@
 namespace pocolm {
 
 /*
-   This program is used together with float-counts-to-arpa to produce and ARPA
+   This program is used together with float-counts-to-arpa to produce an ARPA
    format language model; you pipe the output of float-counts-to-arpa into
    'sort' and then into this program.
 */
@@ -144,7 +144,7 @@ class PreArpaProcessor {
       // the next block prints out to a temporary string, the string form of
       // each of the words.  e.g. if this line is " 3 891 22 81 -4.43142", the
       // next block takes the entries for 891, 22 and 81 from the vocabulary
-      // file and prints each of them into "words", followed by a space.
+      // file and prints each of them into "words", separated by spaces.
       for (int32 i = 0; i < order; i++) {
         int32 word = strtol(line, const_cast<char**>(&line), 10);
         if ((*line != ' ' && *line != '\t') || word < 0)
@@ -154,7 +154,9 @@ class PreArpaProcessor {
                     << "the vocabulary size: line is " << line_str;
           exit(1);
         }
-        words << ' ' << vocab_data[word];
+        words << vocab_data[word];
+        if (i + 1 < order)
+          words << ' ';
       }
       if (*line == ' ') {
         // We reach this position if we're processing an n-gram line that
@@ -163,7 +165,7 @@ class PreArpaProcessor {
         // backoff log-prob, it defaults to zero if not printed.
         // E.g. at this point we might have line == " -1.84292",
         // and we print "-1.84292".
-        std::cout << (line + 1) << words.str() << "\n";
+        std::cout << (line + 1) << '\t' << words.str() << "\n";
       } else {
         if (*line != '\t')
           goto fail;
@@ -211,10 +213,10 @@ class PreArpaProcessor {
         // this out.
         const char *extra_line_float = extra_line_str.c_str() +
             this_line_consumed + 1;
-        std::cout << extra_line_float << words.str();
-        // the next line will print out " -1.43123\n" in the example,
+        std::cout << extra_line_float << '\t' << words.str();
+        // the next line will print out "\t-1.43123\n" in the example,
         // which is the log-base-10 backoff prob.
-        std::cout << ' ' << (line + 1) << "\n";
+        std::cout << line << "\n";
       }
       continue;
    fail:
