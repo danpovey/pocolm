@@ -104,9 +104,9 @@ f.close()
 # This function does the count merging for the specified
 # n-gram order, writing to $work_dir/merged.$order
 # For the highest order we merge count_dir/int.*.order,
-# each with its appropriate scalign factor; for orders
+# each with its appropriate scaling factor; for orders
 # strictly between the highest order and 1 we merge those
-# but also the discounted counts from work_dir/discounted.order;
+# but also the discount counts from work_dir/discount.order;
 # for order 1, no merging is done (-> this function shouldn't be
 # called).
 def MergeCounts(order):
@@ -123,10 +123,10 @@ def MergeCounts(order):
             scale = train_set_scale[args.fold_dev_into_int])
 
     # for orders less than the highest order, we also have to include the
-    # discounted counts from the one-higher order.  there is no scale here, so
+    # discount counts from the one-higher order.  there is no scale here, so
     # the program will expect general-counts, not int-counts.
     if order < ngram_order:
-        command += " {work}/discounted.{order}".format(
+        command += " {work}/discount.{order}".format(
             work = args.work_dir, order = order)
     # the output gets redirected to the output file.
     command += " >{work}/merged.{order}".format(
@@ -146,10 +146,10 @@ def MergeCountsBackward(order):
             counts = args.count_dir, train_set = n, order = order,
             scale = train_set_scale[n])
     # for orders less than the highest order, we also have to include the
-    # discounted counts from the one-higher order, and provide a filename
+    # discount counts from the one-higher order, and provide a filename
     # for it to output the derivatives w.r.t. that file.
     if order < ngram_order:
-        command += " {work}/discounted.{order} {work}/discounted_derivs.{order}".format(
+        command += " {work}/discount.{order} {work}/discount_derivs.{order}".format(
             work = args.work_dir, order = order)
     log_file = "{0}/log/merge_counts_backward.{1}.log".format(args.work_dir, order)
     output = GetCommandStdout(command, log_file, args.verbose=='true')
@@ -168,7 +168,7 @@ def MergeCountsBackward(order):
 def DiscountCounts(order):
     # discount counts of the specified order > 1.
     assert order > 1
-    command = "discount-counts {d1} {d2} {d3} {d4} {work}/merged.{order} {work}/float.{order} {work}/discounted.{orderm1} ".format(
+    command = "discount-counts {d1} {d2} {d3} {d4} {work}/merged.{order} {work}/float.{order} {work}/discount.{orderm1} ".format(
         d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
         work = args.work_dir, order = order, orderm1 = order - 1)
     log_file = "{0}/log/discount_counts.{1}.log".format(args.work_dir, order)
@@ -178,7 +178,7 @@ def DiscountCountsBackward(order):
     # discount counts of the specified order > 1; backprop version.
     assert order > 1
     command = ("discount-counts-backward {d1} {d2} {d3} {d4} {work}/merged.{order} {work}/float.{order} "
-               "{work}/float_derivs.{order} {work}/discounted.{orderm1} {work}/discounted_derivs.{orderm1} "
+               "{work}/float_derivs.{order} {work}/discount.{orderm1} {work}/discount_derivs.{orderm1} "
                "{work}/merged_derivs.{order}".format(
             d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
             work = args.work_dir, order = order, orderm1 = order - 1))
@@ -195,16 +195,44 @@ def DiscountCountsBackward(order):
 
 
 def DiscountCountsOrder1():
-    command = "discount-counts-1gram {num_words} <{work}/discounted.1 >{work}/float.1".format(
+    command = "discount-counts-1gram {num_words} <{work}/discount.1 >{work}/float.1".format(
         num_words = num_words, work = args.work_dir)
     log_file = "{0}/log/discount_counts_order1.log".format(args.work_dir)
     RunCommand(command, log_file, args.verbose=='true')
 
 def DiscountCountsOrder1Backward():
-    command = ("discount-counts-1gram-backward {work}/discounted.1 {work}/float.1 "
-               "{work}/float_derivs.1 {work}/discounted_derivs.1".format(work = args.work_dir))
+    command = ("discount-counts-1gram-backward {work}/discount.1 {work}/float.1 "
+               "{work}/float_derivs.1 {work}/discount_derivs.1".format(work = args.work_dir))
     log_file = "{0}/log/discount_counts_order1_backward.log".format(args.work_dir)
     RunCommand(command, log_file, args.verbose=='true')
+
+def ParseNumNgrams(out_dir, merge_all_orders_log):
+    try:
+        num = []
+        f = open(merge_all_orders_log, "r")
+        for line in f:
+            if line[0] == '#': continue
+            m = re.search('Write (.*) individual n-grams.', line)
+            if m:
+                # The matched string should be 'num1 + num2 = tot' or just 'num1' for unigram model
+                nums_str = m.group(1).split('=')[0]
+                nums_str = nums_str.strip()
+                nums = re.split('[\+| ]+', nums_str)
+        f.close()
+    except:
+        sys.exit("get_objf_and_derivs.py: error reading merge_all_orders_log from: " + merge_all_orders_log)
+
+    if len(nums) == 0:
+        sys.exit("get_objf_and_derivs.py: error parsing num_ngrams from: " + merge_all_orders_log)
+
+    try:
+        out_file = out_dir + "/num_ngrams"
+        f = open(out_file, "w")
+        for order, num in enumerate(nums):
+            print(str(order + 1) + ' ' + str(num), file=f)
+        f.close()
+    except:
+        sys.exit("get_objf_and_derivs.py: error writing num-ngrams to: " + out_file)
 
 def MergeAllOrders():
     command = ("merge-float-counts " +
@@ -212,6 +240,7 @@ def MergeAllOrders():
                + ">{0}/float.all".format(args.work_dir))
     log_file = "{0}/log/merge_all_orders.log".format(args.work_dir)
     RunCommand(command, log_file, args.verbose=='true')
+    ParseNumNgrams(args.work_dir, log_file)
 
 def ComputeObjfAndFinalDerivs(need_derivs):
     global num_dev_set_words, objf

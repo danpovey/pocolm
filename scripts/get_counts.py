@@ -70,7 +70,7 @@ def ReadNames(names_file):
     try:
         f = open(names_file, "r");
     except:
-        sys.exit("initialize_metaparameters.py: failed to open --names={0}"
+        sys.exit("get_counts.py: failed to open --names={0}"
                  " for reading".format(names_file))
     number_to_name = { }
     for line in f:
@@ -78,10 +78,10 @@ def ReadNames(names_file):
             [ number, name ] = line.split();
             number = int(number)
         except:
-            sys.exit("initialize_metaparameters.py: Bad line '{0}' in names file {1}".format(
+            sys.exit("get_counts.py: Bad line '{0}' in names file {1}".format(
                     line[0:-1], names_file))
         if number in number_to_name:
-            sys.exit("initialize_metaparameters.py: duplicate number {0} in names file {1}".format(
+            sys.exit("get_counts.py: duplicate number {0} in names file {1}".format(
                     number, names_file))
         number_to_name[number] = name
     f.close()
@@ -252,11 +252,11 @@ def SaveNgramOrder(dest_count_dir, ngram_order):
 # this function dumps the counts to disk.
 
 #  if num_splits == 0 [relevant when we're not using min-counts], then it dumps
-# its output to {dest_count_dir}/int.{i}.{o} with n = 1..num_train_sets,
+# its output to {dest_count_dir}/int.{n}.{o} with n = 1..num_train_sets,
 # o=2..ngram_order.  (note: n is supplied to this function).
 #
 # If num-splits >= 1 [relevant when we're using min-counts], then it dumps its output
-## {dest_count_dir}/int.{i}.split{j} with n = 1..num_train_sets, j=1..num_splits.
+## {dest_count_dir}/int.{n}.split{j} with n = 1..num_train_sets, j=1..num_splits.
 
 def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_splits = 0):
     if num_splits == 0:
@@ -280,11 +280,11 @@ def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_s
 
 # This function uses multiple parallel processes to dumps the counts to files.
 # if num_splits == 0 [relevant when we're not using min-counts], then it dumps its output to
-# {dest_count_dir}/int.{i}.{o} with n = 1..num_train_sets, o=2..ngram_order.
+# {dest_count_dir}/int.{n}.{o} with n = 1..num_train_sets, o=2..ngram_order.
 # (note: n is supplied to this function).
 #
 # If num-splits >= 1 [relevant when we're using min-counts], then it dumps its output
-## {dest_count_dir}/int.{i}.split{j} with n = 1..num_train_sets, j=1..num_splits.
+## {dest_count_dir}/int.{n}.split{j} with n = 1..num_train_sets, j=1..num_splits.
 
 # This function uses multiple processes (num_proc) in parallel to run
 # 'get-text-counts' (this tends to be the bottleneck).
@@ -330,7 +330,7 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
     log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
         dest_count_dir = dest_count_dir, n = n)
     test_command = "bash -c 'set -o pipefail; (echo a; echo b) | "\
-        "distribute-input-lines /dev/stdout /dev/null'";
+        "distribute-input-lines /dev/null /dev/null'";
     # We run the following command just to make sure distribute-input-lines is
     # on the path and compiled, since we get hard-to-debug errors if it fails.
     RunCommand(test_command, log_file)

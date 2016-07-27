@@ -199,6 +199,12 @@ class FloatCountsPruner {
     std::cout << num_ngrams_ << ' ' << num_ngrams_shadowed_ << ' '
               << num_ngrams_protected_ << ' ' << num_ngrams_pruned_ << '\n';
 
+    int32 i = 0;
+    for (; i < num_ngrams_per_order_.size() - 1; i++) {
+      std::cout << num_ngrams_per_order_[i] << ' ';
+    }
+    std::cout << num_ngrams_per_order_[i] << '\n';
+
     std::cerr << "float-counts-prune: aside from unigram there were "
               << num_ngrams_ << " nonzero n-grams.\n";
     int64 num_ngrams_eligible = num_ngrams_ - num_ngrams_shadowed_ -
@@ -477,8 +483,15 @@ class FloatCountsPruner {
   // the count to the backoff state.  Later on we'll structurally
   // remove the pruned counts.
   void DoPruningForLmState(int32 history_length) {
-    if (history_length == 0)
+    if (history_length + 1 > num_ngrams_per_order_.size()) {
+        num_ngrams_per_order_.resize(history_length + 1, 0);
+    }
+
+    if (history_length == 0) {
+      num_ngrams_per_order_[0] = lm_states_[history_length].counts.size();
       return;  // we don't prune the unigram state.
+    }
+
     CheckBackoffStatesExist(history_length);
     FloatLmState &lm_state = lm_states_[history_length],
         &backoff_state = lm_states_[history_length - 1];
@@ -499,10 +512,12 @@ class FloatCountsPruner {
       num_ngrams_++;
       if (*shadowed_iter) {
         num_ngrams_shadowed_++;
+        num_ngrams_per_order_[history_length]++;
         continue;  // We can't prune because there is a count for this word in a
                    // history state that backs off to this one.
       }
       if (null_counts_reader_->NgramIsProtected(lm_state.history, word)) {
+        num_ngrams_per_order_[history_length]++;
         num_ngrams_protected_++;
         continue;  // We can't prune because there is a history-state with the
                    // same word-sequence as this n-gram (and there needs to be a
@@ -528,6 +543,8 @@ class FloatCountsPruner {
         backoff_state.total = backoff_state_total;
         total_logprob_change_ += logprob_change;
         num_ngrams_pruned_++;
+      } else {
+        num_ngrams_per_order_[history_length]++;
       }
     }
   }
@@ -635,6 +652,9 @@ class FloatCountsPruner {
   // the total number of nonzero n-gram counts in the input LM, excluding
   // unigram
   int64 num_ngrams_;
+
+  // the total number of n-gram written out for each order.
+  std::vector<int64> num_ngrams_per_order_;
 
   // the total number of nonzero n-gram counts in the input LM that could not be
   // considered for pruning because they were 'shadowed' (i.e. a higher-order

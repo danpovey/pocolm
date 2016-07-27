@@ -12,7 +12,7 @@ rm -f data/fisher/text0
 
 for dir in $1 $2; do
   if [ ! -d $dir/data/trans ]; then
-    echo "$0: expected directory $x/data/trans to exist"
+    echo "$0: expected directory $dir/data/trans to exist"
     exit 1;
   fi
   cat $dir/data/trans/*/*.txt |\

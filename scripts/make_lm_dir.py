@@ -149,6 +149,13 @@ print("make_lm_dir.py: running command {0}".format(command), file=sys.stderr)
 if os.system(command) != 0:
     sys.exit("make_lm_dir.py: error running command {0}".format(command))
 
+src = work_dir + os.sep + "num_ngrams"
+dst = args.lm_dir + os.sep + "num_ngrams"
+try:
+    shutil.copy(src, dst)
+except:
+    sys.exit("make_lm_dir.py: error copying {0} to {1}".format(src, dst))
+
 
 if args.keep_splits == 'true':
     f = open(args.lm_dir + '/num_splits', 'w')
