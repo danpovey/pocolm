@@ -390,11 +390,11 @@ def MatchTargetSize(num_ngrams):
     assert(args.target_num_ngrams > 0)
     return abs(num_ngrams - args.target_num_ngrams) / float(args.target_num_ngrams) < args.tolerance
 
-def IterateOnce(scale, step, iter, recovery_step, recovery_size):
+def IterateOnce(threshold, step, iter, recovery_step, recovery_size):
     """Prune with a specific threshold and check whether the resulting LM matches the target-num-ngrams
 
     Args:
-        scale: the threshold equals to scale * args.threshold
+        threshold: the threshold used to prune LM
         step: the current step-index (each individual operation, such as pruning or E-M, counts as one step).
         iter: index of current iteration. We only increase the iteration index when we do an actual pruning step,
             so it will be <= the step index.'
@@ -414,10 +414,9 @@ def IterateOnce(scale, step, iter, recovery_step, recovery_size):
         threshold = init_threshold()
         while True:
             threshold = EstimateThreshold(args.target_num_ngrams)
-            scale = threshold / args.threshold
 
             (success, step, iter, recovery_step, recovery_size) = \
-                    IterateOnce(scale, step, iter, recovery_step, recovery_size)
+                    IterateOnce(threshold, step, iter, recovery_step, recovery_size)
             if success:
                 break
 
@@ -425,6 +424,7 @@ def IterateOnce(scale, step, iter, recovery_step, recovery_size):
     global logprob_changes, steps, final_num_ngrams
 
     if step > 0:
+        scale = threshold / args.threshold
         steps += 'prune*{0} EM EM EM'.format(scale).split()
 
     # Prune step
@@ -502,7 +502,7 @@ def FindThreshold():
     recovery_step = step
     recovery_size = 0
     iter = 0
-    scale = 1.0
+    threshold = args.threshold
 
     ls = LinearEstimator()
 
@@ -510,7 +510,7 @@ def FindThreshold():
     (success, step, iter, recovery_step, recovery_size) = \
         IterateOnce(0.0, step, iter, recovery_step, recovery_size)
     if success:
-        return (scale, iter)
+        return (threshold, iter)
 
     if final_num_ngrams < args.target_num_ngrams:
         sys.exit("prune_lm_dir.py: --initial-threshold={0} is too big, "
@@ -519,26 +519,26 @@ def FindThreshold():
                  "versus --target-num-ngrams={2}".format(args.threshold,
                      final_num_ngrams, args.target_num_ngrams))
 
-    ls.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
+    ls.AddPoint(math.log(final_num_ngrams), math.log(threshold))
 
-    scale = 1.5
+    threshold = 1.5 * threshold
     (success, step, iter, recovery_step, recovery_size) = \
-        IterateOnce(scale, step, iter, recovery_step, recovery_size)
+        IterateOnce(threshold, step, iter, recovery_step, recovery_size)
     if success:
-        return (scale, iter)
+        return (threshold, iter)
 
-    ls.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
+    ls.AddPoint(math.log(final_num_ngrams), math.log(threshold))
 
     while True:
-        threshold = ls.Estimate(math.log(args.target_num_ngrams))
-        scale = math.exp(threshold) / args.threshold
+        log_threshold = ls.Estimate(math.log(args.target_num_ngrams))
+        threshold = math.exp(log_threshold)
 
         (success, step, iter, recovery_step, recovery_size) = \
-            IterateOnce(scale, step, iter, recovery_step, recovery_size)
+            IterateOnce(threshold, step, iter, recovery_step, recovery_size)
         if success:
-            return (scale, iter)
+            return (threshold, iter)
 
-        ls.AddPoint(math.log(final_num_ngrams), threshold)
+        ls.AddPoint(math.log(final_num_ngrams), log_threshold)
 
 if not os.path.isdir(work_dir):
     try:
@@ -567,9 +567,9 @@ if args.check_exact_divergence == 'true':
     waiting_thread.start()
 
 if args.target_num_ngrams > 0:
-    (scale, iter) = FindThreshold()
+    (threshold, iter) = FindThreshold()
     print ("prune_lm_dir.py: Find the threshold "
-        + str(scale * args.threshold) + " in " + str(iter) + " iteration(s)",
+        + str(threshold) + " in " + str(iter) + " iteration(s)",
         file=sys.stderr)
 else:
     for step in range(len(steps)):
