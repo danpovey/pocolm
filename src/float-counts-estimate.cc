@@ -321,7 +321,7 @@ class FloatCountsEstimator {
     const FloatLmStateWork &work = work_[history_length];
     assert(work.counts.size() == lm_state.counts.size());
 
-    double old_total = lm_state.total,
+    float old_total = lm_state.total,
         work_total = work.discount +
         std::accumulate(work.counts.begin(), work.counts.end(), 0.0);
     if (old_total != 0.0 && work_total == 0.0) {
@@ -339,7 +339,7 @@ class FloatCountsEstimator {
     double this_auxf_impr = 0.0;
     if (work.discount != 0.0) {
       // first deal with the backoff/discount count.
-      double old_backoff_prob = lm_state.discount / old_total,
+      float old_backoff_prob = lm_state.discount / old_total,
           new_backoff_prob = work.discount / work_total;
       this_auxf_impr += work.discount * log(new_backoff_prob / old_backoff_prob);
       assert(this_auxf_impr - this_auxf_impr == 0.0); // check for NaN.
@@ -352,7 +352,7 @@ class FloatCountsEstimator {
         counts_end = lm_state.counts.end();
     std::vector<double>::const_iterator work_counts_iter = work.counts.begin();
     for (; counts_iter != counts_end; ++counts_iter,++work_counts_iter) {
-      double work_count = *work_counts_iter,
+      float work_count = *work_counts_iter,
           old_prob = counts_iter->second / old_total,
           new_prob = work_count / work_total;
       if (new_prob != 0.0) {
