@@ -390,33 +390,35 @@ def MatchTargetSize(num_ngrams):
     assert(args.target_num_ngrams > 0)
     return abs(num_ngrams - args.target_num_ngrams) / float(args.target_num_ngrams) < args.tolerance
 
-def IterateOnce(scale, step, n_iter, recovery_step, recovery_size):
+def IterateOnce(scale, step, iter, recovery_step, recovery_size):
     """Prune with a specific threshold and check whether the resulting LM matches the target-num-ngrams
 
     Args:
         scale: the threshold equals to scale * args.threshold
-        step: number of current step
-        n_iter: number of current iteration
-        recovery_step, recovery_size: These two variables store the number of step and num-grams
-            for LM that is most recent and smallest but larger than target-num-ngrams. The following
-            step should prune from this LM.
+        step: the current step-index (each individual operation, such as pruning or E-M, counts as one step).
+        iter: index of current iteration. We only increase the iteration index when we do an actual pruning step,
+            so it will be <= the step index.'
+        recovery_step, recovery_size: the step-index and num-grams
+            for LM that is most recent and smallest but larger than target-num-ngrams.
+            This is used as the starting point for the iteration done by this function.
     Returns:
         A tuple with the first element is a bool variable indicating whether we already got the right threshold.
-        And the remaining are updated value for (step, n_iter, recovery_step, recovery_size)
+        And the remaining are updated value for (step, iter, recovery_step, recovery_size)
     Example Usage:
 
         step = 0
         recovery_step = step
         recovery_size = 0
-        n_iter = 0
+        iter = 0
 
         threshold = init_threshold()
         while True:
             threshold = EstimateThreshold(args.target_num_ngrams)
             scale = threshold / args.threshold
 
-            (succeed, step, n_iter, recovery_step, recovery_size) = IterateOnce(scale, step, n_iter, recovery_step, recovery_size)
-            if succeed:
+            (success, step, iter, recovery_step, recovery_size) = \
+                    IterateOnce(scale, step, iter, recovery_step, recovery_size)
+            if success:
                 break
 
     """
@@ -431,12 +433,12 @@ def IterateOnce(scale, step, n_iter, recovery_step, recovery_size):
     while step < len(steps): # EM steps
       logprob_changes.append(RunStep(step))
       step += 1
-    n_iter += 1
+    iter += 1
 
     if MatchTargetSize(final_num_ngrams):
-        return (True, step, n_iter, recovery_step, recovery_size)
+        return (True, step, iter, recovery_step, recovery_size)
 
-    if n_iter > args.max_iter:
+    if iter > args.max_iter:
         sys.exit("prune_lm_dir.py: Too many iterations, please set a higher threshold and rerun.")
 
     # always prune from LM larger than target_num_ngrams
@@ -444,7 +446,7 @@ def IterateOnce(scale, step, n_iter, recovery_step, recovery_size):
         recovery_step = step
         recovery_size = final_num_ngrams
 
-    return (False, step, n_iter, recovery_step, recovery_size)
+    return (False, step, iter, recovery_step, recovery_size)
 
 class LinearEstimator(object):
     """Estimate the coeffients of a line using two most recent points
@@ -452,7 +454,6 @@ class LinearEstimator(object):
     Example Usage:
 
         ls = LinearEstimator()
-
         ls.AddPoint(x0, y0)
         ls.AddPoint(x1, y1)
 
@@ -464,7 +465,6 @@ class LinearEstimator(object):
                 break
 
             ls.AddPoint(xn, yn)
-
     """
     def __init__(self):
         self.switch = True
@@ -501,25 +501,31 @@ def FindThreshold():
     step = 0
     recovery_step = step
     recovery_size = 0
-    n_iter = 0
+    iter = 0
     scale = 1.0
 
     ls = LinearEstimator()
 
     # get initial two points
-    (succeed, step, n_iter, recovery_step, recovery_size) = IterateOnce(0.0, step, n_iter, recovery_step, recovery_size)
-    if succeed:
-        return (scale, n_iter)
+    (success, step, iter, recovery_step, recovery_size) = \
+        IterateOnce(0.0, step, iter, recovery_step, recovery_size)
+    if success:
+        return (scale, iter)
 
     if final_num_ngrams < args.target_num_ngrams:
-        sys.exit("prune_lm_dir.py: Initial threshold is too big. final_num_ngrams is: " + str(final_num_ngrams) + ", target:" + str(args.target_num_ngrams))
+        sys.exit("prune_lm_dir.py: --initial-threshold={0} is too big, "
+                 "please reduce this value and rerun. "
+                 "Number of n-grams pruning with this threshold is {1} "
+                 "versus --target-num-ngrams={2}".format(args.threshold,
+                     final_num_ngrams, args.target_num_ngrams))
 
     ls.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
 
     scale = 1.5
-    (succeed, step, n_iter, recovery_step, recovery_size) = IterateOnce(scale, step, n_iter, recovery_step, recovery_size)
-    if succeed:
-        return (scale, n_iter)
+    (success, step, iter, recovery_step, recovery_size) = \
+        IterateOnce(scale, step, iter, recovery_step, recovery_size)
+    if success:
+        return (scale, iter)
 
     ls.AddPoint(math.log(final_num_ngrams), math.log(scale*args.threshold))
 
@@ -527,9 +533,10 @@ def FindThreshold():
         threshold = ls.Estimate(math.log(args.target_num_ngrams))
         scale = math.exp(threshold) / args.threshold
 
-        (succeed, step, n_iter, recovery_step, recovery_size) = IterateOnce(scale, step, n_iter, recovery_step, recovery_size)
-        if succeed:
-            return (scale, n_iter)
+        (success, step, iter, recovery_step, recovery_size) = \
+            IterateOnce(scale, step, iter, recovery_step, recovery_size)
+        if success:
+            return (scale, iter)
 
         ls.AddPoint(math.log(final_num_ngrams), threshold)
 
@@ -560,9 +567,9 @@ if args.check_exact_divergence == 'true':
     waiting_thread.start()
 
 if args.target_num_ngrams > 0:
-    (scale, n_iter) = FindThreshold()
+    (scale, iter) = FindThreshold()
     print ("prune_lm_dir.py: Find the threshold "
-        + str(scale * args.threshold) + " in " + str(n_iter) + " iteration(s)",
+        + str(scale * args.threshold) + " in " + str(iter) + " iteration(s)",
         file=sys.stderr)
 else:
     for step in range(len(steps)):
