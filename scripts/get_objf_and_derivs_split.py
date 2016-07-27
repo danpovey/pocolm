@@ -123,7 +123,7 @@ f.close()
 # For the highest order we merge count_dir/int.*.order,
 # each with its appropriate scalign factor; for orders
 # strictly between the highest order and 1 we merge those
-# but also the discounted counts from work_dir/discounted.order;
+# but also the discount counts from work_dir/discount.order;
 # for order 1, no merging is done (-> this function shouldn't be
 # called).
 def MergeCounts(split_index, order):
@@ -139,10 +139,10 @@ def MergeCounts(split_index, order):
             split_counts = split_count_dir, split_index = split_index,
             order = order, scale = train_set_scale[args.fold_dev_into_int])
     # for orders less than the highest order, we also have to include the
-    # discounted counts from the one-higher order.  there is no scale here, so
+    # discount counts from the one-higher order.  there is no scale here, so
     # the program will expect general-counts, not int-counts.
     if order < ngram_order:
-        command += " {0}/{1}/discounted.{2}".format(split_work_dir, split_index, order)
+        command += " {0}/{1}/discount.{2}".format(split_work_dir, split_index, order)
 
     # the output gets redirected to the output file.
     command += " >{0}/{1}/merged.{2}".format(split_work_dir, split_index, order)
@@ -163,10 +163,10 @@ def MergeCountsBackward(split_index, order):
             split_counts = split_count_dir, s = split_index, train_set = n,
             order = order, scale = train_set_scale[n])
     # for orders less than the highest order, we also have to include the
-    # discounted counts from the one-higher order, and provide a filename
+    # discount counts from the one-higher order, and provide a filename
     # for it to output the derivatives w.r.t. that file.
     if order < ngram_order:
-        command += " {swork}/{s}/discounted.{order} {swork}/{s}/discounted_derivs.{order}".format(
+        command += " {swork}/{s}/discount.{order} {swork}/{s}/discount_derivs.{order}".format(
             swork = split_work_dir, s = split_index, order = order)
 
     log_file = "{0}/log/merge_counts_backward.{1}.{2}.log".format(args.work_dir, split_index, order)
@@ -187,7 +187,7 @@ def DiscountCounts(split_index, order):
     # discount counts of the specified order > 1.
     assert order > 1
     this_split_work = "{0}/{1}".format(split_work_dir, split_index)
-    command = "discount-counts {d1} {d2} {d3} {d4} {sdir}/merged.{order} {sdir}/float.{order} {sdir}/discounted.{orderm1} ".format(
+    command = "discount-counts {d1} {d2} {d3} {d4} {sdir}/merged.{order} {sdir}/float.{order} {sdir}/discount.{orderm1} ".format(
         d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
         sdir = this_split_work, order = order, orderm1 = order - 1)
     log_file = "{0}/log/discount_counts.{1}.{2}.log".format(args.work_dir,
@@ -199,7 +199,7 @@ def DiscountCountsBackward(split_index, order):
     assert order > 1
     this_split_work = "{0}/{1}".format(split_work_dir, split_index)
     command = ("discount-counts-backward {d1} {d2} {d3} {d4} {sdir}/merged.{order} {sdir}/float.{order} "
-               "{sdir}/float_derivs.{order} {sdir}/discounted.{orderm1} {sdir}/discounted_derivs.{orderm1} "
+               "{sdir}/float_derivs.{order} {sdir}/discount.{orderm1} {sdir}/discount_derivs.{orderm1} "
                "{sdir}/merged_derivs.{order}".format(
             d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
             sdir = this_split_work, order = order, orderm1 = order - 1))
@@ -217,29 +217,29 @@ def DiscountCountsBackward(split_index, order):
 
 
 def MergeCountsOrder1():
-    # This function merges the order-1 discounted counts across all splits.
+    # This function merges the order-1 discount counts across all splits.
     command = ("merge-counts " +
-               " ".join([ "{0}/{1}/discounted.1".format(split_work_dir, s)
+               " ".join([ "{0}/{1}/discount.1".format(split_work_dir, s)
                           for s in range(1, args.num_splits + 1) ]) +
-               " >{0}/discounted.1".format(args.work_dir))
+               " >{0}/discount.1".format(args.work_dir))
     log_file = "{0}/log/merge_counts_order1.log".format(args.work_dir)
     RunCommand(command, log_file, args.verbose=='true')
 
 def MergeCountsOrder1Backward():
-    # This function merges the order-1 discounted counts across all splits.
+    # This function merges the order-1 discount counts across all splits.
     # we pipe it to /dev/null because it writes a newline to stdout (this is
     # to terimate the derivs w.r.t. the scaling factors, which are written to
     # stdout but in this case are empty.
-    command = ("merge-counts-backward {0}/discounted.1 {0}/discounted_derivs.1 ".format(
+    command = ("merge-counts-backward {0}/discount.1 {0}/discount_derivs.1 ".format(
                  args.work_dir) +
-               " ".join([ "{0}/{1}/discounted.1 {0}/{1}/discounted_derivs.1".format(split_work_dir, s)
+               " ".join([ "{0}/{1}/discount.1 {0}/{1}/discount_derivs.1".format(split_work_dir, s)
                           for s in range(1, args.num_splits + 1) ]) +
                ">/dev/null")
     log_file = "{0}/log/merge_counts_order1_backward.log".format(args.work_dir)
     RunCommand(command, log_file, args.verbose=='true')
 
 def DiscountCountsOrder1():
-    command = "discount-counts-1gram {num_words} <{work}/discounted.1 >{work}/float.1".format(
+    command = "discount-counts-1gram {num_words} <{work}/discount.1 >{work}/float.1".format(
         num_words = num_words, work = args.work_dir)
     log_file = "{0}/log/discount_counts_order1.log".format(args.work_dir)
     RunCommand(command, log_file, args.verbose=='true')
@@ -256,8 +256,8 @@ def SumFloatDerivsOrder1():
     RunCommand(command, log_file, args.verbose=='true')
 
 def DiscountCountsOrder1Backward():
-    command = ("discount-counts-1gram-backward {work}/discounted.1 {work}/float.1 "
-               "{work}/float_derivs.1 {work}/discounted_derivs.1".format(work = args.work_dir))
+    command = ("discount-counts-1gram-backward {work}/discount.1 {work}/float.1 "
+               "{work}/float_derivs.1 {work}/discount_derivs.1".format(work = args.work_dir))
     log_file = "{0}/log/discount_counts_order1_backward.log".format(args.work_dir)
     RunCommand(command, log_file, args.verbose=='true')
 

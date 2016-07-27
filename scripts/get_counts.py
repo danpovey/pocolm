@@ -330,7 +330,7 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
     log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
         dest_count_dir = dest_count_dir, n = n)
     test_command = "bash -c 'set -o pipefail; (echo a; echo b) | "\
-        "distribute-input-lines /dev/stdout /dev/null'";
+        "distribute-input-lines /dev/null /dev/null'";
     # We run the following command just to make sure distribute-input-lines is
     # on the path and compiled, since we get hard-to-debug errors if it fails.
     RunCommand(test_command, log_file)

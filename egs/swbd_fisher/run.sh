@@ -61,25 +61,31 @@ for order in 3 4 5; do
 
   mkdir -p data/arpa
   format_arpa_lm.py data/lm_40k_${order} | gzip -c > data/arpa/poco_poco_combination.${order}g.gz
-  
+
   echo "Perplexity for combined ${order}-gram: "
-  get_data_prob.py data/text/dev.txt data/lm_40k_${order} 2>&1 | grep -F '[perplexity' 
-    
+  get_data_prob.py data/text/dev.txt data/lm_40k_${order} 2>&1 | grep -F '[perplexity'
+
   echo "Ngram counts: "
   gunzip -c data/arpa/poco_poco_combination.${order}g.gz | head -n 50 | grep '^ngram' | cut -d '=' -f 2 | awk '{n +=$1}END{print n}'
-    
+
+ for threshold in 1.0 2.0 4.0; do
+    prune_lm_dir.py data/lm_40k_${order} $threshold data/lm_40k_${order}_prune${threshold}
+    get_data_prob.py data/text/dev.txt data/lm_40k_${order}_prune${threshold} 2>&1 | grep -F '[perplexity'
+    mkdir -p data/arpa
+    format_arpa_lm.py data/lm_40k_${order}_prune${threshold} | gzip -c > data/arpa/40k_${order}gram_prune${threshold}.arpa.gz
+  done
 done
 
 # perplexities from pocolm-estimated language models with pocolm's interpolation
-# method from orders 3, 4, and 5 are: 
+# method from orders 3, 4, and 5 are:
 # order 3: optimize_metaparameters.py: final perplexity without barrier function was -4.358818 (perplexity: 78.164689)
 # order 4: optimize_metaparameters.py: final perplexity without barrier function was -4.309507 (perplexity: 74.403797)
 # order 5: optimize_metaparameters.py: final perplexity without barrier function was -4.301741 (perplexity: 73.828181)
 
-# note, the perplexities from pocolm-estimated language models with SRILM's 
-# interpolation from orders 3 and 4 are (from local/pocolm_with_srilm_combination.sh), 
+# note, the perplexities from pocolm-estimated language models with SRILM's
+# interpolation from orders 3 and 4 are (from local/pocolm_with_srilm_combination.sh),
 # 78.8449 and 75.2202 respectively.
 
-# note, the perplexities from SRILM-estimated language models with SRILM's 
-# interpolation tool from orders 3 and 4 are (from local/srilm_baseline.sh), 
+# note, the perplexities from SRILM-estimated language models with SRILM's
+# interpolation tool from orders 3 and 4 are (from local/srilm_baseline.sh),
 # 78.9056 and 75.5528 respectively.
