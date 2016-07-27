@@ -98,7 +98,7 @@ f.close()
 # This function does the count merging for the specified
 # n-gram order, writing to $work_dir/merged.$order
 # For the highest order we merge count_dir/int.*.order,
-# each with its appropriate scalign factor; for orders
+# each with its appropriate scaling factor; for orders
 # strictly between the highest order and 1 we merge those
 # but also the discount counts from work_dir/discount.order;
 # for order 1, no merging is done (-> this function shouldn't be
