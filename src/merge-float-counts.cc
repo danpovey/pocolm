@@ -59,8 +59,19 @@ class FloatCountMerger {
     }
     if (size != 1)
       std::cerr << " = " << std::accumulate(num_lm_states_read_.begin(),
-                                            num_lm_states_read_.end(), 0.0);
-    std::cerr << " LM states.\n";
+                                            num_lm_states_read_.end(), 0);
+    std::cerr << " LM states.";
+    std::cerr << " Write ";
+    size = num_ngrams_write_.size();
+    for (int32 i = 0; i < size; i++) {
+      std::cerr << num_ngrams_write_[i];
+      if (i < size - 1)
+        std::cerr << " + ";
+    }
+    if (size != 1)
+      std::cerr << " = " << std::accumulate(num_ngrams_write_.begin(),
+                                            num_ngrams_write_.end(), 0);
+    std::cerr << " individual n-grams.\n";
   }
   ~FloatCountMerger() {
     delete [] inputs_;
@@ -103,8 +114,12 @@ class FloatCountMerger {
     std::vector<int32> hist = hist_to_sources_.begin()->first,
         sources = hist_to_sources_.begin()->second;
     hist_to_sources_.erase(hist_to_sources_.begin());
+    if (hist.size() + 1> num_ngrams_write_.size()) {
+        num_ngrams_write_.resize(hist.size() + 1, 0);
+    }
     if (sources.size() == 1) {
       FloatLmState &input = float_lm_states_[sources[0]];
+      num_ngrams_write_[hist.size()] += input.counts.size();
       input.Write(std::cout);
     } else {
       // If there are multiple states with the same history, we currently
@@ -121,6 +136,7 @@ class FloatCountMerger {
                "multiple inputs have the same history state but the counts are "
                "not identical.");
       }
+      num_ngrams_write_[hist.size() - 1] += input.counts.size();
       input.Write(std::cout);
     }
     for (std::vector<int32>::const_iterator iter = sources.begin();
@@ -137,6 +153,9 @@ class FloatCountMerger {
   std::vector<FloatLmState> float_lm_states_;
 
   std::vector<int64> num_lm_states_read_;
+
+  // num_ngrams written for each order
+  std::vector<int64> num_ngrams_write_;
 
   // This is a map from the history vector to the list of source indexes that
   // currently have an LM-state with that history-vector, that needs to be

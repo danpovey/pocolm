@@ -88,6 +88,14 @@ def GetNgramOrder(lm_dir_in):
     f = open(lm_dir_in + "/ngram_order");
     return int(f.readline())
 
+def GetTotalNumNgrams(lm_dir_in):
+    tot_num_ngrams = 0
+    f = open(lm_dir_in + "/num_ngrams");
+    for order, line in enumerate(f):
+        if order == 0: continue # output of float-counts-prune excludes num-unigrams
+        tot_num_ngrams += int(line.split()[1])
+    return tot_num_ngrams
+
 # This script creates work/protected.all (listing protected
 # counts which may not be removed); it requires work/float.all
 # to exist.
@@ -111,6 +119,7 @@ def CreateInitialWorkDir():
     # create float.all
     if not os.path.isdir(work0dir + "/log"):
         os.makedirs(work0dir + "/log")
+    SoftLink(args.lm_dir_in + "/num_ngrams", work0dir + "/num_ngrams")
     if num_splits == None:
         SoftLink(args.lm_dir_in + "/float.all", work0dir + "/float.all")
     else:
@@ -173,6 +182,15 @@ def GetInitialLogprob():
     global initial_logprob_per_word
     initial_logprob_per_word = logprob_per_word
 
+def WriteNumNgrams(out_dir, num_ngrams):
+    out_file = out_dir + "/num_ngrams"
+    try:
+        f = open(out_file, "w")
+        for order, num in enumerate(num_ngrams):
+            print(str(order + 1) + ' ' + str(num), file=f)
+        f.close()
+    except:
+        ExitProgram("prune_lm_dir.py: error writing num-ngrams to: " + out_file)
 
 def RunPruneStep(work_in, work_out, threshold):
     # set float_star = 'work_out/float.1 work_out/float.2 ...'
@@ -190,16 +208,25 @@ def RunPruneStep(work_in, work_out, threshold):
         [ word_count, like_change ] = p.stdout.readline().split()
         like_change_per_word = float(like_change) / float(word_count)
         [ tot_ngrams, shadowed, protected, pruned ] = p.stdout.readline().split()
+        num_ngrams = p.stdout.readline().split()
+
         assert p.stdout.readline() == ''
         ret = p.wait()
         assert ret == 0
-        global final_num_ngrams, initial_num_ngrams
+        global final_num_ngrams, initial_num_ngrams, total_num_ngrams
         if initial_num_ngrams == None:
             initial_num_ngrams = int(tot_ngrams)
+            if initial_num_ngrams != total_num_ngrams:
+                sys.exit("prune_lm_dir.py: total num-ngrams are not match. "
+                    "The num_ngrams file says it is '{0}', "
+                    "but float-counts-prune outputs '{1}'".format(total_num_ngrams, initial_num_ngrams))
+
         final_num_ngrams = int(tot_ngrams) - int(pruned)
     except Exception as e:
         sys.exit("prune_lm_dir.py: error running command '{0}', error is '{1}'".format(
                 command, str(e)))
+
+    WriteNumNgrams(work_out, num_ngrams)
 
     if args.remove_zeros == 'false':
         # create work_out/float.all.
@@ -278,6 +305,8 @@ def RunEmStep(work_in, work_out):
     # soft-link work_out/protected.all to work_in/protected.all
     SoftLink(work_in + "/protected.all",
              work_out + "/protected.all")
+    SoftLink(work_in + "/num_ngrams",
+             work_out + "/num_ngrams")
     return like_change_per_word
 
 
@@ -314,6 +343,12 @@ def FinalizeOutput(final_work_out):
     except:
         sys.exit("prune_lm_dir.py: error moving {0}/float.all to {1}/float.all".format(
                 final_work_out, args.lm_dir_out))
+    try:
+        shutil.copy(final_work_out + "/num_ngrams",
+                    args.lm_dir_out + "/num_ngrams")
+    except:
+        sys.exit("prune_lm_dir.py: error copying {0}/num_ngrams to {1}/num_ngrams".format(
+                final_work_out, args.lm_dir_out))
     f = open(args.lm_dir_out + "/was_pruned", "w")
     print("true", file=f)
     f.close()
@@ -337,6 +372,7 @@ if not os.path.isdir(work_dir):
 
 num_words = GetNumWords(args.lm_dir_in)
 ngram_order = GetNgramOrder(args.lm_dir_in)
+total_num_ngrams = GetTotalNumNgrams(args.lm_dir_in)
 initial_num_ngrams = None
 final_num_ngrams = None
 initial_logprob_per_word = None

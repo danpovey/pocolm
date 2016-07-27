@@ -84,10 +84,10 @@ for name in [ 'ngram_order', 'num_train_sets', 'num_words' ]:
 
 if args.fold_dev_into_int != None:
     if args.derivs_out != None:
-        sys.exit("get_objf_and_derivs.py: --fold-dev-into-int and --derivs-out "
+        sys.exit("get_objf_and_derivs_split.py: --fold-dev-into-int and --derivs-out "
                  "options are not compatible.")
     if not args.fold_dev_into_int >= 1 and args.fold_dev_into_int <= num_train_sets:
-        sys.exit("get_objf_and_derivs.py: --fold-dev-into-int={0} is out of range".format(
+        sys.exit("get_objf_and_derivs_split.py: --fold-dev-into-int={0} is out of range".format(
                 args.fold_dev_into_int))
 
 if os.system("validate_metaparameters.py --ngram-order={ngram_order} "
@@ -261,6 +261,66 @@ def DiscountCountsOrder1Backward():
     log_file = "{0}/log/discount_counts_order1_backward.log".format(args.work_dir)
     RunCommand(command, log_file, args.verbose=='true')
 
+def WriteNumNgrams(out_dir, num_ngrams):
+    out_file = out_dir + "/num_ngrams"
+    try:
+        f = open(out_file, "w")
+        for order, num in enumerate(num_ngrams):
+            print(str(order + 1) + ' ' + str(num), file=f)
+        f.close()
+    except:
+        ExitProgram("get_objf_and_derivs_split.py: error writing num-ngrams to: " + out_file)
+
+def ParseNumNgrams(out_dir, merge_all_orders_log):
+    try:
+        num_ngrams = []
+        f = open(merge_all_orders_log, "r")
+        for line in f:
+            if line[0] == '#': continue
+            m = re.search('Write (.*) individual n-grams.', line)
+            if m:
+                # The matched string should be 'num1 + num2 = tot' or just 'num1' for unigram model
+                nums_str = m.group(1).split('=')[0]
+                nums_str = nums_str.strip()
+                num_ngrams = re.split('[\+| ]+', nums_str)
+        f.close()
+    except:
+        ExitProgram("get_objf_and_derivs_split.py: error reading merge_all_orders_log from: " + merge_all_orders_log)
+
+    if len(num_ngrams) == 0:
+        ExitProgram("get_objf_and_derivs_split.py: error parsing num_ngrams from: " + merge_all_orders_log)
+
+    WriteNumNgrams(out_dir, num_ngrams)
+
+def CombineNumNgrams():
+    tot_nums = []
+    for split_index in range(1, args.num_splits + 1):
+        this_split_work = "{0}/{1}".format(split_work_dir, split_index)
+        num_file = this_split_work + "/num_ngrams"
+        try:
+            f = open(num_file, "r")
+            for order, line in enumerate(f):
+                num = int(line.split()[1])
+                assert(num > 0)
+
+                if order == 0:
+                    if len(tot_nums) == 0:
+                        tot_nums.append(num)
+                    else:
+                        if tot_nums[0] != num:
+                            ExitProgram("get_objf_and_derivs_split.py: num-unigrams are not identical")
+                else:
+                    if len(tot_nums) < order + 1:
+                        tot_nums.append(num)
+                    else:
+                        tot_nums[order] += num
+
+            f.close()
+        except:
+            ExitProgram("get_objf_and_derivs_split.py: error reading num-ngrams from: " + num_file)
+
+    WriteNumNgrams(args.work_dir, tot_nums)
+
 def MergeAllOrders(split_index):
     this_split_work = "{0}/{1}".format(split_work_dir, split_index)
     # this merges all the orders of float-counts in each of the split
@@ -272,6 +332,7 @@ def MergeAllOrders(split_index):
                + ">{0}/float.all".format(this_split_work))
     log_file = "{0}/log/merge_all_orders.{1}.log".format(args.work_dir, split_index)
     RunCommand(command, log_file, args.verbose=='true')
+    ParseNumNgrams(this_split_work, log_file)
 
 def MergeAllSplits():
     # merges the float.all acros all splits.
@@ -375,6 +436,7 @@ for split_index in range(1, args.num_splits + 1):
 for t in threads:
     t.join()
 
+CombineNumNgrams()
 WriteObjectiveFunction()
 
 if args.need_model == "true":

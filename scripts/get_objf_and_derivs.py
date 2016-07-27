@@ -200,12 +200,41 @@ def DiscountCountsOrder1Backward():
     log_file = "{0}/log/discount_counts_order1_backward.log".format(args.work_dir)
     RunCommand(command, log_file, args.verbose=='true')
 
+def ParseNumNgrams(out_dir, merge_all_orders_log):
+    try:
+        num = []
+        f = open(merge_all_orders_log, "r")
+        for line in f:
+            if line[0] == '#': continue
+            m = re.search('Write (.*) individual n-grams.', line)
+            if m:
+                # The matched string should be 'num1 + num2 = tot' or just 'num1' for unigram model
+                nums_str = m.group(1).split('=')[0]
+                nums_str = nums_str.strip()
+                nums = re.split('[\+| ]+', nums_str)
+        f.close()
+    except:
+        sys.exit("get_objf_and_derivs.py: error reading merge_all_orders_log from: " + merge_all_orders_log)
+
+    if len(nums) == 0:
+        sys.exit("get_objf_and_derivs.py: error parsing num_ngrams from: " + merge_all_orders_log)
+
+    try:
+        out_file = out_dir + "/num_ngrams"
+        f = open(out_file, "w")
+        for order, num in enumerate(nums):
+            print(str(order + 1) + ' ' + str(num), file=f)
+        f.close()
+    except:
+        sys.exit("get_objf_and_derivs.py: error writing num-ngrams to: " + out_file)
+
 def MergeAllOrders():
     command = ("merge-float-counts " +
                " ".join([ "{0}/float.{1}".format(args.work_dir, n) for n in range(1, ngram_order + 1) ])
                + ">{0}/float.all".format(args.work_dir))
     log_file = "{0}/log/merge_all_orders.log".format(args.work_dir)
     RunCommand(command, log_file, args.verbose=='true')
+    ParseNumNgrams(args.work_dir, log_file)
 
 def ComputeObjfAndFinalDerivs(need_derivs):
     global num_dev_set_words, objf

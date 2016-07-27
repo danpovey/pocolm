@@ -34,6 +34,20 @@ except Exception as e:
              "an integer >1: {1}".format(args.lm_dir, str(e)))
 f.close()
 
+# the following code checks num_ngrams
+try:
+    f = open("{0}/num_ngrams".format(args.lm_dir))
+    lines = f.readlines()
+    assert(len(lines) == ngram_order)
+    for order, line in enumerate(lines):
+        assert(len(line.split()) == 2)
+        assert(int(line.split()[0]) == order + 1)
+        assert(int(line.split()[1]) > 0)
+except Exception as e:
+    sys.exit("validate_lm_dir.py: Expected file {0}/num_ngrams to contain "
+             "an integer for every order each line: {1}".format(args.lm_dir, str(e)))
+f.close()
+
 # call validate_vocab.py to check the vocab.
 if os.system("validate_vocab.py {0}/words.txt".format(args.lm_dir)) != 0:
     sys.exit("validate_lm_dir.py: failed to validate {0}/words.txt".format(args.lm_dir))
