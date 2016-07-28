@@ -20,13 +20,24 @@ parser.add_argument("--steps", type=str,
                     default='prune*0.25 EM EM EM prune*0.5 EM EM EM prune*1.0 EM EM EM prune*1.0 EM EM EM',
                     help='This string specifies a sequence of steps in the pruning sequence.'
                     'prune*X, with X <= 1.0, tells it to prune with X times the threshold '
-                    'specified with the --threshold option.  EM specifies one iteration of '
+                    'specified with the --final-threshold option.  EM specifies one iteration of '
                     'E-M on the model. ')
+parser.add_argument("--final-threshold", type=float,
+                    help="Threshold for pruning, e.g. 0.5, 1.0, 2.0, 4.0.... "
+                    "larger threshold will give you more highly-pruned models."
+                    "Threshold is interpreted as entropy-change times overall "
+                    "weighted data count, for each parameter.  It should be "
+                    "larger if you have more data, assuming you want the "
+                    "same-sized models. "
+                    "This is only relevant if --target-num-ngrams is not specified.")
 parser.add_argument("--target-num-ngrams", type=int, default=0,
                     help="Target num-ngrams of final LM after pruning. "
                     "If setting this to a positive value, the --steps would be "
                     "ignored and a few steps may be worked out util the num-ngrams "
-                    "of pruned LM match the target-num-ngrams.")
+                    "of pruned LM match the target-num-ngrams. This value excludes the number of unigrams.")
+parser.add_argument("--initial-threshold", type=float, default=0.25,
+                    help="Initial threshold for the pruning steps starting from. "
+                    "This is only relevant if --target-num-ngrams is specified.")
 parser.add_argument("--tolerance", type=float, default=0.05,
                     help="Tolerance of actual num-ngrams of final LM and the target-num-ngrams. "
                     "This is only relevant if --target-num-ngrams is specified.")
@@ -46,13 +57,6 @@ parser.add_argument("--check-exact-divergence", type=str, choices=['true','false
                     default='true', help='')
 parser.add_argument("lm_dir_in",
                     help="Source directory, for the input language model.")
-parser.add_argument("threshold", type=float,
-                    help="Threshold for pruning, e.g. 0.5, 1.0, 2.0, 4.0.... "
-                    "larger threshold will give you more highly-pruned models."
-                    "Threshold is interpreted as entropy-change times overall "
-                    "weighted data count, for each parameter.  It should be "
-                    "larger if you have more data, assuming you want the "
-                    "same-sized models.")
 parser.add_argument("lm_dir_out",
                     help="Output directory where the language model is created.")
 
@@ -73,9 +77,6 @@ if os.path.exists(args.lm_dir_in + "/num_splits"):
     num_splits = int(f.readline())
     f.close()
 
-if args.threshold <= 0.0:
-    sys.exit("prune_lm_dir.py: --threshold must be positive: got " + str(args.threshold))
-
 work_dir = args.lm_dir_out + "/work"
 
 if args.target_num_ngrams > 0:
@@ -86,6 +87,9 @@ if args.target_num_ngrams > 0:
 
     steps = 'prune*1.0 EM EM EM'.split()
 else:
+    if args.final_threshold <= 0.0:
+        sys.exit("prune_lm_dir.py: --final-threshold must be positive: got " + str(args.final_threshold))
+
     steps = args.steps.split()
 
     if len(steps) == 0:
@@ -233,15 +237,15 @@ def RunPruneStep(work_in, work_out, threshold):
         assert p.stdout.readline() == ''
         ret = p.wait()
         assert ret == 0
-        global final_num_ngrams, initial_num_ngrams, total_num_ngrams
+        global current_num_ngrams, initial_num_ngrams, input_num_ngrams
         if initial_num_ngrams == None:
             initial_num_ngrams = int(tot_ngrams)
-            if initial_num_ngrams != total_num_ngrams:
+            if initial_num_ngrams != input_num_ngrams:
                 sys.exit("prune_lm_dir.py: total num-ngrams are not match. "
                     "The num_ngrams file says it is '{0}', "
-                    "but float-counts-prune outputs '{1}'".format(total_num_ngrams, initial_num_ngrams))
+                    "but float-counts-prune outputs '{1}'".format(input_num_ngrams, initial_num_ngrams))
 
-        final_num_ngrams = int(tot_ngrams) - int(pruned)
+        current_num_ngrams = int(tot_ngrams) - int(pruned)
     except Exception as e:
         sys.exit("prune_lm_dir.py: error running command '{0}', error is '{1}'".format(
                 command, str(e)))
@@ -334,7 +338,7 @@ def RunEmStep(work_in, work_out):
 # directory we'll get the input from (the output will be that plus one).
 # returns the expected log-prob change (on data generated from the model
 # itself.. this will be negative for pruning steps and positive for E-M steps.
-def RunStep(step_number, **kwargs):
+def RunStep(step_number, threshold, **kwargs):
     if 'in_step' in kwargs:
         work_in = work_dir + "/step" + str(kwargs['in_step'])
     else:
@@ -350,7 +354,7 @@ def RunStep(step_number, **kwargs):
         except:
             sys.exit("prune_lm_dir.py: invalid step (wrong --steps "
                      "option): '{0}'".format(step_text))
-        return RunPruneStep(work_in, work_out, args.threshold * scale)
+        return RunPruneStep(work_in, work_out, threshold * scale)
 
     elif step_text == 'EM':
         return RunEmStep(work_in, work_out)
@@ -421,30 +425,29 @@ def IterateOnce(threshold, step, iter, recovery_step, recovery_size):
                 break
 
     """
-    global logprob_changes, steps, final_num_ngrams
+    global logprob_changes, steps, current_num_ngrams
 
     if step > 0:
-        scale = threshold / args.threshold
-        steps += 'prune*{0} EM EM EM'.format(scale).split()
+        steps += 'prune*1.0 EM EM EM'.split()
 
     # Prune step
-    logprob_changes.append(RunStep(step, in_step=recovery_step))
+    logprob_changes.append(RunStep(step, threshold, in_step=recovery_step))
     step += 1
     while step < len(steps): # EM steps
-      logprob_changes.append(RunStep(step))
+      logprob_changes.append(RunStep(step, threshold))
       step += 1
     iter += 1
 
-    if MatchTargetSize(final_num_ngrams):
+    if MatchTargetSize(current_num_ngrams):
         return (True, step, iter, recovery_step, recovery_size)
 
     if iter > args.max_iter:
-        sys.exit("prune_lm_dir.py: Too many iterations, please set a higher threshold and rerun.")
+        sys.exit("prune_lm_dir.py: Too many iterations, please set a higher --initial-threshold and rerun.")
 
     # always prune from LM larger than target_num_ngrams
-    if final_num_ngrams > args.target_num_ngrams and (recovery_size <= 0 or final_num_ngrams < recovery_size):
+    if current_num_ngrams > args.target_num_ngrams and (recovery_size <= 0 or current_num_ngrams < recovery_size):
         recovery_step = step
-        recovery_size = final_num_ngrams
+        recovery_size = current_num_ngrams
 
     return (False, step, iter, recovery_step, recovery_size)
 
@@ -496,49 +499,60 @@ class LinearEstimator(object):
 # Here we fit a linear of log(num-ngrams) versus log(threshold)
 # with the latest two points, and approach the target-num-ngrams gradually.
 def FindThreshold():
-    global final_num_ngrams
+    global current_num_ngrams
 
     step = 0
+    # recovery_step is the index of the most recent step of pruning that resulted in
+    # a model with num-ngrams > target_num_ngrams.
     recovery_step = step
+    # recovery_size will be set to the number of ngrams in the model at step 'recovery_step'
     recovery_size = 0
     iter = 0
-    threshold = args.threshold
+    cur_threshold = args.initial_threshold
 
     ls = LinearEstimator()
 
     # get initial two points
     (success, step, iter, recovery_step, recovery_size) = \
-        IterateOnce(0.0, step, iter, recovery_step, recovery_size)
+        IterateOnce(cur_threshold, step, iter, recovery_step, recovery_size)
     if success:
-        return (threshold, iter)
+        return (cur_threshold, iter)
 
-    if final_num_ngrams < args.target_num_ngrams:
+    if current_num_ngrams < args.target_num_ngrams:
         sys.exit("prune_lm_dir.py: --initial-threshold={0} is too big, "
                  "please reduce this value and rerun. "
                  "Number of n-grams pruning with this threshold is {1} "
-                 "versus --target-num-ngrams={2}".format(args.threshold,
-                     final_num_ngrams, args.target_num_ngrams))
+                 "versus --target-num-ngrams={2}".format(args.initial_threshold,
+                     current_num_ngrams, args.target_num_ngrams))
 
-    ls.AddPoint(math.log(final_num_ngrams), math.log(threshold))
+    ls.AddPoint(math.log(current_num_ngrams), math.log(cur_threshold))
 
-    threshold = 1.5 * threshold
+    # To get an initial estimate of the log-log linear regression between num-ngrams and
+    # pruning threshold, we need at least two data points.  The initial data point is
+    # obtained by pruning to the user-specified threshold 'args.initial_threshold'.
+    # We get the next data point by multiplying 'cur_threshold' by a value that can be
+    # as much as 4.0, but will be less than that if we're relatively close to the
+    # final desired model size (because we don't want to overshoot).
+    threshold_increase_ratio = min(4.0, (current_num_ngrams / args.target_num_ngrams) ** 0.333)
+    cur_threshold = cur_threshold * threshold_increase_ratio
+
     (success, step, iter, recovery_step, recovery_size) = \
-        IterateOnce(threshold, step, iter, recovery_step, recovery_size)
+        IterateOnce(cur_threshold, step, iter, recovery_step, recovery_size)
     if success:
-        return (threshold, iter)
+        return (cur_threshold, iter)
 
-    ls.AddPoint(math.log(final_num_ngrams), math.log(threshold))
+    ls.AddPoint(math.log(current_num_ngrams), math.log(cur_threshold))
 
     while True:
         log_threshold = ls.Estimate(math.log(args.target_num_ngrams))
-        threshold = math.exp(log_threshold)
+        cur_threshold = math.exp(log_threshold)
 
         (success, step, iter, recovery_step, recovery_size) = \
-            IterateOnce(threshold, step, iter, recovery_step, recovery_size)
+            IterateOnce(cur_threshold, step, iter, recovery_step, recovery_size)
         if success:
-            return (threshold, iter)
+            return (cur_threshold, iter)
 
-        ls.AddPoint(math.log(final_num_ngrams), log_threshold)
+        ls.AddPoint(math.log(current_num_ngrams), log_threshold)
 
 if not os.path.isdir(work_dir):
     try:
@@ -549,9 +563,9 @@ if not os.path.isdir(work_dir):
 
 num_words = GetNumWords(args.lm_dir_in)
 ngram_order = GetNgramOrder(args.lm_dir_in)
-total_num_ngrams = GetTotalNumNgrams(args.lm_dir_in)
+input_num_ngrams = GetTotalNumNgrams(args.lm_dir_in)
 initial_num_ngrams = None
-final_num_ngrams = None
+current_num_ngrams = None
 initial_logprob_per_word = None
 final_logprob_per_word = None
 waiting_thread = None
@@ -567,13 +581,22 @@ if args.check_exact_divergence == 'true':
     waiting_thread.start()
 
 if args.target_num_ngrams > 0:
+    if MatchTargetSize(input_num_ngrams):
+        print ("prune_lm_dir.py:  the input LM is already match the size with target-num-ngrams, do not need any pruning",
+            file=sys.stderr)
+        sys.exit(0)
+
+    if args.target_num_ngrams > input_num_ngrams:
+        sys.exit ("prune_lm_dir.py:  the num-ngrams({0}) of input LM is less than the target-num-ngrams({1}), "
+                  "can not do any pruning.".format(input_num_ngrams, args.target_num_ngrams))
+
     (threshold, iter) = FindThreshold()
     print ("prune_lm_dir.py: Find the threshold "
         + str(threshold) + " in " + str(iter) + " iteration(s)",
         file=sys.stderr)
 else:
     for step in range(len(steps)):
-        logprob_changes.append(RunStep(step))
+        logprob_changes.append(RunStep(step, args.final_threshold))
 
 FinalizeOutput(work_dir + "/step" + str(len(steps)))
 
@@ -584,8 +607,8 @@ print ("prune_lm_dir.py: log-prob changes per step were "
        + str(logprob_changes), file=sys.stderr)
 
 print ("prune_lm_dir.py: reduced number of n-grams from {0} to {1}, i.e. by {2}%".format(
-        initial_num_ngrams, final_num_ngrams,
-        100.0 * (initial_num_ngrams - final_num_ngrams) / initial_num_ngrams),
+        initial_num_ngrams, current_num_ngrams,
+        100.0 * (initial_num_ngrams - current_num_ngrams) / initial_num_ngrams),
        file=sys.stderr)
 
 print ("prune_lm_dir.py: approximate K-L divergence was {0}".format(-sum(logprob_changes)),

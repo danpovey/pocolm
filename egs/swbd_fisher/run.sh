@@ -69,7 +69,7 @@ for order in 3 4 5; do
   gunzip -c data/arpa/poco_poco_combination.${order}g.gz | head -n 50 | grep '^ngram' | cut -d '=' -f 2 | awk '{n +=$1}END{print n}'
 
  for threshold in 1.0 2.0 4.0; do
-    prune_lm_dir.py data/lm_40k_${order} $threshold data/lm_40k_${order}_prune${threshold}
+    prune_lm_dir.py --final-threshold=$threshold data/lm_40k_${order} data/lm_40k_${order}_prune${threshold}
     get_data_prob.py data/text/dev.txt data/lm_40k_${order}_prune${threshold} 2>&1 | grep -F '[perplexity'
     mkdir -p data/arpa
     format_arpa_lm.py data/lm_40k_${order}_prune${threshold} | gzip -c > data/arpa/40k_${order}gram_prune${threshold}.arpa.gz
