@@ -199,7 +199,7 @@ class FloatCountsPruner {
     std::cout << num_ngrams_ << ' ' << num_ngrams_shadowed_ << ' '
               << num_ngrams_protected_ << ' ' << num_ngrams_pruned_ << '\n';
 
-    int32 i = 0;
+    size_t i = 0;
     for (; i < num_ngrams_per_order_.size() - 1; i++) {
       std::cout << num_ngrams_per_order_[i] << ' ';
     }
@@ -483,7 +483,7 @@ class FloatCountsPruner {
   // the count to the backoff state.  Later on we'll structurally
   // remove the pruned counts.
   void DoPruningForLmState(int32 history_length) {
-    if (history_length + 1 > num_ngrams_per_order_.size()) {
+    if (history_length + 1 > (int32)num_ngrams_per_order_.size()) {
         num_ngrams_per_order_.resize(history_length + 1, 0);
     }
 
