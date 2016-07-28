@@ -483,7 +483,7 @@ class FloatCountsPruner {
   // the count to the backoff state.  Later on we'll structurally
   // remove the pruned counts.
   void DoPruningForLmState(int32 history_length) {
-    if (history_length + 1 > (int32)num_ngrams_per_order_.size()) {
+    if (static_cast<size_t>(history_length + 1) > num_ngrams_per_order_.size()) {
         num_ngrams_per_order_.resize(history_length + 1, 0);
     }
 
