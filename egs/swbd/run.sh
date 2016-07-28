@@ -51,12 +51,20 @@ for order in 3 4 5; do
   # example of pruning.  note: the threshold can be less than or more than one.
   get_data_prob.py data/text/dev.txt data/lm_20k_${order} 2>&1 | grep -F '[perplexity'
   for threshold in 1.0 0.25; do
-    prune_lm_dir.py data/lm_20k_${order} $threshold data/lm_20k_${order}_prune${threshold} 2>&1 | tail -n 5 | head -n 3
+    prune_lm_dir.py --final-threshold=${threshold} data/lm_20k_${order}  data/lm_20k_${order}_prune${threshold} 2>&1 | tail -n 5 | head -n 3
     get_data_prob.py data/text/dev.txt data/lm_20k_${order}_prune${threshold} 2>&1 | grep -F '[perplexity'
 
     format_arpa_lm.py data/lm_20k_${order}_prune${threshold} | gzip -c > data/arpa/20k_${order}gram_prune${threshold}.arpa.gz
 
   done
+
+  # example of pruning by size.
+  size=150000
+  prune_lm_dir.py --target-num-ngrams=${size} data/lm_20k_${order} data/lm_20k_${order}_prune${size} 2>&1 | tail -n 7 | head -n 5 | grep -v 'log-prob changes'
+  get_data_prob.py data/text/dev.txt data/lm_20k_${order}_prune${size} 2>&1 | grep -F '[perplexity'
+
+  format_arpa_lm.py data/lm_20k_${order}_prune${size} | gzip -c > data/arpa/20k_${order}gram_prune${size}.arpa.gz
+
 done
 
 

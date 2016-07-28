@@ -67,7 +67,7 @@ optimize_metaparameters.py \
 make_lm_dir.py $datasub/counts \
     $datasub/optimize/final.metaparams $datasub/lm
 
- prune_lm_dir.py data/500_$ngram_order/lm 2.0 data/500_$ngram_order/lm_pruned
+ prune_lm_dir.py --final-threshold=2.0 data/500_$ngram_order/lm data/500_$ngram_order/lm_pruned
  mkdir -p $datasub/arpa_pruned
  format_arpa_lm.py $datasub/lm_pruned | gzip -c > $datasub/arpa_pruned/${ngram_order}.arpa.gz
 
