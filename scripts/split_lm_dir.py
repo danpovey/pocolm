@@ -41,7 +41,7 @@ if not os.path.isdir(args.lm_dir_out):
         sys.exit("split_lm_dir.py: error creating directory " + args.lm_dir_out + ": " + str(e))
 
 # copy some smallish informational files from the input to output directory.
-for name in [ 'words.txt', 'ngram_order', 'names', 'metaparameters', 'was_pruned' ]:
+for name in [ 'words.txt', 'ngram_order', 'num_ngrams', 'names', 'metaparameters', 'was_pruned' ]:
     src = args.lm_dir_in + "/" + name
     dest = args.lm_dir_out + "/" + name
     try:
