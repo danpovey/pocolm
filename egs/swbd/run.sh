@@ -60,7 +60,7 @@ for order in 3 4 5; do
 
   # example of pruning by size.
   size=150000
-  prune_lm_dir.py --target-num-ngrams=${size} data/lm_20k_${order} data/lm_20k_${order}_prune${size} 2>&1 | tail -n 7 | head -n 5 | grep -v 'log-prob changes'
+  prune_lm_dir.py --target-num-ngrams=${size} data/lm_20k_${order} data/lm_20k_${order}_prune${size} 2>&1 | tail -n 8 | head -n 6 | grep -v 'log-prob changes'
   get_data_prob.py data/text/dev.txt data/lm_20k_${order}_prune${size} 2>&1 | grep -F '[perplexity'
 
   format_arpa_lm.py data/lm_20k_${order}_prune${size} | gzip -c > data/arpa/20k_${order}gram_prune${size}.arpa.gz

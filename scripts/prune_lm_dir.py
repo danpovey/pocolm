@@ -425,17 +425,37 @@ def IterateOnce(threshold, step, iter, recovery_step, recovery_size):
                 break
 
     """
-    global logprob_changes, steps, current_num_ngrams
+    global logprob_changes, logprob_changes_without_dropped_steps, steps, current_num_ngrams
 
     if step > 0:
         steps += 'prune*1.0 EM EM EM'.split()
 
+    thresholds.append(threshold)
     # Prune step
-    logprob_changes.append(RunStep(step, threshold, in_step=recovery_step))
+    logprob_change = RunStep(step, threshold, in_step=recovery_step)
+    logprob_changes.append(logprob_change)
     step += 1
+
+    step_without_dropped_steps = -1
+    if len(logprob_changes_without_dropped_steps) > recovery_step:
+        step_without_dropped_steps = recovery_step
+
+    if step_without_dropped_steps < 0:
+        logprob_changes_without_dropped_steps.append(logprob_change)
+    else:
+        logprob_changes_without_dropped_steps[step_without_dropped_steps] = logprob_change
+        step_without_dropped_steps += 1
+
     while step < len(steps): # EM steps
-      logprob_changes.append(RunStep(step, threshold))
-      step += 1
+        logprob_change = RunStep(step, threshold)
+        logprob_changes.append(logprob_change)
+        step += 1
+
+        if step_without_dropped_steps < 0:
+            logprob_changes_without_dropped_steps.append(logprob_change)
+        else:
+            logprob_changes_without_dropped_steps[step_without_dropped_steps] = logprob_change
+            step_without_dropped_steps += 1
     iter += 1
 
     if MatchTargetSize(current_num_ngrams):
@@ -533,7 +553,7 @@ def FindThreshold():
     # We get the next data point by multiplying 'cur_threshold' by a value that can be
     # as much as 4.0, but will be less than that if we're relatively close to the
     # final desired model size (because we don't want to overshoot).
-    threshold_increase_ratio = min(4.0, (current_num_ngrams / args.target_num_ngrams) ** 0.333)
+    threshold_increase_ratio = min(4.0, (float(current_num_ngrams) / args.target_num_ngrams) ** 0.5)
     cur_threshold = cur_threshold * threshold_increase_ratio
 
     (success, step, iter, recovery_step, recovery_size) = \
@@ -570,6 +590,8 @@ initial_logprob_per_word = None
 final_logprob_per_word = None
 waiting_thread = None
 logprob_changes = []
+logprob_changes_without_dropped_steps = []
+thresholds = []
 
 CreateInitialWorkDir()
 
@@ -594,9 +616,13 @@ if args.target_num_ngrams > 0:
     print ("prune_lm_dir.py: Find the threshold "
         + str(threshold) + " in " + str(iter) + " iteration(s)",
         file=sys.stderr)
+    print ("prune_lm_dir.py: thresholds per iter were "
+       + str(thresholds), file=sys.stderr)
 else:
     for step in range(len(steps)):
-        logprob_changes.append(RunStep(step, args.final_threshold))
+        logprob_change = RunStep(step, args.final_threshold)
+        logprob_changes.append(logprob_change)
+        logprob_changes_without_dropped_steps.append(logprob_change)
 
 FinalizeOutput(work_dir + "/step" + str(len(steps)))
 
@@ -611,7 +637,7 @@ print ("prune_lm_dir.py: reduced number of n-grams from {0} to {1}, i.e. by {2}%
         100.0 * (initial_num_ngrams - current_num_ngrams) / initial_num_ngrams),
        file=sys.stderr)
 
-print ("prune_lm_dir.py: approximate K-L divergence was {0}".format(-sum(logprob_changes)),
+print ("prune_lm_dir.py: approximate K-L divergence was {0}".format(-sum(logprob_changes_without_dropped_steps)),
        file=sys.stderr)
 
 if initial_logprob_per_word != None and steps[-1] == 'EM':
