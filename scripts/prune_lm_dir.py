@@ -533,7 +533,7 @@ def FindThreshold():
     # We get the next data point by multiplying 'cur_threshold' by a value that can be
     # as much as 4.0, but will be less than that if we're relatively close to the
     # final desired model size (because we don't want to overshoot).
-    threshold_increase_ratio = min(4.0, (float(current_num_ngrams) / args.target_num_ngrams) ** 0.333)
+    threshold_increase_ratio = min(4.0, (float(current_num_ngrams) / args.target_num_ngrams) ** 0.5)
     cur_threshold = cur_threshold * threshold_increase_ratio
 
     (success, step, iter, recovery_step, recovery_size) = \
