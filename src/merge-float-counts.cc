@@ -136,7 +136,7 @@ class FloatCountMerger {
                "multiple inputs have the same history state but the counts are "
                "not identical.");
       }
-      num_ngrams_write_[hist.size() - 1] += input.counts.size();
+      num_ngrams_write_[hist.size()] += input.counts.size();
       input.Write(std::cout);
     }
     for (std::vector<int32>::const_iterator iter = sources.begin();
