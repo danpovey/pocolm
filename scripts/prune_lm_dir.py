@@ -430,6 +430,7 @@ def IterateOnce(threshold, step, iter, recovery_step, recovery_size):
     if step > 0:
         steps += 'prune*1.0 EM EM EM'.split()
 
+    thresholds.append(threshold)
     # Prune step
     logprob_changes.append(RunStep(step, threshold, in_step=recovery_step))
     step += 1
@@ -570,6 +571,7 @@ initial_logprob_per_word = None
 final_logprob_per_word = None
 waiting_thread = None
 logprob_changes = []
+thresholds = []
 
 CreateInitialWorkDir()
 
@@ -594,6 +596,8 @@ if args.target_num_ngrams > 0:
     print ("prune_lm_dir.py: Find the threshold "
         + str(threshold) + " in " + str(iter) + " iteration(s)",
         file=sys.stderr)
+    print ("prune_lm_dir.py: thresholds per iter were "
+       + str(thresholds), file=sys.stderr)
 else:
     for step in range(len(steps)):
         logprob_changes.append(RunStep(step, args.final_threshold))
