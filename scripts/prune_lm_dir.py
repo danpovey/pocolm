@@ -425,7 +425,7 @@ def IterateOnce(threshold, step, iter, recovery_step, recovery_size):
                 break
 
     """
-    global logprob_changes, logprob_changes_for_KL, steps, current_num_ngrams
+    global logprob_changes, logprob_changes_without_dropped_steps, steps, current_num_ngrams
 
     if step > 0:
         steps += 'prune*1.0 EM EM EM'.split()
@@ -436,26 +436,26 @@ def IterateOnce(threshold, step, iter, recovery_step, recovery_size):
     logprob_changes.append(logprob_change)
     step += 1
 
-    step_KL = -1
-    if len(logprob_changes_for_KL) > recovery_step:
-        step_KL = recovery_step
+    step_without_dropped_steps = -1
+    if len(logprob_changes_without_dropped_steps) > recovery_step:
+        step_without_dropped_steps = recovery_step
 
-    if step_KL < 0:
-        logprob_changes_for_KL.append(logprob_change)
+    if step_without_dropped_steps < 0:
+        logprob_changes_without_dropped_steps.append(logprob_change)
     else:
-        logprob_changes_for_KL[step_KL] = logprob_change
-        step_KL += 1
+        logprob_changes_without_dropped_steps[step_without_dropped_steps] = logprob_change
+        step_without_dropped_steps += 1
 
     while step < len(steps): # EM steps
         logprob_change = RunStep(step, threshold)
         logprob_changes.append(logprob_change)
         step += 1
 
-        if step_KL < 0:
-            logprob_changes_for_KL.append(logprob_change)
+        if step_without_dropped_steps < 0:
+            logprob_changes_without_dropped_steps.append(logprob_change)
         else:
-            logprob_changes_for_KL[step_KL] = logprob_change
-            step_KL += 1
+            logprob_changes_without_dropped_steps[step_without_dropped_steps] = logprob_change
+            step_without_dropped_steps += 1
     iter += 1
 
     if MatchTargetSize(current_num_ngrams):
@@ -590,7 +590,7 @@ initial_logprob_per_word = None
 final_logprob_per_word = None
 waiting_thread = None
 logprob_changes = []
-logprob_changes_for_KL = []
+logprob_changes_without_dropped_steps = []
 thresholds = []
 
 CreateInitialWorkDir()
@@ -622,7 +622,7 @@ else:
     for step in range(len(steps)):
         logprob_change = RunStep(step, args.final_threshold)
         logprob_changes.append(logprob_change)
-        logprob_changes_for_KL.append(logprob_change)
+        logprob_changes_without_dropped_steps.append(logprob_change)
 
 FinalizeOutput(work_dir + "/step" + str(len(steps)))
 
@@ -637,7 +637,7 @@ print ("prune_lm_dir.py: reduced number of n-grams from {0} to {1}, i.e. by {2}%
         100.0 * (initial_num_ngrams - current_num_ngrams) / initial_num_ngrams),
        file=sys.stderr)
 
-print ("prune_lm_dir.py: approximate K-L divergence was {0}".format(-sum(logprob_changes_for_KL)),
+print ("prune_lm_dir.py: approximate K-L divergence was {0}".format(-sum(logprob_changes_without_dropped_steps)),
        file=sys.stderr)
 
 if initial_logprob_per_word != None and steps[-1] == 'EM':
