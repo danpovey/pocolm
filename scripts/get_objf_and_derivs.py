@@ -289,13 +289,16 @@ def CleanUpIfNeeded():
         try:
             if not os.path.isdir(args.work_dir):
                 ExitProgram("error finding working directory {0}".format(args.work_dir))
-            need_float=True if args.need_model == 'true' else False
-            for file in os.listdir(args.work_dir):
-                if re.match('(discounted|discounted_derivs|float|float_derivs|merged|merged_derivs)\.',file):
-                    # If need_model option set to be true, this script will keep "float.all" in working dir
-                    if need_float and file == "float.all":
-                        continue
-                    os.remove(args.work_dir+"/"+file)
+            need_float = True if args.need_model == 'true' else False
+            files_to_be_removed = ['num_ngrams','float.1'] if need_float else ['float.all','num_ngrams','float.1']
+            for o in range(2, ngram_order + 1):
+                for prefix in ['discount.','discount_derivs.','float_derivs.']:
+                    files_to_be_removed.append(prefix+str(o-1))
+                for prefix in ['float.','merged.','merged_derivs.','float_derivs.']:
+                    files_to_be_removed.append(prefix+str(o))
+            for file in files_to_be_removed:
+                    if os.path.isfile(args.work_dir+'/'+file):
+                        os.remove(args.work_dir+'/'+file)
         except:
             sys.exit("get_objf_and_drivs.py: error removing files in working dir")
     try:

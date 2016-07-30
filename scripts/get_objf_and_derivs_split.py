@@ -432,13 +432,16 @@ def CleanUpIfNeeded():
                 split_dir = '{0}/split{1}/{2}'.format(args.work_dir,args.num_splits,split_index)
                 if not os.path.isdir(split_dir):
                     ExitProgram("error finding split directory {0}".format(split_dir))
-                for file in os.listdir(split_dir):
-                    if re.match('(discounted|discounted_derivs|float|float_derivs|merged|merged_derivs)\.',file):
+                files_to_be_removed = ['num_ngrams'] if need_split_float else ['float.all','num_ngrams']
+                for o in range(2, ngram_order + 1):
+                    for prefix in ['discount.','discount_derivs.','float_derivs.']:
+                        files_to_be_removed.append(prefix+str(o-1))
+                    for prefix in ['float.','merged.','merged_derivs.','float_derivs.']:
+                        files_to_be_removed.append(prefix+str(o))
 
-                        if need_split_float and file == "float.all":
-                            continue
-                        os.remove(split_dir+"/"+file)
-                if need_split_float: continue
+                for file in files_to_be_removed:
+                    if os.path.isfile(split_dir+'/'+file):
+                        os.remove(split_dir+'/'+file)
                 if os.listdir(split_dir) == []:
                     os.rmdir(split_dir)
                 else:
@@ -453,11 +456,12 @@ def CleanUpIfNeeded():
                           " check it if nesscessary".format(all_split_dir),file=sys.stderr)
             # If need_model option set to be true, this script will keep "float.all" in working dir
             need_float = True if args.need_model == 'true' else False
-            for file in os.listdir(args.work_dir):
-                    if re.match('(discounted|discounted_derivs|float|float_derivs|merged|merged_derivs)\.',file):
-                        if need_float and file == "float.all":
-                            continue
-                        os.remove(args.work_dir+"/"+file)
+            files_to_be_removed = ['discount.1','discount_derivs.1','float.1','float_derivs.1']
+            if not need_float:
+                files_to_be_removed.append('float.all')
+            for file in files_to_be_removed:
+                    if os.path.isfile(args.work_dir+'/'+file):
+                        os.remove(args.work_dir+'/'+file)
         except:
             sys.exit("get_objf_and_drivs_split.py: error removing files in working dir")
     try:
