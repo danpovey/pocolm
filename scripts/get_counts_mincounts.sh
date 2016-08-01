@@ -61,7 +61,7 @@ set -e
 
 # make sure that the 'scripts' directory and the 'src' directory are on the
 # path.
-rootdir=$(cd ../..; pwd -P)
+rootdir=$(dirname "$0")/..
 PATH=$PATH:$rootdir/scripts:$rootdir/src
 
 if ! command -v text_to_int.py  >&/dev/null; then
