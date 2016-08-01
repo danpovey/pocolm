@@ -129,7 +129,8 @@ class PreArpaProcessor {
         extra_line_str;
 
     while (std::getline(std::cin, line_str)) {
-      std::ostringstream words;
+      std::ostringstream words;  // will contain the words in the n-gram (in
+                                 // text form), separated by spaces.
       const char *line = line_str.c_str();
       int32 order = strtol(line, const_cast<char**>(&line), 10);
       if (!(*line == ' ' && order > 0))
@@ -183,7 +184,7 @@ class PreArpaProcessor {
         // The following code relies on the fact that kBosSymbol == 1,
         // documented in pocolm-types.h.
         if (order == 1 && !strncmp(line_str.c_str(), " 1 1\t", 5)) {
-          std::cout << "-99" << words.str() << ' ' << (line + 1) << "\n";
+          std::cout << "-99 " << words.str() << ' ' << (line + 1) << "\n";
           continue;
         }
         // Each line with a backoff prob (except the edge case with <s>)
