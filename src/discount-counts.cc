@@ -191,7 +191,7 @@ class CountDiscounter {
     d2_ = ConvertToFloat(argv[2]);
     d3_ = ConvertToFloat(argv[3]);
     d4_ = ConvertToFloat(argv[4]);
-    assert(1.0 > d1_ && d1_ >= d2_ && d2_ >= d3_ && d3_ >= d4_ && d4_ >= 0);
+    assert(1.0 >= d1_ && d1_ >= d2_ && d2_ >= d3_ && d3_ >= d4_ && d4_ >= 0);
 
     input_.open(argv[5], std::ios_base::binary|std::ios_base::in);
     if (input_.fail()) {
