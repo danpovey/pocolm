@@ -134,9 +134,6 @@ class CountDiscounter {
         discounted_state.counts.begin();
     double lm_state_total = lm_state.discount,
         discount_total = lm_state.discount;
-    assert(discount_total == 0.0);
-    // this assertion can pass all the tests in egs/swbd/run.sh
-    // maybe lm_state_total and discount_total should be initialised to zero.
     for (; in_iter != in_end; ++in_iter,++out_iter) {
       int32 word = in_iter->first;
       const Count &count = in_iter->second;
