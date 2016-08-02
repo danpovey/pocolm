@@ -220,9 +220,11 @@ class CountDiscounter {
     if (!(*end == 0.0)) {
       std::cerr << "discount-counts: expected float, got '" << str << "'\n";
     }
-    if (!(ans >= 0.0 and ans < 1.0)) {
+    if (!(ans >= 0.0 and ans <= 1.0)) {
+      // note: we really expect discount < 1.0, but once it gets close to 1,
+      // due to rounding it can look like exactly 1.0.
       std::cerr << "discount-counts: discounting values must be "
-                << ">=0.0 and <1.0: " << str << "\n";
+                << ">=0.0 and <= 1.0: " << str << "\n";
       exit(1);
     }
     return ans;
