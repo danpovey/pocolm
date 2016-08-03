@@ -12,8 +12,8 @@ parser = argparse.ArgumentParser(description="Creates a vocabulary file from a p
                                  "'hello 124'.  This script ensures that certain 'special'"
                                  "symbols have the required integer id's, and that all the entries"
                                  "in the supplied word-list are assigned an integer id.",
-                                 epilog="See also word_counts_to_vocab.py");
-
+                                 epilog="See also word_counts_to_vocab.py",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--unk-symbol', type=str, default='<unk>',
                     help='Written form of the unknown-word symbol, normally <unk> '
                     'or <UNK>.  Will not normally appear in the text data.')

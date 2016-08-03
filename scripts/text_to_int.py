@@ -10,7 +10,8 @@ parser = argparse.ArgumentParser(description="Transforms text data into integer 
                                  "word not in the word-list or equal to words numbered 0, 1 or 2 "
                                  "(normally <eps>, <s> and </s>) are treated as out-of-vocabulary "
                                  "words (OOV) and written as symbol 3 (normally '<unk>').",
-                                 epilog="e.g. text_to_int.py words.txt < text > int_text");
+                                 epilog="e.g. text_to_int.py words.txt < text > int_text",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("vocab_file",
                     help="Filename of vocabulary file, e.g. as produced by get_vocab.py");

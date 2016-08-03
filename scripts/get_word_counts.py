@@ -13,7 +13,8 @@ parser = argparse.ArgumentParser(description="Extracts word counts from a data d
                                  "and creates a count directory with similar structure. "
                                  "Input directory has *.txt, counts directory has *.counts. "
                                  "Format of counts files is 'count word', e.g. '124 hello' ",
-                                 epilog="See egs/swbd/run.sh for example.");
+                                 epilog="See egs/swbd/run.sh for example.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("text_dir",
                     help="Directory in which to look for input text data\n");

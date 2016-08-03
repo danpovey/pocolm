@@ -11,7 +11,8 @@ except:
 
 parser = argparse.ArgumentParser(description="Validates input directory containing text "
                                  "files from one or more data sources, including dev.txt.",
-                                 epilog="E.g. validate_test_dir.py data/text");
+                                 epilog="E.g. validate_test_dir.py data/text",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("text_dir",
                     help="Directory in which to look for text data");

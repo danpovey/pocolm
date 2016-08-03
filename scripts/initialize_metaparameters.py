@@ -8,7 +8,8 @@ parser = argparse.ArgumentParser(description="This script prints to its standard
                                  "an initial version of the file of meta-parameters, "
                                  "containing either default weight values or values supplied "
                                  "via the --weights option.",
-                                 epilog="Prints it output to the stdout");
+                                 epilog="Prints its output to the stdout",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 
 parser.add_argument("--weights", type=str,

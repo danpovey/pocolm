@@ -8,7 +8,8 @@ from collections import defaultdict
 parser = argparse.ArgumentParser(description="This script turns a pocolm language model "
                                  "directory as created by make_lm_dir.py, into an ARPA-format "
                                  "language model.  The ARPA LM is written to the standard "
-                                 "output and may be redirected as desired.")
+                                 "output and may be redirected as desired.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--temp-dir", type=str,
                     help="Temporary directory for use by 'sort'; if not provided, "

@@ -12,7 +12,8 @@ parser = argparse.ArgumentParser(description="Given a directory containing word 
                                  "the dev data's counts.  It writes to the standard output "
                                  "the weights of the form '<basename> <weight>', one weight "
                                  "per line e.g. 'switchboard 0.23'.",
-                                 epilog="See egs/swbd/run.sh for example.");
+                                 epilog="See egs/swbd/run.sh for example.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 
 parser.add_argument("--verbose", type=str,

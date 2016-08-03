@@ -7,7 +7,8 @@ import re, os, argparse, sys, math, warnings
 parser = argparse.ArgumentParser(description="Validates meta-parameter derivatives, "
                                  "as produced by get_objf_and_derivs.py-- chiefly "
                                  "checks that the derivative w.r.t. scaling all the scales "
-                                 "by the same scaling factor is zero");
+                                 "by the same scaling factor is zero",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--ngram-order", type=int,
                     help="The N-gram order of your final LM (required)")

@@ -14,7 +14,8 @@ from pocolm_common import *
 parser = argparse.ArgumentParser(description="Given a counts directory and a set of "
                                  "metaparameters, this script does the language model discounting "
                                  "and computes the objective function, which is the log-probability "
-                                 "per word on the dev set.")
+                                 "per word on the dev set.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 
 parser.add_argument("--fold-dev-into-int", type=int,

@@ -11,7 +11,8 @@ except:
 
 parser = argparse.ArgumentParser(description="Validates directory containing integerized "
                                  "text data, as produced by prepare_int_data.py",
-                                 epilog="E.g. validate_int_dir.py data/int.100k");
+                                 epilog="E.g. validate_int_dir.py data/int.100k",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("int_dir",
                     help="Directory in which to find the data");

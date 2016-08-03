@@ -14,7 +14,8 @@ parser = argparse.ArgumentParser(description="Creates a vocabulary file from a '
                                  "<s>, </s> and <unk>), be give symbols 1, 2 and 3 respecively.  You "
                                  "may use this script to generate the file, or generate it manually."
                                  "The vocabulary file is written to the standard output.",
-                                 epilog="See also wordlist_to_vocab.py");
+                                 epilog="See also wordlist_to_vocab.py",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument('--num-words', type=int,
                     help='If specified, the maximum number of words to include '

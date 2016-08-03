@@ -9,7 +9,8 @@ except:
     pass
 
 parser = argparse.ArgumentParser(description="Validates directory containing pocolm-format "
-                                 "language model, as produced by make_lm_dir.py")
+                                 "language model, as produced by make_lm_dir.py",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("lm_dir",
                     help="Directory to validate")

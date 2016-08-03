@@ -14,7 +14,8 @@ from pocolm_common import *
 
 parser = argparse.ArgumentParser(description="This script takes an lm-dir, as produced by make_lm_dir.py, "
                                  "that should not have the counts split up into pieces, and it prunes "
-                                 "the counts and writes out to a new lm-dir.")
+                                 "the counts and writes out to a new lm-dir.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--steps", type=str,
                     default='prune*0.25 EM EM EM prune*0.5 EM EM EM prune*1.0 EM EM EM prune*1.0 EM EM EM',

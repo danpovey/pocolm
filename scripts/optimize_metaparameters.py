@@ -16,7 +16,8 @@ from pocolm_common import *
 
 parser = argparse.ArgumentParser(description="Optimizes metaparameters for LM estimation; "
                                  "this utility uses derivatives from get_objf_and_derivs.py or "
-                                 "get_objf_and_derivs_split.py")
+                                 "get_objf_and_derivs_split.py",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--barrier-epsilon", type=float, default=1.0e-04,
                     help="Scaling factor on logarithmic barrier function to "
                     "enforce parameter constraints (should make very little "

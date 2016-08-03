@@ -10,7 +10,8 @@ except:
 
 parser = argparse.ArgumentParser(description="Validates directory containing binary "
                                  "counts, as produced by prepare_counts.sh",
-                                 epilog="E.g. validate_count_dir.py data/counts.100k");
+                                 epilog="E.g. validate_count_dir.py data/counts.100k",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("count_dir",
                     help="Directory to validate")

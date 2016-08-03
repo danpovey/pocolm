@@ -7,8 +7,8 @@ import re, os, argparse, sys, math, warnings
 parser = argparse.ArgumentParser(description="This script, to be used in testing "
                                  "the framework, repeatedly calls get_objf_and_derivs.py "
                                  "and helps you check that the derivatives agree with "
-                                 "those computed by the difference method.")
-
+                                 "those computed by the difference method.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--delta", type=float, default=1.0e-04,
                     help="Parameter-change with which to compute derivatives using "

@@ -19,7 +19,8 @@ parser = argparse.ArgumentParser(description="Usage: "
                                  "e.g.:  get_counts.py data/int 3 data/counts_3"
                                  "This script computes data-counts of the specified n-gram order"
                                  "for each data-source in <source-int-dir>, and puts them all in"
-                                 "<dest-counts-dir>.");
+                                 "<dest-counts-dir>.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--dump-counts-parallel", type=str, default='true',
                     choices=['true','false'],

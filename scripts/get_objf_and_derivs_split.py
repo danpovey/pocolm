@@ -19,7 +19,8 @@ parser = argparse.ArgumentParser(description="This does the same as get_objf_and
                                  "had called get_objf_and_derivs.py with the same counts and "
                                  "metaparameters, and without the --num-splits option.  "
                                  "The point is that this program does things in parallel, so "
-                                 "it's faster.")
+                                 "it's faster.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--num-splits", type=int,
                     help="Number of splits in count directory.  You must previously have "

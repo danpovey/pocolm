@@ -13,7 +13,8 @@ parser = argparse.ArgumentParser(description="This script, given counts and meta
                                  "If you specify --keep-splits=true, the file num_splits will "
                                  "be created (containing the number of split pieces of the counts), "
                                  "and float.all won't exist, but float.all.split1, float.all.split2 "
-                                 "etc., will be created.");
+                                 "etc., will be created.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument('--fold-dev-into', type=str,
                     help='If supplied, the name of data-source into which to fold the '

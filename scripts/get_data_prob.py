@@ -8,7 +8,8 @@ from collections import defaultdict
 parser = argparse.ArgumentParser(description="This script evaluates the probability of some "
                                  "data (in text or gzipped-text format), given a language model "
                                  "in a pocolm 'lm-dir' (as validated by validate_lm_dir.py). "
-                                 "The perplexity is printed to the standard output.")
+                                 "The perplexity is printed to the standard output.",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("text_in", type=str,
                     help="Filename of input data (one sentence per line, no BOS or "

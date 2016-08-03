@@ -6,7 +6,8 @@ import re, os, argparse, sys, math, warnings
 
 parser = argparse.ArgumentParser(description="Validates vocabulary file in OpenFst symbol "
                                  "table format",
-                                 epilog="e.g. validate_vocab.py words.txt")
+                                 epilog="e.g. validate_vocab.py words.txt",
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--num-words", type=int,
                     help="Number of words to expect in vocabulary (not counting epsilon), "
