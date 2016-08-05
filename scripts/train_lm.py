@@ -89,6 +89,46 @@ def GetNumNgrams(lm_dir_in):
 
     return num_ngrams
 
+def ReadMetaparameters(metaparameter_file):
+    metaparameters = []
+    f = open(metaparameter_file);
+    for line in f:
+        metaparameters.append(float(line.split()[1]))
+    f.close()
+
+    return metaparameters
+
+def WriteMetaparameters(metaparameters, ngram_order, num_train_sets, out_file):
+    assert(len(metaparameters) == (ngram_order - 1) * 4 + num_train_sets)
+    f = open(out_file, "w")
+    i = 0
+    for n in range(1, num_train_sets + 1):
+        print("count_scale_{0}".format(n), metaparameters[i], file=f)
+        i += 1
+
+    for o in range(2, ngram_order + 1):
+        for n in range(4):
+            print("order{0}_D{1}".format(o, n + 1), metaparameters[i], file=f)
+            i += 1
+    f.close()
+
+def FormatMetaparameters(metaparameters):
+    out = []
+    for param in metaparameters:
+        x = '{:.3f}'.format(param)
+        if x == '0.00':
+            x = '{:.3g}'.format(param)
+        out.append(x)
+
+    return ','.join(out)
+
+def ParseMetaparameters(encoded_str, ngram_order, num_train_sets):
+    metaparameters = encoded_str.split(',')
+    assert(len(metaparameters) == (ngram_order - 1) * 4 + num_train_sets)
+    map(lambda x: float(x), metaparameters)
+
+    return metaparameters
+
 # get word counts
 word_counts_dir = os.path.join(work_dir, 'word_counts')
 done_file = os.path.join(word_counts_dir, '.done')
@@ -196,47 +236,67 @@ else:
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
 
-# subset counts dir
-subset_counts_dir = counts_dir + '_subset' + str(args.warm_start_ratio)
-done_file = os.path.join(subset_counts_dir, '.done')
-if os.path.exists(done_file):
-    print("train_lm.py: Skip subsetting counts dir", file=sys.stderr)
-else:
-    print("train_lm.py: Subsetting counts dir...", file=sys.stderr)
-    command = "subset_count_dir.sh {0} {1} {2}".format(counts_dir, \
-            args.warm_start_ratio, subset_counts_dir)
-    log_file = os.path.join(log_dir, 'subset_count_dir.log')
-    RunCommand(command, log_file, args.verbose == 'true')
-    TouchFile(done_file)
+metaparam_file = ''
+if args.bypass_metaparameter_optimization != None:
+    print("train_lm.py: Bypass optimization steps", file=sys.stderr)
 
-# warm-start optimize metaparameters
-subset_optimize_dir = os.path.join(work_dir, "optimize_{0}_subset{1}".format(lm_name, \
-        args.warm_start_ratio))
-done_file = os.path.join(subset_optimize_dir, '.done')
-if os.path.exists(done_file):
-    print("train_lm.py: Skip warm-start optimizing metaparameters", file=sys.stderr)
-else:
-    print("train_lm.py: Optimizing metaparameters for warm-start...", file=sys.stderr)
-    command = "optimize_metaparameters.py --progress-tolerance=1.0e-05 --num-splits={0} {1} {2}".format(
-            args.num_splits, subset_counts_dir, subset_optimize_dir)
-    log_file = os.path.join(log_dir, 'optimize_metaparameters_warm_start.log')
-    RunCommand(command, log_file, args.verbose == 'true')
-    TouchFile(done_file)
+    for name in [ 'ngram_order', 'num_train_sets' ]:
+        f = open(os.path.join(counts_dir, name))
+        globals()[name] = int(f.readline())
+        f.close()
 
-# optimize metaparameters
-optimize_dir = os.path.join(work_dir, "optimize_{0}".format(lm_name))
-done_file = os.path.join(optimize_dir, '.done')
-if os.path.exists(done_file):
-    print("train_lm.py: Skip optimizing metaparameters", file=sys.stderr)
+    metaparameters = ParseMetaparameters(args.bypass_metaparameter_optimization,
+        ngram_order, num_train_sets)
+    metaparam_file = os.path.join(work_dir, 'bypass.metaparams')
+    WriteMetaparameters(metaparameters, ngram_order, num_train_sets, metaparam_file)
 else:
-    print("train_lm.py: Optimizing metaparameters...", file=sys.stderr)
-    command = "optimize_metaparameters.py --warm-start-dir={0} \
-               --progress-tolerance=1.0e-03 --gradient-tolerance=0.01 \
-               --num-splits={1} {2} {3}".format(subset_optimize_dir,
-            args.num_splits, counts_dir, optimize_dir)
-    log_file = os.path.join(log_dir,'optimize_metaparameters.log')
-    RunCommand(command, log_file, args.verbose == 'true')
-    TouchFile(done_file)
+    # subset counts dir
+    subset_counts_dir = counts_dir + '_subset' + str(args.warm_start_ratio)
+    done_file = os.path.join(subset_counts_dir, '.done')
+    if os.path.exists(done_file):
+        print("train_lm.py: Skip subsetting counts dir", file=sys.stderr)
+    else:
+        print("train_lm.py: Subsetting counts dir...", file=sys.stderr)
+        command = "subset_count_dir.sh {0} {1} {2}".format(counts_dir, \
+                args.warm_start_ratio, subset_counts_dir)
+        log_file = os.path.join(log_dir, 'subset_count_dir.log')
+        RunCommand(command, log_file, args.verbose == 'true')
+        TouchFile(done_file)
+
+    # warm-start optimize metaparameters
+    subset_optimize_dir = os.path.join(work_dir, "optimize_{0}_subset{1}".format(lm_name, \
+            args.warm_start_ratio))
+    done_file = os.path.join(subset_optimize_dir, '.done')
+    if os.path.exists(done_file):
+        print("train_lm.py: Skip warm-start optimizing metaparameters", file=sys.stderr)
+    else:
+        print("train_lm.py: Optimizing metaparameters for warm-start...", file=sys.stderr)
+        command = "optimize_metaparameters.py --progress-tolerance=1.0e-05 --num-splits={0} {1} {2}".format(
+                args.num_splits, subset_counts_dir, subset_optimize_dir)
+        log_file = os.path.join(log_dir, 'optimize_metaparameters_warm_start.log')
+        RunCommand(command, log_file, args.verbose == 'true')
+        TouchFile(done_file)
+
+    # optimize metaparameters
+    optimize_dir = os.path.join(work_dir, "optimize_{0}".format(lm_name))
+    done_file = os.path.join(optimize_dir, '.done')
+    if os.path.exists(done_file):
+        print("train_lm.py: Skip optimizing metaparameters", file=sys.stderr)
+    else:
+        print("train_lm.py: Optimizing metaparameters...", file=sys.stderr)
+        command = "optimize_metaparameters.py --warm-start-dir={0} \
+                   --progress-tolerance=1.0e-03 --gradient-tolerance=0.01 \
+                   --num-splits={1} {2} {3}".format(subset_optimize_dir,
+                args.num_splits, counts_dir, optimize_dir)
+        log_file = os.path.join(log_dir,'optimize_metaparameters.log')
+        RunCommand(command, log_file, args.verbose == 'true')
+        TouchFile(done_file)
+
+    metaparam_file = os.path.join(optimize_dir, 'final.metaparams')
+    metaparameters = ReadMetaparameters(metaparam_file)
+    print("train_lm.py: You can set --bypass-metaparameter-optimization='{0}' "
+          "to get equivalent results".format(FormatMetaparameters(metaparameters)),
+          file=sys.stderr)
 
 # make lm dir
 lm_dir = os.path.join(args.lm_dir, lm_name + '.pocolm')
@@ -249,8 +309,7 @@ else:
     if args.num_splits > 1:
         opts.append('--keep-splits=true')
     command = "make_lm_dir.py --num-splits={0} {1} {2} {3} {4}".format(
-            args.num_splits, ' '.join(opts), counts_dir,
-            os.path.join(optimize_dir, 'final.metaparams'), lm_dir)
+            args.num_splits, ' '.join(opts), counts_dir, metaparam_file, lm_dir)
     log_file = os.path.join(log_dir, 'make_lm_dir.log')
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
