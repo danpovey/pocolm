@@ -33,18 +33,9 @@ for order in 3 4 5; do
 
   ratio=10
   splits=5
-  subset_count_dir.sh data/counts_20k_${order} ${ratio} data/counts_20k_${order}_subset${ratio}
-
-  optimize_metaparameters.py --progress-tolerance=1.0e-05 --num-splits=${splits} \
-    data/counts_20k_${order}_subset${ratio} data/optimize_20k_${order}_subset${ratio}
-
-  optimize_metaparameters.py --warm-start-dir=data/optimize_20k_${order}_subset${ratio} \
-      --progress-tolerance=1.0e-03 --gradient-tolerance=0.01 --num-splits=${splits} \
-    data/counts_20k_${order} data/optimize_20k_${order}
-
-  make_lm_dir.py $fold_dev_opt --num-splits=${splits} --keep-splits=true data/counts_20k_${order} \
-     data/optimize_20k_${order}/final.metaparams data/lm_20k_${order}
-
+  train_lm.py data/counts_20k_${order} --order=${order} --ratio=${ratio} \
+    --num-splits=${splits} data
+  
   mkdir -p data/arpa
   format_arpa_lm.py data/lm_20k_${order} | gzip -c > data/arpa/20k_${order}gram_unpruned.arpa.gz
 
