@@ -38,9 +38,6 @@ parser.add_argument("--bypass-metaparameter-optimization", type=str, default=Non
                     "a comma separated list. If this is specified, the stages of metaparameter optimization "
                     "would be completely bypassed. One can get the approaviate numbers after "
                     "running one time of train_lm.py.")
-parser.add_argument("--skip-computing-ppl", type=str, default='false',
-                    choices=['true','false'],
-                    help="If true, skip computing final perplexity of dev set.")
 parser.add_argument("--verbose", type=str, default='false',
                     choices=['true','false'],
                     help="If true, print commands as we execute them.")
@@ -323,18 +320,6 @@ for order in range(len(num_ngrams) - 2):
     line += str(num_ngrams[order]) + ' + '
 line += str(num_ngrams[-2]) + ' = ' + str(num_ngrams[-1])
 print("train_lm.py: " + line, file=sys.stderr)
-
-if args.skip_computing_ppl == 'false':
-    print("train_lm.py: Computing perplexity for dev set...", file=sys.stderr)
-    command = "get_data_prob.py {0} {1} 2>&1 | grep -F '[perplexity'".format(
-            os.path.join(args.text_dir, 'dev.txt'), lm_dir)
-    log_file = os.path.join(log_dir, 'get_data_prob.log')
-    output = GetCommandStdout(command, log_file, args.verbose == 'true')
-    for line in output.split('\n'):
-        m = re.search('\[perplexity = (.*)\]', line)
-        if m:
-            ppl = m.group(1)
-            print("train_lm.py: Perplexity: {0}".format(ppl), file=sys.stderr)
 
 print("train_lm.py: Success to train lm, output dir is {0}.".format(lm_dir), file=sys.stderr)
 print("train_lm.py: You may call format_arpa_lm.py to get ARPA-format lm, ", file=sys.stderr)
