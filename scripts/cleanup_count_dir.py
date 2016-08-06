@@ -24,9 +24,12 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
 def CleanupDir(count_dir, ngram_order, num_train_sets):
     for n in [ 'dev' ] + range(1, num_train_sets + 1):
         for o in range(2, ngram_order +1):
-            filename = "{0}/int.{1}.{2}".format(count_dir, n, o)
-            os.remove(os.path.join(count_dir, "int.{0}.{1}".format(n, o)))
-    os.remove(os.path.join(count_dir, "int.dev"))
+            filename = os.path.join(count_dir, "int.{0}.{1}".format(n, o))
+            if os.path.isfile(filename):
+                os.remove(filename)
+    filename = os.path.join(count_dir, "int.dev")
+    if os.path.isfile(filename):
+        os.remove(filename)
 
 if os.system("validate_count_dir.py " + args.count_dir) != 0:
   sys.exit("command validate_count_dir.py {0} failed".format(args.count_dir))
@@ -46,10 +49,10 @@ CleanupDir(args.count_dir, ngram_order, num_train_sets)
 
 # find split-dir and cleanup
 entities = os.listdir(args.count_dir)
-for dirpath in entities:
-    if os.path.isdir(dirpath) and dirpath[0:5] == 'split':
-        for n in range(1, int(dirpath[5:]) + 1):
-            count_dir = dirpath + str(n)
+for dirname in entities:
+    if os.path.isdir(os.path.join(args.count_dir, dirname)) and dirname[0:5] == 'split':
+        for n in range(1, int(dirname[5:]) + 1):
+            count_dir = os.path.join(args.count_dir, dirname, str(n))
             if os.path.isdir(count_dir):
                 CleanupDir(count_dir, ngram_order, num_train_sets)
         break
