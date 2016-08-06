@@ -25,6 +25,12 @@ parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)")
 parser.add_argument("--verbose", type=str, default='false', choices=['true','false'],
                     help="If true, print commands as we execute them.")
+parser.add_argument("--clean-up", type=str, default="true", choices=["true","false"],
+                    help="If true, clean-up will remove intermediate files in work_dir "
+                    "that won't be used in future")
+parser.add_argument("--need-model", type=str, default="false", choices=["true","false"],
+                    help="If true, work_dir/float.all (the merged file of counts) "
+                    "will not be removed after clean-up")
 parser.add_argument("count_dir",
                     help="Directory from which to obtain counts files\n")
 parser.add_argument("metaparameters",
@@ -279,6 +285,32 @@ def WriteDerivs():
         print("order{0}_D4 {1}".format(o, d4_deriv[o]), file=f)
     f.close()
 
+def CleanUpIfNeeded():
+    if args.clean_up == 'true':
+        try:
+            if not os.path.isdir(args.work_dir):
+                ExitProgram("error finding working directory {0}".format(args.work_dir))
+            need_float = True if args.need_model == 'true' else False
+            files_to_be_removed = ['num_ngrams','float.1'] if need_float else ['float.all','num_ngrams','float.1']
+            for o in range(2, ngram_order + 1):
+                for prefix in ['discount.','discount_derivs.','float_derivs.']:
+                    files_to_be_removed.append(prefix+str(o-1))
+                for prefix in ['float.','merged.','merged_derivs.','float_derivs.']:
+                    files_to_be_removed.append(prefix+str(o))
+            for file in files_to_be_removed:
+                    if os.path.isfile(args.work_dir+'/'+file):
+                        os.remove(args.work_dir+'/'+file)
+        except:
+            sys.exit("get_objf_and_drivs.py: error removing files in working dir")
+    try:
+        f = open(args.work_dir+'/cleaned', "w")
+        print(args.clean_up, file=f)
+        f.close()
+    except:
+        sys.exit("get_objf_and_derivs.py: error opening --cleaned={0} for writing".format(
+                  args.work_dir+'/cleaned'))
+
+
 
 if not os.path.isdir(args.work_dir + "/log"):
     try:
@@ -296,7 +328,9 @@ MergeAllOrders()
 ComputeObjfAndFinalDerivs(args.derivs_out != None)
 
 if args.derivs_out == None:
+    CleanUpIfNeeded()
     sys.exit(0)
+
 
 # scale_derivs will be an array of the derivatives of the objective function
 # w.r.t. the scaling factors of the training sets.
@@ -322,3 +356,7 @@ for o in range(2, ngram_order + 1):
     MergeCountsBackward(o)
 
 WriteDerivs()
+# Do Clean-up if needed and write whether or not the clean-up had been done
+CleanUpIfNeeded()
+
+

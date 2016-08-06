@@ -31,9 +31,15 @@ parser.add_argument("--verbose", type=str, default='false', choices=['true','fal
 parser.add_argument("--fold-dev-into-int", type=int,
                     help="Integer identifier of dataset into which the dev data "
                     "should be folded (not compatible with the --derivs-out option)")
+parser.add_argument("--clean-up", type=str, default="true", choices=["true","false"],
+                    help="If true, clean-up will remove intermediate files in work_dir "
+                    "that won't be used in future")
 parser.add_argument("--need-model", type=str, default="false", choices=["true","false"],
-                    help="If true, this script will create work_dir/float.all (the merged "
-                    "file of counts")
+                    help="If true, work_dir/float.all (the merged file of counts) "
+                    "will not be removed after clean-up")
+parser.add_argument("--need-split-float", type=str, default="false", choices=["true","false"],
+                    help="If ture, float.all will be kept in work_dir/split[n]/[n] after "
+                    "clean up. Note, set this be true only if you want to make lm and keep splits ")
 parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)")
 parser.add_argument("count_dir",
@@ -413,6 +419,61 @@ def MergeAndComputeObjfForSplit(split_index):
     MergeAllOrders(split_index)
     ComputeObjfAndFinalDerivs(split_index, args.derivs_out != None)
 
+def CleanUpIfNeeded():
+    # For cleaning up intermediate files that won't be used, note if option need-model = true
+    # be used, clean up will keep file 'float.all'
+    if args.clean_up == 'true':
+        try:
+            if not os.path.isdir(args.work_dir):
+                ExitProgram("error finding working directory {0}".format(args.work_dir))
+            # If need_split_float option set to be true, this script will keep "float.all" in
+            # each split dir for future use
+            need_split_float = True if args.need_split_float == 'true' else False
+            for split_index in range(1, args.num_splits + 1):
+                split_dir = '{0}/split{1}/{2}'.format(args.work_dir,args.num_splits,split_index)
+                if not os.path.isdir(split_dir):
+                    ExitProgram("error finding split directory {0}".format(split_dir))
+                files_to_be_removed = ['num_ngrams'] if need_split_float else ['float.all','num_ngrams']
+                for o in range(2, ngram_order + 1):
+                    for prefix in ['discount.','discount_derivs.','float_derivs.']:
+                        files_to_be_removed.append(prefix+str(o-1))
+                    for prefix in ['float.','merged.','merged_derivs.','float_derivs.']:
+                        files_to_be_removed.append(prefix+str(o))
+
+                for file in files_to_be_removed:
+                    if os.path.isfile(split_dir+'/'+file):
+                        os.remove(split_dir+'/'+file)
+                if os.listdir(split_dir) == []:
+                    os.rmdir(split_dir)
+                else:
+                    print("get_objf_and_drivs_split.py: split dir {0} in working dir has unexpected file,"\
+                          " check it if nesscessary".format(split_dir),file=sys.stderr)
+            if not need_split_float:
+                all_split_dir = '{0}/split{1}'.format(args.work_dir,args.num_splits)
+                if os.listdir(all_split_dir) == []:
+                    os.rmdir(all_split_dir)
+                else:
+                    print("get_objf_and_drivs_split.py: split dir {0} in working dir has unexpected file,"\
+                          " check it if nesscessary".format(all_split_dir),file=sys.stderr)
+            # If need_model option set to be true, this script will keep "float.all" in working dir
+            need_float = True if args.need_model == 'true' else False
+            files_to_be_removed = ['discount.1','discount_derivs.1','float.1','float_derivs.1']
+            if not need_float:
+                files_to_be_removed.append('float.all')
+            for file in files_to_be_removed:
+                    if os.path.isfile(args.work_dir+'/'+file):
+                        os.remove(args.work_dir+'/'+file)
+        except:
+            sys.exit("get_objf_and_drivs_split.py: error removing files in working dir")
+    try:
+        f = open(args.work_dir+'/cleaned', "w")
+        print(args.clean_up, file=f)
+        f.close()
+    except:
+        sys.exit("get_objf_and_derivs_split.py: error opening --cleaned={0} for writing".format(
+                  args.work_dir+'/cleaned'))
+
+
 # do the 'forward' computation (merging and discounting) for all the orders from
 # the highest down to order 2.
 threads = []
@@ -444,6 +505,7 @@ if args.need_model == "true":
     MergeAllSplits()
 
 if args.derivs_out == None:
+    CleanUpIfNeeded()
     sys.exit(0)
 
 # scale_derivs will be an array of the derivatives of the objective function
@@ -484,3 +546,4 @@ for t in threads:
     t.join()
 
 WriteDerivs()
+CleanUpIfNeeded()

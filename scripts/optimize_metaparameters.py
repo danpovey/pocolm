@@ -44,6 +44,9 @@ parser.add_argument("--warm-start-dir", type=str,
                     "run on a subset of data.  Setting --subset-optimize-dir=X is "
                     "equivalent to setting --read-inv-hessian=X/final.inv_hessian and "
                     "--initial-metaparameters=X/final.metaparams")
+parser.add_argument("--clean-up", type=str, default="true", choices=["true","false"],
+                    help="If true, clean-up will remove intermediate files optimization process "
+                    "generated that won't be used in future")
 parser.add_argument("count_dir",
                     help="Directory in which to find counts")
 parser.add_argument("optimize_dir",
@@ -250,12 +253,14 @@ def GetObjfAndDeriv(x):
                   "finished run)".format(deriv_file, objf_file), file=sys.stderr)
         else:
             # we need to call get_objf_and_derivs.py
-            command = ("get_objf_and_derivs{maybe_split}.py {split_opt} --derivs-out={derivs} {counts} {metaparams} "
+            clean_up_opt = "--clean-up false" if args.clean_up == "false" else ""
+            command = ("get_objf_and_derivs{maybe_split}.py {split_opt} {clean_up_opt} --derivs-out={derivs} {counts} {metaparams} "
                        "{objf} {work}".format(derivs = deriv_file, counts = args.count_dir,
                                               metaparams = metaparameter_file,
                                                       maybe_split = "_split" if args.num_splits > 1 else "",
-                                                      split_opt= ("--num-splits={0}".format(args.num_splits) if
+                                                      split_opt = ("--num-splits={0}".format(args.num_splits) if
                                                                   args.num_splits > 1 else ""),
+                                                      clean_up_opt = clean_up_opt,
                                               objf = objf_file, work = args.optimize_dir + "/work"))
             RunCommand(command, log_file, verbose = True)
         derivs = ReadMetaparametersOrDerivs(deriv_file)
