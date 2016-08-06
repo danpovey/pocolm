@@ -279,8 +279,8 @@ else:
         print("train_lm.py: Skip warm-start optimizing metaparameters", file=sys.stderr)
     else:
         print("train_lm.py: Optimizing metaparameters for warm-start...", file=sys.stderr)
-        command = "optimize_metaparameters.py --progress-tolerance=1.0e-05 --num-splits={0} {1} {2}".format(
-                args.num_splits, subset_counts_dir, subset_optimize_dir)
+        command = "optimize_metaparameters.py --cleanup={3} --progress-tolerance=1.0e-05 --num-splits={0} {1} {2}".format(
+                args.num_splits, subset_counts_dir, subset_optimize_dir, args.cleanup)
         log_file = os.path.join(log_dir, 'optimize_metaparameters_warm_start.log')
         RunCommand(command, log_file, args.verbose == 'true')
         TouchFile(done_file)
@@ -323,8 +323,8 @@ else:
     opts = []
     if args.num_splits > 1:
         opts.append('--keep-splits=true')
-    command = "make_lm_dir.py --num-splits={0} {1} {2} {3} {4}".format(
-            args.num_splits, ' '.join(opts), counts_dir, metaparam_file, lm_dir)
+    command = "make_lm_dir.py --cleanup={5} --num-splits={0} {1} {2} {3} {4}".format(
+            args.num_splits, ' '.join(opts), counts_dir, metaparam_file, lm_dir, args.cleanup)
     log_file = os.path.join(log_dir, 'make_lm_dir.log')
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
