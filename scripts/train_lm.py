@@ -134,9 +134,9 @@ def ParseMetaparameters(encoded_str, ngram_order, num_train_sets):
 word_counts_dir = os.path.join(work_dir, 'word_counts')
 done_file = os.path.join(word_counts_dir, '.done')
 if os.path.exists(done_file):
-    print("train_lm.py: Skip getting word counts", file=sys.stderr)
+    LogMessage("Skip getting word counts")
 else:
-    print("train_lm.py: Getting word counts...", file=sys.stderr)
+    LogMessage("Getting word counts...")
     command = "get_word_counts.py {0} {1}".format(args.text_dir, word_counts_dir)
     log_file = os.path.join(log_dir, 'get_word_counts.log')
     RunCommand(command, log_file, args.verbose == 'true')
@@ -146,9 +146,9 @@ else:
 unigram_weights = os.path.join(args.text_dir, 'unigram_weights')
 done_file = os.path.join(work_dir, '.unigram_weights.done')
 if os.path.exists(done_file):
-    print("train_lm.py: Skip getting unigram weights", file=sys.stderr)
+    LogMessage("Skip getting unigram weights")
 else:
-    print("train_lm.py: Getting unigram weights...", file=sys.stderr)
+    LogMessage("Getting unigram weights...")
     command = "get_unigram_weights.py {0} > {1}".format(word_counts_dir, unigram_weights)
     log_file = os.path.join(log_dir, 'get_unigram_weights.log')
     RunCommand(command, log_file, args.verbose == 'true')
@@ -166,9 +166,9 @@ if args.wordlist == None:
         vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
         done_file = os.path.join(work_dir, '.vocab_' + vocab_name + '.txt.done')
         if os.path.exists(done_file):
-            print("train_lm.py: Skip generating vocab", file=sys.stderr)
+            LogMessage("Skip generating vocab")
         else:
-            print("train_lm.py: Generating vocab with num-words={0} ...".format(args.num_words), file=sys.stderr)
+            LogMessage("Generating vocab with num-words={0} ...".format(args.num_words))
             command = "word_counts_to_vocab.py --num-words={0} {1} > {2}".format(args.num_words, \
                     word_counts_dir,  vocab)
             log_file = os.path.join(log_dir, 'word_counts_to_vocab.log')
@@ -182,16 +182,16 @@ if args.wordlist == None:
         vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
         done_file = os.path.join(work_dir, '.vocab_' + vocab_name + '.txt.done')
         if os.path.exists(done_file):
-            print("train_lm.py: Skip generating vocab", file=sys.stderr)
+            LogMessage("Skip generating vocab")
         else:
-            print("train_lm.py: Generating vocab with unlmited num-words ...", file=sys.stderr)
+            LogMessage("Generating vocab with unlmited num-words ...")
             command = "word_counts_to_vocab.py {0} > {1}".format(word_counts_dir,  vocab)
             log_file = os.path.join(log_dir, 'word_counts_to_vocab.log')
             RunCommand(command, log_file, args.verbose == 'true')
             TouchFile(done_file)
 else:
     if args.num_words < 0:
-        print("train_lm.py: Ignoring --num-words because --wordlist is specified", file=sys.stderr)
+        LogMessage("Ignoring --num-words because --wordlist is specified")
 
     vocab_name = os.path.basename(args.wordlist)
     log_dir = os.path.join(work_dir,'log', vocab_name)
@@ -200,9 +200,9 @@ else:
     vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
     done_file = os.path.join(work_dir, '.vocab_' + vocab_name + '.txt.done')
     if os.path.exists(done_file):
-        print("train_lm.py: Skip generating vocab", file=sys.stderr)
+        LogMessage("Skip generating vocab")
     else:
-        print("train_lm.py: Generating vocab with wordlist[{0}]...".format(args.wordlist), file=sys.stderr)
+        LogMessage("Generating vocab with wordlist[{0}]...".format(args.wordlist))
         command = "wordlist_to_vocab.py {1} > {2}".format(word_counts_dir, vocab)
         log_file = os.path.join(log_dir, 'wordlist_to_vocab.log')
         RunCommand(command, log_file, args.verbose == 'true')
@@ -212,9 +212,9 @@ else:
 int_dir = os.path.join(work_dir, 'int_' + vocab_name)
 done_file = os.path.join(int_dir, '.done')
 if os.path.exists(done_file):
-    print("train_lm.py: Skip preparing int data", file=sys.stderr)
+    LogMessage("Skip preparing int data")
 else:
-    print("train_lm.py: Preparing int data...", file=sys.stderr)
+    LogMessage("Preparing int data...")
     command = "prepare_int_data.py {0} {1} {2}".format(args.text_dir, vocab, int_dir)
     log_file = os.path.join(log_dir, 'prepare_int_data.log')
     RunCommand(command, log_file, args.verbose == 'true')
@@ -228,9 +228,9 @@ if not os.path.isdir(log_dir):
 counts_dir = os.path.join(work_dir, 'counts_' + lm_name)
 done_file = os.path.join(counts_dir, '.done')
 if os.path.exists(done_file):
-    print("train_lm.py: Skip getting counts", file=sys.stderr)
+    LogMessage("Skip getting counts")
 else:
-    print("train_lm.py: Getting ngram counts...", file=sys.stderr)
+    LogMessage("Getting ngram counts...")
     command = "get_counts.py --min-counts='{0}' {1} {2} {3}".format(args.min_counts, \
             int_dir, args.order, counts_dir)
     log_file = os.path.join(log_dir, 'get_counts.log')
@@ -246,7 +246,7 @@ if args.cleanup == 'true' and args.keep_int_data == 'false':
 
 metaparam_file = ''
 if args.bypass_metaparameter_optimization != None:
-    print("train_lm.py: Bypass optimization steps", file=sys.stderr)
+    LogMessage("Bypass optimization steps")
 
     for name in [ 'ngram_order', 'num_train_sets' ]:
         f = open(os.path.join(counts_dir, name))
@@ -262,9 +262,9 @@ else:
     subset_counts_dir = counts_dir + '_subset' + str(args.warm_start_ratio)
     done_file = os.path.join(subset_counts_dir, '.done')
     if os.path.exists(done_file):
-        print("train_lm.py: Skip subsetting counts dir", file=sys.stderr)
+        LogMessage("Skip subsetting counts dir")
     else:
-        print("train_lm.py: Subsetting counts dir...", file=sys.stderr)
+        LogMessage("Subsetting counts dir...")
         command = "subset_count_dir.sh {0} {1} {2}".format(counts_dir, \
                 args.warm_start_ratio, subset_counts_dir)
         log_file = os.path.join(log_dir, 'subset_count_dir.log')
@@ -276,9 +276,9 @@ else:
             args.warm_start_ratio))
     done_file = os.path.join(subset_optimize_dir, '.done')
     if os.path.exists(done_file):
-        print("train_lm.py: Skip warm-start optimizing metaparameters", file=sys.stderr)
+        LogMessage("Skip warm-start optimizing metaparameters")
     else:
-        print("train_lm.py: Optimizing metaparameters for warm-start...", file=sys.stderr)
+        LogMessage("Optimizing metaparameters for warm-start...")
         command = "optimize_metaparameters.py --cleanup={3} --progress-tolerance=1.0e-05 --num-splits={0} {1} {2}".format(
                 args.num_splits, subset_counts_dir, subset_optimize_dir, args.cleanup)
         log_file = os.path.join(log_dir, 'optimize_metaparameters_warm_start.log')
@@ -296,9 +296,9 @@ else:
     optimize_dir = os.path.join(work_dir, "optimize_{0}".format(lm_name))
     done_file = os.path.join(optimize_dir, '.done')
     if os.path.exists(done_file):
-        print("train_lm.py: Skip optimizing metaparameters", file=sys.stderr)
+        LogMessage("Skip optimizing metaparameters")
     else:
-        print("train_lm.py: Optimizing metaparameters...", file=sys.stderr)
+        LogMessage("Optimizing metaparameters...")
         command = "optimize_metaparameters.py --warm-start-dir={0} \
                    --progress-tolerance=1.0e-03 --gradient-tolerance=0.01 \
                    --num-splits={1} {2} {3}".format(subset_optimize_dir,
@@ -309,17 +309,17 @@ else:
 
     metaparam_file = os.path.join(optimize_dir, 'final.metaparams')
     metaparameters = ReadMetaparameters(metaparam_file)
-    print("train_lm.py: You can set --bypass-metaparameter-optimization='{0}' "
-          "to get equivalent results".format(FormatMetaparameters(metaparameters)),
-          file=sys.stderr)
+    LogMessage("You can set --bypass-metaparameter-optimization='{0}' "
+               "to get equivalent results".format(
+                   FormatMetaparameters(metaparameters)))
 
 # make lm dir
 lm_dir = os.path.join(args.lm_dir, lm_name + '.pocolm')
 done_file = os.path.join(lm_dir, '.done')
 if os.path.exists(done_file):
-    print("train_lm.py: Skip making lm dir", file=sys.stderr)
+    LogMessage("Skip making lm dir")
 else:
-    print("train_lm.py: Making lm dir...", file=sys.stderr)
+    LogMessage("Making lm dir...")
     opts = []
     if args.num_splits > 1:
         opts.append('--keep-splits=true')
@@ -344,8 +344,8 @@ line = "Ngram counts: "
 for order in range(len(num_ngrams) - 2):
     line += str(num_ngrams[order]) + ' + '
 line += str(num_ngrams[-2]) + ' = ' + str(num_ngrams[-1])
-print("train_lm.py: " + line, file=sys.stderr)
+LogMessage("" + line)
 
-print("train_lm.py: Success to train lm, output dir is {0}.".format(lm_dir), file=sys.stderr)
-print("train_lm.py: You may call format_arpa_lm.py to get ARPA-format lm, ", file=sys.stderr)
-print("train_lm.py: Or call prune_lm_dir.py to prune the lm.", file=sys.stderr)
+LogMessage("Success to train lm, output dir is {0}.".format(lm_dir))
+LogMessage("You may call format_arpa_lm.py to get ARPA-format lm, ")
+LogMessage("Or call prune_lm_dir.py to prune the lm.")
