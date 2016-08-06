@@ -12,7 +12,7 @@ arpa_dir="data/arpa/"
 
 for order in 3 4 5; do
   train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
-              data/text ${order} ${lm_dir}
+              --keep-int-data='true' data/text ${order} ${lm_dir}
   unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
 
   mkdir -p ${arpa_dir}

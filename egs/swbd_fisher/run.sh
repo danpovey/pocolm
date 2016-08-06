@@ -25,9 +25,10 @@ for order in 3 4 5; do
   # that you wanted to use.
   # Note: the following might be a more reasonable setting:
   # train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
-  #             --min-counts='fisher=2 swbd1=1' data/text ${order} ${lm_dir}
+  #             --min-counts='fisher=2 swbd1=1' \
+  #             --keep-int-data='true' data/text ${order} ${lm_dir}
   train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
-              data/text ${order} ${lm_dir}
+              --keep-int-data='true' data/text ${order} ${lm_dir}
   unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
 
   mkdir -p ${arpa_dir}

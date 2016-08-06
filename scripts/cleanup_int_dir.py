@@ -35,4 +35,6 @@ for n in range(1, num_train_sets + 1):
     names.append(str(n))
 
 for name in names:
-    os.remove(os.path.join(args.int_dir, name + '.txt.gz'))
+    filename = os.path.join(args.int_dir, name + '.txt.gz')
+    if os.path.isfile(filename):
+        os.remove(filename)

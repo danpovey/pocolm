@@ -45,7 +45,9 @@ parser.add_argument("--cleanup",  type=str, choices=['true','false'],
                     default='true', help='Set this to false to disable clean up of the '
                     'work directory.')
 parser.add_argument("--keep-int-data",  type=str, choices=['true','false'],
-                    default='true', help='whether to avoid the int-dir being cleanuped. This is valid only when --cleanup=true')
+                    default='false', help='whether to avoid the int-dir being cleanuped. '
+                    'This is useful when user trains different orders of model with the same int-data. '
+                    'It is valid only when --cleanup=true')
 parser.add_argument("text_dir",
                     help="Directory containing the training text.")
 parser.add_argument("order",
