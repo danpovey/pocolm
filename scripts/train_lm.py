@@ -44,6 +44,8 @@ parser.add_argument("--verbose", type=str, default='false',
 parser.add_argument("--cleanup",  type=str, choices=['true','false'],
                     default='true', help='Set this to false to disable clean up of the '
                     'work directory.')
+parser.add_argument("--keep-int-data",  type=str, choices=['true','false'],
+                    default='true', help='whether to avoid the int-dir being cleanuped. This is valid only when --cleanup=true')
 parser.add_argument("text_dir",
                     help="Directory containing the training text.")
 parser.add_argument("order",
@@ -233,6 +235,13 @@ else:
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
 
+# cleanup int dir
+if args.cleanup == 'true' and args.keep_int_data == 'false':
+    if os.system("cleanup_int_dir.py " + int_dir) != 0:
+        sys.exit("train_lm.py: failed to cleanup int dir: " + int_dir)
+    done_file = os.path.join(int_dir, '.done')
+    os.remove(done_file)
+
 metaparam_file = ''
 if args.bypass_metaparameter_optimization != None:
     print("train_lm.py: Bypass optimization steps", file=sys.stderr)
@@ -274,6 +283,13 @@ else:
         RunCommand(command, log_file, args.verbose == 'true')
         TouchFile(done_file)
 
+    # cleanup subset counts dir
+    if args.cleanup == 'true':
+        if os.system("cleanup_count_dir.py " + subset_counts_dir) != 0:
+            sys.exit("train_lm.py: failed to cleanup subset count dir: " + subset_counts_dir)
+        done_file = os.path.join(subset_counts_dir, '.done')
+        os.remove(done_file)
+
     # optimize metaparameters
     optimize_dir = os.path.join(work_dir, "optimize_{0}".format(lm_name))
     done_file = os.path.join(optimize_dir, '.done')
@@ -311,6 +327,13 @@ else:
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
 
+# cleanup subset counts dir
+if args.cleanup == 'true':
+    if os.system("cleanup_count_dir.py " + counts_dir) != 0:
+        sys.exit("train_lm.py: failed to cleanup count dir: " + counts_dir)
+    done_file = os.path.join(counts_dir, '.done')
+    os.remove(done_file)
+
 if os.system("validate_lm_dir.py " + lm_dir) != 0:
     sys.exit("train_lm.py: failed to validate output LM-dir")
 
@@ -324,7 +347,3 @@ print("train_lm.py: " + line, file=sys.stderr)
 print("train_lm.py: Success to train lm, output dir is {0}.".format(lm_dir), file=sys.stderr)
 print("train_lm.py: You may call format_arpa_lm.py to get ARPA-format lm, ", file=sys.stderr)
 print("train_lm.py: Or call prune_lm_dir.py to prune the lm.", file=sys.stderr)
-
-## clean up the work directory.
-#if args.cleanup == 'true':
-#    shutil.rmtree(work_dir)
