@@ -12,7 +12,7 @@ arpa_dir="data/arpa/"
 
 for order in 3 4 5; do
   train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
-              --keep-int-data='true' data/text ${order} ${lm_dir}
+              --keep-int-data=true data/text ${order} ${lm_dir}
   unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
 
   mkdir -p ${arpa_dir}
@@ -38,6 +38,25 @@ for order in 3 4 5; do
   format_arpa_lm.py ${pruned_lm_dir} | gzip -c > data/arpa/${num_word}_${order}gram_prune${size}.arpa.gz
 
 done
+
+# example of bypass-metaparameter-optimization
+order=3
+bypass_lm_dir=data/bypss_lm
+
+ These numbers of metaparameters is from the log of train_lm.py running before.
+train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
+            --bypass-metaparameter-optimization='0.500,0.763,0.379,0.218,0.034,0.911,0.510,0.376,0.127' \
+            data/text ${order} ${bypass_lm_dir}
+
+ori_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
+bypass_lm_dir=${bypass_lm_dir}/${num_word}_${order}.pocolm
+ori_ppl=`get_data_prob.py data/text/dev.txt ${ori_lm_dir} 2>&1 | grep -E -o '\[perplexity = .*\]' | awk -F'[\]=]' '{print $2}'`
+bypass_ppl=`get_data_prob.py data/text/dev.txt ${bypass_lm_dir} 2>&1 | grep -E -o '\[perplexity = .*\]' | awk -F'[\]=]' '{print $2}'`
+echo "Original PPL for 3-gram unpruned lm is: $ori_ppl"
+echo "Bypassed PPL for 3-gram unpruned lm is: $bypass_ppl"
+if [ `python -c "import math; print math.fabs($ori_ppl - $bypass_ppl) < 0.001"` == "False" ]; then
+    echo "PPLs are not match. There is something wrong."
+fi
 
 # local/srilm_baseline.sh
 
