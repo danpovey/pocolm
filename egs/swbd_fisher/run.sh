@@ -15,66 +15,51 @@ fisher_dirs="/export/corpora3/LDC/LDC2004T19/fe_03_p1_tran/ /export/corpora3/LDC
 
 local/fisher_data_prep.sh $fisher_dirs
 
-fold_dev_opt=
-# If you want to fold the dev-set in to the 'swbd1' set to produce the final
-# model, un-comment the following line.  For use in the Kaldi example script for
-# ASR, this isn't suitable because the 'dev' set is the first 10k lines of the
-# switchboard data, which we also use as dev data for speech recognition
-# purposes.
-#fold_dev_opt="--fold-dev-into=swbd1"
+num_word=40000
+lm_dir="data/lm/"
+arpa_dir="data/arpa/"
 
-get_word_counts.py data/text data/text/word_counts
-get_unigram_weights.py data/text/word_counts > data/text/unigram_weights
+for order in 3 4 5; do
+  # decide on the vocabulary.
+  # Note: you'd use --wordlist if you had a previously determined word-list
+  # that you wanted to use.
+  # Note: the following might be a more reasonable setting:
+  # train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
+  #             --min-counts='fisher=2 swbd1=1' \
+  #             --keep-int-data='true' data/text ${order} ${lm_dir}
+  train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
+              --keep-int-data='true' data/text ${order} ${lm_dir}
+  unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
 
-# decide on the vocabulary.
-# Note: you'd use wordlist_to_vocab.py if you had a previously determined word-list
-# that you wanted to use.
-word_counts_to_vocab.py --num-words=40000 data/text/word_counts  > data/vocab_40k.txt
+  mkdir -p ${arpa_dir}
+  format_arpa_lm.py ${unpruned_lm_dir} | gzip -c > ${arpa_dir}/${num_word}_${order}gram_unpruned.arpa.gz
+
+  # example of pruning.  note: the threshold can be less than or more than one.
+  get_data_prob.py data/text/dev.txt ${unpruned_lm_dir} 2>&1 | grep -F '[perplexity'
+  for threshold in 1.0 2.0 4.0; do
+    pruned_lm_dir=${lm_dir}/${num_word}_${order}_prune${threshold}.pocolm
+    prune_lm_dir.py --final-threshold=${threshold} ${unpruned_lm_dir} ${pruned_lm_dir} 2>&1 | tail -n 5 | head -n 3
+    get_data_prob.py data/text/dev.txt ${pruned_lm_dir} 2>&1 | grep -F '[perplexity'
+
+    format_arpa_lm.py ${pruned_lm_dir} | gzip -c > data/arpa/${num_word}_${order}gram_prune${threshold}.arpa.gz
+
+  done
+
+  # example of pruning by size.
+  size=250000
+  pruned_lm_dir=${lm_dir}/${num_word}_${order}_prune${size}.pocolm
+  prune_lm_dir.py --target-num-ngrams=${size} ${unpruned_lm_dir} ${pruned_lm_dir} 2>&1 | tail -n 8 | head -n 6 | grep -v 'log-prob changes'
+  get_data_prob.py data/text/dev.txt ${pruned_lm_dir} 2>&1 | grep -F '[perplexity'
+
+  format_arpa_lm.py ${pruned_lm_dir} | gzip -c > data/arpa/${num_word}_${order}gram_prune${size}.arpa.gz
+
+done
 
 # local/srilm_baseline.sh
-
-prepare_int_data.py data/text data/vocab_40k.txt data/int_40k
 
 # the following does does some self-testing, including
 # that the computed derivatives are accurate.
 # local/self_test.sh
-
-for order in 3 4 5; do
-
-  # Note: the following might be a more reasonable setting:
-  # get_counts.py --min-counts='fisher=2 swbd1=1' data/int_40k ${order} data/counts_40k_${order}
-  get_counts.py  data/int_40k ${order} data/counts_40k_${order}
-
-  ratio=10
-  splits=5
-  subset_count_dir.sh data/counts_40k_${order} ${ratio} data/counts_40k_${order}_subset${ratio}
-
-  optimize_metaparameters.py --progress-tolerance=1.0e-05 --num-splits=${splits} \
-    data/counts_40k_${order}_subset${ratio} data/optimize_40k_${order}_subset${ratio}
-
-  optimize_metaparameters.py --warm-start-dir=data/optimize_40k_${order}_subset${ratio} \
-    --progress-tolerance=1.0e-03 --gradient-tolerance=0.01 --num-splits=${splits} \
-    data/counts_40k_${order} data/optimize_40k_${order}
-
-  make_lm_dir.py --num-splits=${splits} --keep-splits=true data/counts_40k_${order} \
-     data/optimize_40k_${order}/final.metaparams data/lm_40k_${order}
-
-  mkdir -p data/arpa
-  format_arpa_lm.py data/lm_40k_${order} | gzip -c > data/arpa/poco_poco_combination.${order}g.gz
-
-  echo "Perplexity for combined ${order}-gram: "
-  get_data_prob.py data/text/dev.txt data/lm_40k_${order} 2>&1 | grep -F '[perplexity'
-
-  echo "Ngram counts: "
-  gunzip -c data/arpa/poco_poco_combination.${order}g.gz | head -n 50 | grep '^ngram' | cut -d '=' -f 2 | awk '{n +=$1}END{print n}'
-
- for threshold in 1.0 2.0 4.0; do
-    prune_lm_dir.py --final-threshold=$threshold data/lm_40k_${order} data/lm_40k_${order}_prune${threshold}
-    get_data_prob.py data/text/dev.txt data/lm_40k_${order}_prune${threshold} 2>&1 | grep -F '[perplexity'
-    mkdir -p data/arpa
-    format_arpa_lm.py data/lm_40k_${order}_prune${threshold} | gzip -c > data/arpa/40k_${order}gram_prune${threshold}.arpa.gz
-  done
-done
 
 # perplexities from pocolm-estimated language models with pocolm's interpolation
 # method from orders 3, 4, and 5 are:

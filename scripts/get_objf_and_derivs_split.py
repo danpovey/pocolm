@@ -34,6 +34,12 @@ parser.add_argument("--fold-dev-into-int", type=int,
 parser.add_argument("--need-model", type=str, default="false", choices=["true","false"],
                     help="If true, this script will create work_dir/float.all (the merged "
                     "file of counts")
+parser.add_argument("--cleanup", type=str, default="true", choices=["true","false"],
+                    help="If true, remove intermediate files in work_dir "
+                         "that won't be used in future")
+parser.add_argument("--need-split-model", type=str, default="false", choices=["true","false"],
+                    help="If ture, float.all will be kept in work_dir/split[n]/[n] after "
+                         "clean up. Note, set this be true only if you want to make lm and keep splits ")
 parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)")
 parser.add_argument("count_dir",
@@ -118,6 +124,40 @@ for o in range(2, ngram_order + 1):
     d3[o] = float(f.readline().split()[1])
     d4[o] = float(f.readline().split()[1])
 f.close()
+
+def RemoveFiles(dir, filenames):
+  for filename in filenames:
+      filepath = os.path.join(dir, filename)
+      if os.path.isfile(filepath):
+          os.remove(filepath)
+
+def CleanupSplitDir(split_dir):
+    filenames = []
+    if args.need_split_model == 'false':
+        filenames.append('float.all')
+
+    for o in range(2, ngram_order + 1):
+        for prefix in ['discount.','discount_derivs.','float_derivs.']:
+            filenames.append(prefix + str(o - 1))
+        for prefix in ['float.','merged.','merged_derivs.','float_derivs.']:
+            filenames.append(prefix + str(o))
+
+    RemoveFiles(split_dir, filenames)
+
+def Cleanup():
+    # top-level working dir
+    filenames = ['discount.1', 'discount_derivs.1', 'float.1', 'float_derivs.1']
+    if args.need_model == 'false':
+        filenames.append('float.all')
+
+    RemoveFiles(args.work_dir, filenames)
+
+    # split working dirs
+    for n in range(1, args.num_splits + 1):
+        split_dir = os.path.join(args.work_dir, 'split' + str(args.num_splits), str(n))
+        if os.path.isdir(split_dir):
+            CleanupSplitDir(split_dir)
+
 
 # This function does the count merging for the specified
 # n-gram order, writing to $work_dir/merged.$order
@@ -444,6 +484,8 @@ if args.need_model == "true":
     MergeAllSplits()
 
 if args.derivs_out == None:
+    if args.cleanup == 'true':
+        Cleanup()
     sys.exit(0)
 
 # scale_derivs will be an array of the derivatives of the objective function
@@ -484,3 +526,5 @@ for t in threads:
     t.join()
 
 WriteDerivs()
+if args.cleanup == 'true':
+    Cleanup()

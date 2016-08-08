@@ -68,3 +68,11 @@ def GetCommandStdout(command, log_file, verbose = False):
     f.close()
     return output
 
+def TouchFile(fname):
+    if os.path.exists(fname):
+        os.utime(fname, None)
+    else:
+        open(fname, 'a').close()
+
+def LogMessage(message):
+    print(os.path.basename(sys.argv[0]) + ": " + message, file=sys.stderr)

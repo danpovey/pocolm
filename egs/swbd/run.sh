@@ -5,68 +5,62 @@ export POCOLM_ROOT=$(cd ../..; pwd -P)
 export PATH=$PATH:$POCOLM_ROOT/scripts
 
 local/swbd_data_prep.sh
-fold_dev_opt=
-# If you want to fold the dev-set in to the 'swbd1' set to produce the final
-# model, un-comment the following line.  For use in the Kaldi example script for
-# ASR, this isn't suitable because the 'dev' set is the first 10k lines of the
-# switchboard data, which we also use as dev data for speech recognition
-# purposes.
 
-#fold_dev_opt="--fold-dev-into=swbd1"
-
-get_word_counts.py data/text data/text/word_counts
-get_unigram_weights.py data/text/word_counts > data/text/unigram_weights
-
-
-# decide on the vocabulary.
-word_counts_to_vocab.py --num-words=20000 data/text/word_counts  > data/vocab_20k.txt
-
-# local/srilm_baseline.sh
-
-prepare_int_data.py data/text data/vocab_20k.txt data/int_20k
-
-# local/self_test.sh
+num_word=20000
+lm_dir="data/lm/"
+arpa_dir="data/arpa/"
 
 for order in 3 4 5; do
+  train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
+              --keep-int-data=true data/text ${order} ${lm_dir}
+  unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
 
-  get_counts.sh data/int_20k ${order} data/counts_20k_${order}
-
-  ratio=10
-  splits=5
-  subset_count_dir.sh data/counts_20k_${order} ${ratio} data/counts_20k_${order}_subset${ratio}
-
-  optimize_metaparameters.py --progress-tolerance=1.0e-05 --num-splits=${splits} \
-    data/counts_20k_${order}_subset${ratio} data/optimize_20k_${order}_subset${ratio}
-
-  optimize_metaparameters.py --warm-start-dir=data/optimize_20k_${order}_subset${ratio} \
-      --progress-tolerance=1.0e-03 --gradient-tolerance=0.01 --num-splits=${splits} \
-    data/counts_20k_${order} data/optimize_20k_${order}
-
-  make_lm_dir.py $fold_dev_opt --num-splits=${splits} --keep-splits=true data/counts_20k_${order} \
-     data/optimize_20k_${order}/final.metaparams data/lm_20k_${order}
-
-  mkdir -p data/arpa
-  format_arpa_lm.py data/lm_20k_${order} | gzip -c > data/arpa/20k_${order}gram_unpruned.arpa.gz
+  mkdir -p ${arpa_dir}
+  format_arpa_lm.py ${unpruned_lm_dir} | gzip -c > ${arpa_dir}/${num_word}_${order}gram_unpruned.arpa.gz
 
   # example of pruning.  note: the threshold can be less than or more than one.
-  get_data_prob.py data/text/dev.txt data/lm_20k_${order} 2>&1 | grep -F '[perplexity'
+  get_data_prob.py data/text/dev.txt ${unpruned_lm_dir} 2>&1 | grep -F '[perplexity'
   for threshold in 1.0 0.25; do
-    prune_lm_dir.py --final-threshold=${threshold} data/lm_20k_${order}  data/lm_20k_${order}_prune${threshold} 2>&1 | tail -n 5 | head -n 3
-    get_data_prob.py data/text/dev.txt data/lm_20k_${order}_prune${threshold} 2>&1 | grep -F '[perplexity'
+    pruned_lm_dir=${lm_dir}/${num_word}_${order}_prune${threshold}.pocolm
+    prune_lm_dir.py --final-threshold=${threshold} ${unpruned_lm_dir} ${pruned_lm_dir} 2>&1 | tail -n 5 | head -n 3
+    get_data_prob.py data/text/dev.txt ${pruned_lm_dir} 2>&1 | grep -F '[perplexity'
 
-    format_arpa_lm.py data/lm_20k_${order}_prune${threshold} | gzip -c > data/arpa/20k_${order}gram_prune${threshold}.arpa.gz
+    format_arpa_lm.py ${pruned_lm_dir} | gzip -c > data/arpa/${num_word}_${order}gram_prune${threshold}.arpa.gz
 
   done
 
   # example of pruning by size.
-  size=150000
-  prune_lm_dir.py --target-num-ngrams=${size} data/lm_20k_${order} data/lm_20k_${order}_prune${size} 2>&1 | tail -n 8 | head -n 6 | grep -v 'log-prob changes'
-  get_data_prob.py data/text/dev.txt data/lm_20k_${order}_prune${size} 2>&1 | grep -F '[perplexity'
+  size=250000
+  pruned_lm_dir=${lm_dir}/${num_word}_${order}_prune${size}.pocolm
+  prune_lm_dir.py --target-num-ngrams=${size} ${unpruned_lm_dir} ${pruned_lm_dir} 2>&1 | tail -n 8 | head -n 6 | grep -v 'log-prob changes'
+  get_data_prob.py data/text/dev.txt ${pruned_lm_dir} 2>&1 | grep -F '[perplexity'
 
-  format_arpa_lm.py data/lm_20k_${order}_prune${size} | gzip -c > data/arpa/20k_${order}gram_prune${size}.arpa.gz
+  format_arpa_lm.py ${pruned_lm_dir} | gzip -c > data/arpa/${num_word}_${order}gram_prune${size}.arpa.gz
 
 done
 
+# example of bypass-metaparameter-optimization
+order=3
+bypass_lm_dir=data/bypss_lm
+
+ These numbers of metaparameters is from the log of train_lm.py running before.
+train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
+            --bypass-metaparameter-optimization='0.500,0.763,0.379,0.218,0.034,0.911,0.510,0.376,0.127' \
+            data/text ${order} ${bypass_lm_dir}
+
+ori_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
+bypass_lm_dir=${bypass_lm_dir}/${num_word}_${order}.pocolm
+ori_ppl=`get_data_prob.py data/text/dev.txt ${ori_lm_dir} 2>&1 | grep -E -o '\[perplexity = .*\]' | awk -F'[\]=]' '{print $2}'`
+bypass_ppl=`get_data_prob.py data/text/dev.txt ${bypass_lm_dir} 2>&1 | grep -E -o '\[perplexity = .*\]' | awk -F'[\]=]' '{print $2}'`
+echo "Original PPL for 3-gram unpruned lm is: $ori_ppl"
+echo "Bypassed PPL for 3-gram unpruned lm is: $bypass_ppl"
+if [ `python -c "import math; print math.fabs($ori_ppl - $bypass_ppl) < 0.001"` == "False" ]; then
+    echo "PPLs are not match. There is something wrong."
+fi
+
+# local/srilm_baseline.sh
+
+# local/self_test.sh
 
 # notes on SRILM baselines, from local/srilm_baseline.sh:
 # 3-gram: ppl= 84.6115
