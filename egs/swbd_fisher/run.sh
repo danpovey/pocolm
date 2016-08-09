@@ -15,6 +15,10 @@ fisher_dirs="/export/corpora3/LDC/LDC2004T19/fe_03_p1_tran/ /export/corpora3/LDC
 
 local/fisher_data_prep.sh $fisher_dirs
 
+num_word=40000
+lm_dir="data/lm/"
+arpa_dir="data/arpa/"
+
 fold_dev_opt=
 # If you want to fold the dev-set in to the 'swbd1' set to produce the final
 # model, un-comment the following line.  For use in the Kaldi example script for
@@ -23,9 +27,18 @@ fold_dev_opt=
 # purposes.
 #fold_dev_opt="--fold-dev-into=swbd1"
 
-num_word=40000
-lm_dir="data/lm/"
-arpa_dir="data/arpa/"
+bypass_metaparam_optim_opt=
+# If you want to bypass the metaparameter optimization steps with specific metaparameters
+# un-comment the following line, and change the numbers to some appropriate values.
+# You can find the values from output log of train_lm.py.
+# These example numbers of metaparameters is for 3-gram model running with train_lm.py.
+# the dev perplexity should be close to the non-bypassed model.
+#bypass_metaparam_optim_opt="--bypass-metaparameter-optimization=0.500,0.763,0.379,0.218,0.034,0.911,0.510,0.376,0.127"
+# Note: to use these example parameters, you may need to remove the .done files
+# to make sure the make_lm_dir.py be called and tain only 3-gram model
+#for order in 3; do
+#rm -f ${lm_dir}/${num_word}_${order}.pocolm/.done
+
 
 for order in 3 4 5; do
   # decide on the vocabulary.
@@ -34,9 +47,11 @@ for order in 3 4 5; do
   # Note: the following might be a more reasonable setting:
   # train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
   #             --min-counts='fisher=2 swbd1=1' \
-  #             --keep-int-data='true' data/text ${order} ${lm_dir}
+  #             --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
+  #             data/text ${order} ${lm_dir}
   train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
-              --keep-int-data='true' ${fold_dev_opt} data/text ${order} ${lm_dir}
+              --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
+              data/text ${order} ${lm_dir}
   unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
 
   mkdir -p ${arpa_dir}
