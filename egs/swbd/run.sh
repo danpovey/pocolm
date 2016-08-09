@@ -5,6 +5,11 @@ export POCOLM_ROOT=$(cd ../..; pwd -P)
 export PATH=$PATH:$POCOLM_ROOT/scripts
 
 local/swbd_data_prep.sh
+
+num_word=20000
+lm_dir="data/lm/"
+arpa_dir="data/arpa/"
+
 fold_dev_opt=
 # If you want to fold the dev-set in to the 'swbd1' set to produce the final
 # model, un-comment the following line.  For use in the Kaldi example script for
@@ -14,14 +19,23 @@ fold_dev_opt=
 
 #fold_dev_opt="--fold-dev-into=swbd1"
 
+bypass_metaparam_optim_opt=
+# If you want to bypass the metaparameter optimization steps with specific metaparameters
+# un-comment the following line, and change the numbers to some appropriate values.
+# You can find the values from output log of train_lm.py.
+# These example numbers of metaparameters is for 3-gram model running with train_lm.py.
+# the dev perplexity should be close to the non-bypassed model.
+#bypass_metaparam_optim_opt="--bypass-metaparameter-optimization=0.500,0.763,0.379,0.218,0.034,0.911,0.510,0.376,0.127"
+# Note: to use these example parameters, you may need to remove the .done files
+# to make sure the make_lm_dir.py be called and tain only 3-gram model
+#for order in 3; do
+#rm -f ${lm_dir}/${num_word}_${order}.pocolm/.done
 
-num_word=20000
-lm_dir="data/lm/"
-arpa_dir="data/arpa/"
 
 for order in 3 4 5; do
   train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
-              --keep-int-data=true ${fold_dev_opt} data/text ${order} ${lm_dir}
+              --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
+              data/text ${order} ${lm_dir}
   unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
 
   mkdir -p ${arpa_dir}
@@ -47,25 +61,6 @@ for order in 3 4 5; do
   format_arpa_lm.py ${pruned_lm_dir} | gzip -c > data/arpa/${num_word}_${order}gram_prune${size}.arpa.gz
 
 done
-
-# example of bypass-metaparameter-optimization
-order=3
-bypass_lm_dir=data/bypss_lm
-
- These numbers of metaparameters is from the log of train_lm.py running before.
-train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
-            --bypass-metaparameter-optimization='0.500,0.763,0.379,0.218,0.034,0.911,0.510,0.376,0.127' \
-            data/text ${order} ${bypass_lm_dir}
-
-ori_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
-bypass_lm_dir=${bypass_lm_dir}/${num_word}_${order}.pocolm
-ori_ppl=`get_data_prob.py data/text/dev.txt ${ori_lm_dir} 2>&1 | grep -E -o '\[perplexity = .*\]' | awk -F'[\]=]' '{print $2}'`
-bypass_ppl=`get_data_prob.py data/text/dev.txt ${bypass_lm_dir} 2>&1 | grep -E -o '\[perplexity = .*\]' | awk -F'[\]=]' '{print $2}'`
-echo "Original PPL for 3-gram unpruned lm is: $ori_ppl"
-echo "Bypassed PPL for 3-gram unpruned lm is: $bypass_ppl"
-if [ `python -c "import math; print math.fabs($ori_ppl - $bypass_ppl) < 0.001"` == "False" ]; then
-    echo "PPLs are not match. There is something wrong."
-fi
 
 # local/srilm_baseline.sh
 
