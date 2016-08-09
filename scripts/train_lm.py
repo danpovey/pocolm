@@ -33,6 +33,11 @@ parser.add_argument("--warm-start-ratio", type=int, default=10,
 parser.add_argument("--min-counts", type=str, default='',
                     help="If specified, apply min-count when we get the ngram counts from training text. "
                          "run 'get_counts.py -h' to see the details on how to set this option.")
+parser.add_argument("--fold-dev-into", type=str,
+                    help="If supplied, the name of data-source into which to fold the "
+                    "counts of the dev data when building the model (typically the "
+                    "same data source from which the dev data was originally excerpted). "
+                    "run 'make_lm_dir.py -h' to see the details on how to set this option.")
 parser.add_argument("--bypass-metaparameter-optimization", type=str, default=None,
                     help="This option accepts a string encoding the metaparameters as "
                     "a comma separated list. If this is specified, the stages of metaparameter optimization "
@@ -323,6 +328,8 @@ else:
     opts = []
     if args.num_splits > 1:
         opts.append('--keep-splits=true')
+    if args.fold_dev_into != None:
+        opts.append('--fold-dev-into=' + args.fold_dev_into)
     command = "make_lm_dir.py --cleanup={5} --num-splits={0} {1} {2} {3} {4}".format(
             args.num_splits, ' '.join(opts), counts_dir, metaparam_file, lm_dir, args.cleanup)
     log_file = os.path.join(log_dir, 'make_lm_dir.log')

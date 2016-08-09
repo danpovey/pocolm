@@ -15,6 +15,14 @@ fisher_dirs="/export/corpora3/LDC/LDC2004T19/fe_03_p1_tran/ /export/corpora3/LDC
 
 local/fisher_data_prep.sh $fisher_dirs
 
+fold_dev_opt=
+# If you want to fold the dev-set in to the 'swbd1' set to produce the final
+# model, un-comment the following line.  For use in the Kaldi example script for
+# ASR, this isn't suitable because the 'dev' set is the first 10k lines of the
+# switchboard data, which we also use as dev data for speech recognition
+# purposes.
+#fold_dev_opt="--fold-dev-into=swbd1"
+
 num_word=40000
 lm_dir="data/lm/"
 arpa_dir="data/arpa/"
@@ -28,7 +36,7 @@ for order in 3 4 5; do
   #             --min-counts='fisher=2 swbd1=1' \
   #             --keep-int-data='true' data/text ${order} ${lm_dir}
   train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 \
-              --keep-int-data='true' data/text ${order} ${lm_dir}
+              --keep-int-data='true' ${fold_dev_opt} data/text ${order} ${lm_dir}
   unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
 
   mkdir -p ${arpa_dir}
