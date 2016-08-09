@@ -5,10 +5,11 @@ import math, sys
 
 
 """
-This builds a model predicting the num-ngrams that we will get from doing a
+This scripts uses a model to predict the num-ngrams that we will get from doing a
 prune iteration with a particular threshold, using informations collected
-from previous prune iterations.
-With this model, we can approches a target num-ngrams gradually.
+from previous prune iterations. With this model, we can approches a target num-ngrams gradually.
+The model would be adjusted slightly in case of overshoot.
+We may decide to esimate the model on the fly in the future.
 """
 
 class PruneSizeModel:
@@ -32,10 +33,10 @@ class PruneSizeModel:
         self.history = []
 
         # this power relationship is a heuristic that says how the num-xgrams
-        # changes as the threshold changes. i.e., (next_threshold / cur_threshold) ** (self.ngrams_change_power)
+        # changes as the threshold changes. i.e., (next_threshold / cur_threshold) ** (self.xgrams_change_power)
         # It should be negative because the bigger the threshold,
         # the fewer n-grams. We change this value when we overshot
-        self.ngrams_change_power = -1.0
+        self.xgrams_change_power = -1.0
 
         self.debug = False
 
@@ -50,6 +51,26 @@ class PruneSizeModel:
         This function takes in the num_xgrams after pruned by threshold returned
         from last call of this function. Then it will return a new threshold that
         should be used by next iteration of pruning.
+
+        It returns a tuple as (action, args), where the action tells the caller,
+        what action it should take next time, and the args is a list of arguments
+        related with a particular action.
+
+        action could be one of following:
+            'success': indicates we successfully find a appropriate threshold.
+                       the caller could safely return.
+                       The args should be None.
+            'overshot': indicates we overshot with the initial threshold.
+                        the caller should die and prompt the user to set a lower initial threshold.
+                        The args should be None.
+            'backtrack': indicates we overshot and need to backtrack.
+                        the caller should abondan some recent iterations and
+                        prune from the other starting point.
+                        The args would be a list of [next_threshold, backtrack_iter],
+                        the backtrack_iter indicates the starting point of next prune.
+            'continue': indicates we need continue to prune with a new threshold.
+                        the caller should go on to prune one more time.
+                        The args should be the next_threshold used by next pruning.
         """
 
         prev_threshold = self.GetPrevThreshold()
@@ -121,14 +142,15 @@ class PruneSizeModel:
         """
         cur_threshold = self.GetCurThreshold()
         cur_num_xgrams = self.GetCurNumXgrams()
+        tolerance = 0.0001 * cur_threshold
 
         # we use a simple binary search here
         right = 10 * cur_threshold
         left = cur_threshold # we never decrease the threshold
 
-        while left <= right - 0.005:
+        while left <= right - tolerance:
             next_threshold = (left + right) / 2
-            modeled_next_num_xgrams = self.GetModeledNextNumNgrams(next_threshold)
+            modeled_next_num_xgrams = self.GetModeledNextNumXgrams(next_threshold)
 
             if modeled_next_num_xgrams < cur_num_xgrams:
                 right = next_threshold
@@ -136,14 +158,14 @@ class PruneSizeModel:
                 left = next_threshold
             else: # modeled_next_num_xgrams == cur_num_xgrams, this will probably not happan
                 break
-        if left >  right - 0.005:
+        if left >  right - tolerance:
             # the while loop is not breaked by the else clause,
             # so we make sure the modeled_next_num_xgrams >= cur_num_xgrams
             next_threshold = left
 
         return next_threshold
 
-    def GetModeledNextNumNgrams(self, next_threshold):
+    def GetModeledNextNumXgrams(self, next_threshold):
         """
         This function is a model of how we think the next num-xgrams
         will vary with the chosen next threshold.
@@ -168,11 +190,11 @@ class PruneSizeModel:
 
         # the following gives us the predicted num-xgrams if we were
         # to prune again with the same threshold 'cur_threshold'.
-        predicted_num_ngrams_if_repeat = predicted_decrease_factor * cur_num_xgrams
+        predicted_num_xgrams_if_repeat = predicted_decrease_factor * cur_num_xgrams
         assert next_threshold >= cur_threshold
 
-        predicted_extra_factor = (next_threshold / cur_threshold) ** (self.ngrams_change_power)
-        return predicted_num_ngrams_if_repeat * predicted_extra_factor
+        predicted_extra_factor = (next_threshold / cur_threshold) ** (self.xgrams_change_power)
+        return predicted_num_xgrams_if_repeat * predicted_extra_factor
 
     def GetPrevThreshold(self):
         return self.history[-2][0]
