@@ -21,12 +21,14 @@ class PruneSizeModel:
     See the __main__ section at the end of this file for example usage.
     """
 
-    def __init__(self, target_num_xgrams, target_lower_threshold,
+    def __init__(self, num_unigrams, target_num_ngrams, target_lower_threshold,
             target_upper_threshold):
-        self.target_num_xgrams = target_num_xgrams
+        self.num_unigrams = num_unigrams
+        self.target_num_xgrams = target_num_ngrams - num_unigrams
         self.target_lower_threshold = target_lower_threshold
         self.target_upper_threshold = target_upper_threshold
         self.initial_threshold = None
+        self.iter = 0
 
         # history keeps the infos for successful iterations, i.e. the iterations did not overshoot.
         # It is a list of list as [threshold, num_xgrams] indexed by time step.
@@ -43,8 +45,15 @@ class PruneSizeModel:
     def SetInitialThreshold(self, initial_threshold, initial_num_xgrams):
         self.initial_threshold = initial_threshold
         self.history.append([0.0, initial_num_xgrams])
-        self.DebugLog("Threshold: {0}, num_xgrams: {1}".format(0.0, initial_num_xgrams))
+        self.DebugLog("Iter {0}: threshold={1}, num_xgrams={2}".format(self.iter, 0.0, initial_num_xgrams))
         self.history.append([initial_threshold, 0])
+
+    def NumXgrams2NumNgrams(self, num_xgrams):
+        return self.num_unigrams + num_xgrams
+
+    def MatchTargetNumNgrams(self, tot_num_xgrams):
+        return self.NumXgrams2NumNgrams(tot_num_xgrams) >= self.target_lower_threshold \
+               and self.NumXgrams2NumNgrams(tot_num_xgrams) <= self.target_upper_threshold
 
     def GetNextAction(self, cur_num_xgrams):
         """
@@ -77,24 +86,28 @@ class PruneSizeModel:
         prev_num_xgrams = self.GetPrevNumXgrams()
         cur_threshold = self.GetCurThreshold()
         self.SetCurNumXgrams(cur_num_xgrams)
-        self.DebugLog("Threshold: {0}, num_xgrams: {1}".format(cur_threshold, cur_num_xgrams))
+        self.iter += 1
 
-        if cur_num_xgrams >= target_lower_threshold and cur_num_xgrams <= target_upper_threshold:
+        self.DebugLog("Iter {0}: threshold={1}, num_xgrams={2}".format(
+              self.iter, cur_threshold, cur_num_xgrams))
+
+        if self.MatchTargetNumNgrams(cur_num_xgrams):
             return ('success', None)
 
-        backtrack = False
-        if cur_num_xgrams < target_lower_threshold: # we overshot
+        backtrack_iter = -1
+        if self.NumXgrams2NumNgrams(cur_num_xgrams) < self.target_lower_threshold: # we overshot
             if cur_threshold == self.initial_threshold:
                 # overshot with initial threshold, we should die
                 return ('overshoot', None)
 
             # remove cur_threshold from history
             self.history.pop()
+            backtrack_iter = self.iter - 1
 
             if prev_threshold == cur_threshold:
                 # remove prev_threshold from history
                 self.history.pop()
-            backtrack = True
+                backtrack_iter -= 1
             self.AdjustModelForOvershoot()
 
         cur_target_num_xgrams = self.GetIntermediateTargetNumXgrams()
@@ -102,8 +115,8 @@ class PruneSizeModel:
 
         self.history.append([next_threshold, 0])
 
-        if backtrack:
-            return ('backtrack', [next_threshold, len(history) - 1])
+        if backtrack_iter > 0:
+            return ('backtrack', [next_threshold, backtrack_iter])
 
         return ('continue', next_threshold)
 
@@ -141,27 +154,32 @@ class PruneSizeModel:
         target num-xgrams. And return thd corresponding next_threshold
         """
         cur_threshold = self.GetCurThreshold()
-        cur_num_xgrams = self.GetCurNumXgrams()
         tolerance = 0.0001 * cur_threshold
 
         # we use a simple binary search here
         right = 10 * cur_threshold
         left = cur_threshold # we never decrease the threshold
 
+        next_larger_num_xgrams = cur_target_num_xgrams
         while left <= right - tolerance:
             next_threshold = (left + right) / 2
             modeled_next_num_xgrams = self.GetModeledNextNumXgrams(next_threshold)
 
-            if modeled_next_num_xgrams < cur_num_xgrams:
+            if modeled_next_num_xgrams < cur_target_num_xgrams:
                 right = next_threshold
-            elif modeled_next_num_xgrams > cur_num_xgrams:
+            elif modeled_next_num_xgrams > cur_target_num_xgrams:
+                next_larger_num_xgrams = modeled_next_num_xgrams
                 left = next_threshold
-            else: # modeled_next_num_xgrams == cur_num_xgrams, this will probably not happan
+            else: # modeled_next_num_xgrams == cur_target_num_xgrams, this will probably not happan
+                next_larger_num_xgrams = modeled_next_num_xgrams
                 break
-        if left >  right - tolerance:
+        if left > right - tolerance:
             # the while loop is not breaked by the else clause,
-            # so we make sure the modeled_next_num_xgrams >= cur_num_xgrams
+            # so we make sure the modeled_next_num_xgrams >= cur_target_num_xgrams
             next_threshold = left
+
+        self.DebugLog("Iter {0}: target_num={1}, modeled_next_num={2}".format(
+              self.iter, cur_target_num_xgrams, next_larger_num_xgrams))
 
         return next_threshold
 
@@ -233,6 +251,7 @@ if __name__ == "__main__":
 
         return num_xgrams
 
+    num_ngrams = 20000
     target_num_xgrams = 150000
     target_lower_threshold = 142500
     target_upper_threshold = 157500
@@ -243,7 +262,8 @@ if __name__ == "__main__":
     Prune.prev_threshold = 0.0
     Prune.prev_num_xgrams = initial_num_xgrams
 
-    model = PruneSizeModel(target_num_xgrams, target_lower_threshold, target_upper_threshold)
+    model = PruneSizeModel(num_ngrams, target_num_xgrams,
+        target_lower_threshold, target_upper_threshold)
     model.SetDebug(True)
 
     model.SetInitialThreshold(initial_threshold, initial_num_xgrams)
