@@ -31,7 +31,9 @@ class PruneSizeModel:
         self.iter = 0
 
         # history keeps the infos for successful iterations, i.e. the iterations did not overshoot.
-        # It is a list of list as [threshold, num_xgrams] indexed by time step.
+        # It is a list of list as
+        #   [threshold, num_xgrams, modeled_next_num_xgrams, starting_iter]
+        # indexed by time step.
         self.history = []
 
         # this power relationship is a heuristic that says how the num-xgrams
@@ -44,9 +46,9 @@ class PruneSizeModel:
 
     def SetInitialThreshold(self, initial_threshold, initial_num_xgrams):
         self.initial_threshold = initial_threshold
-        self.history.append([0.0, initial_num_xgrams])
+        self.history.append([0.0, initial_num_xgrams, 0, 0])
         self.DebugLog("Iter {0}: threshold={1}, num_xgrams={2}".format(self.iter, 0.0, initial_num_xgrams))
-        self.history.append([initial_threshold, 0])
+        self.history.append([initial_threshold, 0, 0, 0])
 
     def NumXgrams2NumNgrams(self, num_xgrams):
         return self.num_unigrams + num_xgrams
@@ -100,25 +102,27 @@ class PruneSizeModel:
                 # overshot with initial threshold, we should die
                 return ('overshoot', None)
 
+            self.AdjustModelForOvershoot()
+
             # remove cur_threshold from history
-            self.history.pop()
-            backtrack_iter = self.iter - 1
+            prev_iter = self.history.pop()
+            backtrack_iter = prev_iter[3] # set starting iter
 
             if prev_threshold == cur_threshold:
                 # remove prev_threshold from history
-                self.history.pop()
-                backtrack_iter -= 1
-            self.AdjustModelForOvershoot()
+                prev_iter = self.history.pop()
+                backtrack_iter = prev_iter[3] # set starting iter
 
         cur_target_num_xgrams = self.GetIntermediateTargetNumXgrams()
-        next_threshold = self.GetNextThreshold(cur_target_num_xgrams)
+        (next_threshold, modeled_next_num_xgrams) = self.GetNextThreshold(cur_target_num_xgrams)
 
-        self.history.append([next_threshold, 0])
-
+        hist = [next_threshold, 0, modeled_next_num_xgrams]
         if backtrack_iter > 0:
+            self.history.append(hist + [backtrack_iter])
             return ('backtrack', [next_threshold, backtrack_iter])
-
-        return ('continue', next_threshold)
+        else:
+            self.history.append(hist + [self.iter])
+            return ('continue', next_threshold)
 
     def GetIntermediateTargetNumXgrams(self):
         """
@@ -181,7 +185,7 @@ class PruneSizeModel:
         self.DebugLog("Iter {0}: target_num={1}, modeled_next_num={2}".format(
               self.iter, cur_target_num_xgrams, next_larger_num_xgrams))
 
-        return next_threshold
+        return (next_threshold, next_larger_num_xgrams)
 
     def GetModeledNextNumXgrams(self, next_threshold):
         """
@@ -214,6 +218,16 @@ class PruneSizeModel:
         predicted_extra_factor = (next_threshold / cur_threshold) ** (self.xgrams_change_power)
         return predicted_num_xgrams_if_repeat * predicted_extra_factor
 
+    def AdjustModelForOvershoot(self):
+        prev_threshold = self.GetPrevThreshold()
+        prev_num_xgrams = self.GetPrevNumXgrams()
+        cur_threshold = self.GetCurThreshold()
+        cur_num_xgrams = self.GetCurNumXgrams()
+        cur_modeled_num_xgrams = self.GetCurModeledNumXgrams()
+
+        assert(cur_modeled_num_xgrams > cur_num_xgrams)
+        self.xgrams_change_power *= float(cur_modeled_num_xgrams) / cur_num_xgrams
+
     def GetPrevThreshold(self):
         return self.history[-2][0]
 
@@ -228,6 +242,9 @@ class PruneSizeModel:
 
     def SetCurNumXgrams(self, cur_num_xgrams):
         self.history[-1][1] = cur_num_xgrams
+
+    def GetCurModeledNumXgrams(self):
+        return self.history[-1][2]
 
     def SetDebug(self, debug):
         self.debug = debug

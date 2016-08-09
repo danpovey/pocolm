@@ -444,7 +444,7 @@ def FindThreshold(model):
             assert(iter2step[backtrack_iter] > 0)
             num_drop_steps = step - iter2step[backtrack_iter]
             del effective_logprob_changes[-num_drop_steps:]
-            iter2step[self.iter] = -1
+            iter2step.append(-1)
             continue
 
         # EM steps
