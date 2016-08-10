@@ -442,8 +442,7 @@ def FindThreshold(model):
         if action == 'backtrack':
             (cur_threshold, backtrack_iter) = arguments
             assert(iter2step[backtrack_iter] > 0)
-            num_drop_steps = step - iter2step[backtrack_iter]
-            del effective_logprob_changes[-num_drop_steps:]
+            del effective_logprob_changes[iter2step[backtrack_iter]:]
             iter2step.append(-1)
             continue
 
