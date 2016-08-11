@@ -183,8 +183,8 @@ class PruneSizeModel:
             next_threshold = left
 
         if math.fabs(cur_target_num_xgrams - next_larger_num_xgrams) > 0.2 * cur_target_num_xgrams:
-            LogMessage("Warning: final modeled_next_num_xgrams[{0}] is far "
-                       "from intermediate_target_num_xgrams{1}".format(
+            self.LogMessage("Warning: final modeled_next_num_xgrams[{0}] is far "
+                       "from intermediate_target_num_xgrams[{1}]".format(
                            next_larger_num_xgrams, cur_target_num_xgrams))
 
         return (next_threshold, next_larger_num_xgrams)
@@ -251,12 +251,15 @@ class PruneSizeModel:
     def GetCurTargetNumXgrams(self):
         return self.history[-1][3]
 
+    def LogMessage(self, message):
+        print("PruneSizeModel: " + message, file=sys.stderr)
+
     def SetDebug(self, debug):
         self.debug = debug
 
     def DebugLog(self, message):
         if self.debug:
-            print("PruneSizeModel: " + message, file=sys.stderr)
+            self.LogMessage(message)
 
 if __name__ == "__main__":
     import random
