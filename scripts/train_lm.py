@@ -53,6 +53,8 @@ parser.add_argument("--keep-int-data",  type=str, choices=['true','false'],
                     default='false', help='whether to avoid the int-dir being cleanuped. '
                     'This is useful when user trains different orders of model with the same int-data. '
                     'It is valid only when --cleanup=true')
+parser.add_argument("--max-memory", type=str, default='',
+                    help="Memory limitation for sort.")
 parser.add_argument("text_dir",
                     help="Directory containing the training text.")
 parser.add_argument("order",
@@ -236,8 +238,8 @@ if os.path.exists(done_file):
     LogMessage("Skip getting counts")
 else:
     LogMessage("Getting ngram counts...")
-    command = "get_counts.py --min-counts='{0}' {1} {2} {3}".format(args.min_counts, \
-            int_dir, args.order, counts_dir)
+    command = "get_counts.py --min-counts='{0}' --max-memory={1} {2} {3} {4}".format(
+            args.min_counts, args.max_memory, int_dir, args.order, counts_dir)
     log_file = os.path.join(log_dir, 'get_counts.log')
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)

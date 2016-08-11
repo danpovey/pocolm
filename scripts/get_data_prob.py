@@ -11,6 +11,8 @@ parser = argparse.ArgumentParser(description="This script evaluates the probabil
                                  "The perplexity is printed to the standard output.",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
+parser.add_argument("--max-memory", type=str, default='',
+                    help="Memory limitation for sort.")
 parser.add_argument("text_in", type=str,
                     help="Filename of input data (one sentence per line, no BOS or "
                     "EOS symbols; text or gzipped text")
@@ -59,6 +61,9 @@ os.environ['TMPDIR'] = work_dir
 
 ngram_order = GetNgramOrder(args.lm_dir_in)
 
+# set the memory restriction for "sort"
+sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
+
 # create
 if args.text_in[-3:] == '.gz':
     command = "gunzip -c {0} | text_to_int.py {1}/words.txt ".format(args.lm_dir_in,
@@ -66,7 +71,8 @@ if args.text_in[-3:] == '.gz':
 else:
     command = "text_to_int.py {0}/words.txt <{1}".format(args.lm_dir_in,
                                                          args.text_in)
-command += "| get-text-counts {0} | sort | uniq -c | get-int-counts ".format(ngram_order)
+command += "| get-text-counts {0} | sort {1} | uniq -c | get-int-counts ".format(
+            ngram_order, sort_mem_opt)
 if num_splits == None:
     command += "{0}/int.dev".format(work_dir)
 else:

@@ -14,6 +14,8 @@ parser = argparse.ArgumentParser(description="This script turns a pocolm languag
 parser.add_argument("--temp-dir", type=str,
                     help="Temporary directory for use by 'sort'; if not provided, "
                     "we use the destination directory lm_dir")
+parser.add_argument("--max-memory", type=str, default='',
+                    help="Memory limitation for sort.")
 parser.add_argument("lm_dir",
                     help="Directory of the source language model, as created "
                     "by make_lm_dir.py")
@@ -44,6 +46,9 @@ f = open(args.lm_dir + "/ngram_order");
 ngram_order = int(f.readline())
 f.close()
 
+# set the memory restriction for "sort"
+sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
+
 # work out num_words.  Note: this doesn't count epsilon; it's the
 # same as the highest numbered word symbol.
 line = subprocess.check_output([ 'tail', '-n', '1', args.lm_dir + '/words.txt' ])
@@ -57,9 +62,9 @@ except:
 
 if not os.path.exists(args.lm_dir + "/num_splits"):
     # LM counts are in one file.
-    command = ("float-counts-to-pre-arpa {ngram_order} {num_words} {lm_dir}/float.all | sort |"
+    command = ("float-counts-to-pre-arpa {ngram_order} {num_words} {lm_dir}/float.all | sort {mem_opt}|"
                " pre-arpa-to-arpa {lm_dir}/words.txt".format(
-            ngram_order = ngram_order, num_words = num_words, lm_dir = args.lm_dir))
+            ngram_order = ngram_order, num_words = num_words, lm_dir = args.lm_dir, mem_opt = sort_mem_opt))
 else:
     # reading num_splits shouldn't fail, we validated the directory.
     num_splits = int(open(args.lm_dir + "/num_splits").readline())
@@ -67,12 +72,12 @@ else:
     # sort -m <(command1) <(command2) ... <(commandN) | pre-arpa-to-arpa ...
     # we put it all inside bash -c, because the process substitution <(command)
     # won't always work in /bin/sh.
-    command = ("bash -c 'sort -m " +  # sort -m merges already-sorted files.
+    command = ("bash -c 'sort -m {mem_opt}".format(mem_opt = sort_mem_opt) +  # sort -m merges already-sorted files.
                " ".join([ "<(float-counts-to-pre-arpa {opt} {ngram_order} {num_words} "
-                          "{lm_dir}/float.all.{n} | sort)".format(
+                          "{lm_dir}/float.all.{n} | sort {mem_opt})".format(
                     opt = ('--no-unigram' if n > 1 else ''),
                     ngram_order = ngram_order, num_words = num_words,
-                    lm_dir = args.lm_dir, n = n) for n in range(1, num_splits + 1)]) +
+                    lm_dir = args.lm_dir, n = n, mem_opt = sort_mem_opt) for n in range(1, num_splits + 1)]) +
                " | pre-arpa-to-arpa {lm_dir}/words.txt'".format(lm_dir = args.lm_dir))
 
 print("format_arpa_lm.py: running " + command, file=sys.stderr)

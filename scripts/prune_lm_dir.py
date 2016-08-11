@@ -56,6 +56,8 @@ parser.add_argument("--remove-zeros", type=str, choices=['true','false'],
                     'Only useful for debugging purposes.')
 parser.add_argument("--check-exact-divergence", type=str, choices=['true','false'],
                     default='true', help='')
+parser.add_argument("--max-memory", type=str, default='',
+                    help="Memory limitation for sort.")
 parser.add_argument("lm_dir_in",
                     help="Source directory, for the input language model.")
 parser.add_argument("lm_dir_out",
@@ -96,6 +98,9 @@ else:
     if len(steps) == 0:
         sys.exit("prune_lm_dir.py: 'steps' cannot be empty.")
 
+# set the memory restriction for "sort"
+sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
+
 # returns num-words in this lm-dir.
 def GetNumWords(lm_dir_in):
     command = "tail -n 1 {0}/words.txt".format(lm_dir_in)
@@ -125,8 +130,8 @@ def GetTotalNumNgrams(lm_dir_in):
 # counts which may not be removed); it requires work/float.all
 # to exist.
 def CreateProtectedCounts(work):
-    command = ("bash -c 'float-counts-to-histories <{0}/float.all | LC_ALL=C sort |"
-               " histories-to-null-counts >{0}/protected.all'".format(work))
+    command = ("bash -c 'float-counts-to-histories <{0}/float.all | LC_ALL=C sort {1}|"
+               " histories-to-null-counts >{0}/protected.all'".format(work, sort_mem_opt))
     log_file = work + "/log/create_protected_counts.log"
     RunCommand(command, log_file, args.verbose == 'true')
 

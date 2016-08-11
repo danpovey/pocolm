@@ -55,6 +55,8 @@ parser.add_argument("--num-min-count-jobs", type=int, default=5,
 parser.add_argument("--num-count-jobs", type=int, default=4,
                     help="The number of parallel processes per data source used for "
                     "getting initial counts")
+parser.add_argument("--max-memory", type=str, default='',
+                    help="Memory limitation for sort.")
 parser.add_argument("source_int_dir",
                     help="Specify <source_int_dir> the data-source")
 parser.add_argument("ngram_order", type=int,
@@ -63,7 +65,6 @@ parser.add_argument("dest_count_dir",
                     help="Specify <dest_count_dir> the destination to puts the counts")
 
 args = parser.parse_args()
-
 
 # this reads the 'names' file (which has lines like "1 switchboard", "2 fisher"
 # and so on), and returns a dictionary from integer id to name.
@@ -270,9 +271,10 @@ def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_s
                        for j in range(1, num_splits + 1) ])
 
     command = "bash -c 'set -o pipefail; export LC_ALL=C; gunzip -c {source_int_dir}/{n}.txt.gz | "\
-            "get-text-counts {ngram_order} | sort | uniq -c | "\
+            "get-text-counts {ngram_order} | sort {mem_opt}| uniq -c | "\
             "get-int-counts {int_counts_output}'".format(source_int_dir = source_int_dir,
                                               n = n , ngram_order = ngram_order,
+                                              mem_opt = sort_mem_opt,
                                               int_counts_output = int_counts_output)
     log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
         dest_count_dir = dest_count_dir, n = n)
@@ -344,8 +346,8 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
                'trap "rm -r {0}" SIGINT SIGKILL SIGTERM EXIT; '.format(tempdir) +
                'gunzip -c {0}/{1}.txt.gz | distribute-input-lines '.format(source_int_dir, n) +
                ' '.join(['{0}/{1}'.format(tempdir, p) for p in range(num_proc)]) + '& ' +
-               'sort -m ' +
-               ' '.join([ '<(get-text-counts {0} <{1}/{2} | sort )'.format(ngram_order, tempdir, p)
+               'sort -m {0}'.format(sort_mem_opt) +
+               ' '.join([ '<(get-text-counts {0} <{1}/{2} | sort {3})'.format(ngram_order, tempdir, p, sort_mem_opt)
                                        for p in range(num_proc) ]) +
                '| uniq -c | get-int-counts {0}'.format(int_counts_output) +
                "'") # end the quote from the 'bash -c'.
@@ -411,6 +413,16 @@ def MergeDevData(dest_count_dir, ngram_order):
     log_file = dest_count_dir + '/log/merge_dev_counts.log'
     RunCommand(command, log_file, args.verbose=='true')
 
+# this function get the integer in max_memory formatted as '10G' or '1024'
+def ParseInt(string):
+    if string != '':
+      return int(''.join([x for x in string if x.isdigit()]))
+
+# this function get the arbitary string (letters or %) at the end of max_memory
+# For example, 'G', 'b', '%' in '10G', '10b', and '10%'
+def ParseChar(string):
+    if string != '':
+      return str(''.join([x for x in string if not x.isdigit()]))
 
 # make sure 'scripts' and 'src' directory are on the path
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
@@ -432,6 +444,17 @@ if args.ngram_order < 2:
 f = open(args.source_int_dir + "/num_train_sets")
 num_train_sets = int(f.readline())
 f.close()
+
+# set the memory restriction for "sort"
+sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
+if (args.max_memory != '' and args.dump_counts_parallel == 'true'):
+  sub_memory = ParseInt(args.max_memory)/num_train_sets
+  unit = ParseChar(args.max_memory)
+  if sub_memory == 0:
+    ExitProgram("memory limitation for each of the {0} train sets is 0 {1}."
+                "Please reset a larger max_memory value".format(num_train_sets, unit))
+  sub_max_memory = str(sub_memory) + unit
+  sort_mem_opt = ("--buffer-size={0} ".format(sub_max_memory))
 
 if not os.path.isdir(args.dest_count_dir):
     try:
