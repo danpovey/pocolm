@@ -39,8 +39,13 @@ class PruneSizeModel:
         # this power relationship is a heuristic that says how the num-xgrams
         # changes as the threshold changes. i.e., (next_threshold / cur_threshold) ** (self.xgrams_change_power)
         # It should be negative because the bigger the threshold,
-        # the fewer n-grams. We change this value when we overshot
+        # the fewer n-grams. we may change it when we backtrack.
         self.xgrams_change_power = -1.0
+
+        # this power relationship is a heuristic that says how the num-xgrams
+        # we'll get if we prune again with the same threshold. i.e., (cur_num_xgrams / prev_num_xgrams) ** self.prev_change_power
+        # and may change it when we backtrack.
+        self.prev_change_power = 0.5
 
         self.debug = False
 
@@ -85,7 +90,6 @@ class PruneSizeModel:
         """
 
         prev_threshold = self.GetPrevThreshold()
-        prev_num_xgrams = self.GetPrevNumXgrams()
         cur_threshold = self.GetCurThreshold()
         self.SetCurNumXgrams(cur_num_xgrams)
         self.iter += 1
@@ -102,16 +106,22 @@ class PruneSizeModel:
                 # overshot with initial threshold, we should die
                 return ('overshoot', None)
 
-            self.AdjustModelForOvershoot()
-
             # remove cur_threshold from history
             prev_iter = self.history.pop()
             backtrack_iter = prev_iter[-1] # set starting iter
 
-            if prev_threshold == cur_threshold:
+            while prev_threshold == cur_threshold:
+                prev_threshold = self.GetPrevThreshold()
+                cur_threshold = self.GetCurThreshold()
+
                 # remove prev_threshold from history
                 prev_iter = self.history.pop()
                 backtrack_iter = prev_iter[-1] # set starting iter
+
+            self.AdjustModelForOvershoot()
+            self.DebugLog("Backtrack to iter: {0}, xgrams_change_power={1}, "
+                          "prev_change_power={2}".format(backtrack_iter,
+                              self.xgrams_change_power, self.prev_change_power))
 
         cur_target_num_xgrams = self.GetIntermediateTargetNumXgrams()
         (next_threshold, modeled_next_num_xgrams) = self.GetNextThreshold(cur_target_num_xgrams)
@@ -202,33 +212,23 @@ class PruneSizeModel:
         cur_num_xgrams = self.GetCurNumXgrams()
 
         # First predict the num-xgrams we think we'll get if we prune again
-        # with the same threshold 'cur_threshold'. The basic heuristic is
-        # that the num-xgrams will decrease by a factor no greater than
-        # 1.5, and no greater than the cube root of the factor by which
-        # the num-xgrams decreased on the previous iteration.
+        # with the same threshold 'cur_threshold'.
         assert prev_num_xgrams >= cur_num_xgrams
-        prev_change_factor = (float(cur_num_xgrams) / prev_num_xgrams) ** (1.0/3.0)
-        baseline_decrease_factor = 1.0 / 1.5
-        # choose the factor from these two, that's closest to one.
-        predicted_decrease_factor = max(prev_change_factor, baseline_decrease_factor)
+        prev_change_factor = (float(cur_num_xgrams) / prev_num_xgrams) ** self.prev_change_power
 
         # the following gives us the predicted num-xgrams if we were
         # to prune again with the same threshold 'cur_threshold'.
-        predicted_num_xgrams_if_repeat = predicted_decrease_factor * cur_num_xgrams
+        predicted_num_xgrams_if_repeat = prev_change_factor * cur_num_xgrams
         assert next_threshold >= cur_threshold
 
-        predicted_extra_factor = (next_threshold / cur_threshold) ** (self.xgrams_change_power)
+        predicted_extra_factor = (next_threshold / cur_threshold) ** self.xgrams_change_power
         return predicted_num_xgrams_if_repeat * predicted_extra_factor
 
     def AdjustModelForOvershoot(self):
-        prev_threshold = self.GetPrevThreshold()
-        prev_num_xgrams = self.GetPrevNumXgrams()
-        cur_threshold = self.GetCurThreshold()
-        cur_num_xgrams = self.GetCurNumXgrams()
-        cur_modeled_num_xgrams = self.GetCurModeledNumXgrams()
-
-        assert(cur_modeled_num_xgrams > cur_num_xgrams)
-        self.xgrams_change_power *= float(cur_modeled_num_xgrams) / cur_num_xgrams
+        self.xgrams_change_power *= 1.2
+        self.prev_change_power *= 1.2
+        if (self.prev_change_power > 1.0):
+            self.prev_change_power = 1.0
 
     def GetPrevThreshold(self):
         return self.history[-2][0]
