@@ -41,7 +41,7 @@ bypass_metaparam_optim_opt=
 # You can find the values from output log of train_lm.py.
 # These example numbers of metaparameters is for 3-gram model running with train_lm.py.
 # the dev perplexity should be close to the non-bypassed model.
-#bypass_metaparam_optim_opt="--bypass-metaparameter-optimization=0.500,0.763,0.379,0.218,0.034,0.911,0.510,0.376,0.127"
+#bypass_metaparam_optim_opt="--bypass-metaparameter-optimization=0.091,0.867,0.753,0.275,0.100,0.018,0.902,0.371,0.183,0.070"
 # Note: to use these example parameters, you may need to remove the .done files
 # to make sure the make_lm_dir.py be called and tain only 3-gram model
 #for order in 3; do
