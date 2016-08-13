@@ -413,23 +413,20 @@ def MergeDevData(dest_count_dir, ngram_order):
     log_file = dest_count_dir + '/log/merge_dev_counts.log'
     RunCommand(command, log_file, args.verbose=='true')
 
-# this function get the integer in max_memory formatted as '10G' or '1024'
-def ParseInt(string):
-    if string != '':
-      return int(''.join([x for x in string if x.isdigit()]))
-
-# this function get the arbitary string (letters or %) at the end of max_memory
-# For example, 'G', 'b', '%' in '10G', '10b', and '10%'
-def ParseChar(string):
-    if string != '':
-      return str(''.join([x for x in string if not x.isdigit()]))
+# this function returns the value and unit of the max_memory
+# if max_memory is in format of "integer + letter/%", like  "10G", it returns (10, 'G')
+# if max_memory contains no letter, like "10000", it returns (10000, '')
+# we assume the input string is not empty since when it is empty we never call this function
+def ParseMemoryString(s):
+    if not s[-1].isdigit():
+        return (int(s[:-1]), s[-1])
+    else:
+        return (int(s), '')
 
 # make sure 'scripts' and 'src' directory are on the path
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src")
-
-
 
 if os.system("validate_int_dir.py " + args.source_int_dir) != 0:
     ExitProgram("command validate_int_dir.py {0} failed".format(args.source_int_dir))
@@ -446,15 +443,29 @@ num_train_sets = int(f.readline())
 f.close()
 
 # set the memory restriction for "sort"
-sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
-if (args.max_memory != '' and args.dump_counts_parallel == 'true'):
-  sub_memory = ParseInt(args.max_memory)/num_train_sets
-  unit = ParseChar(args.max_memory)
-  if sub_memory == 0:
-    ExitProgram("memory limitation for each of the {0} train sets is 0 {1}."
-                "Please reset a larger max_memory value".format(num_train_sets, unit))
-  sub_max_memory = str(sub_memory) + unit
-  sort_mem_opt = ("--buffer-size={0} ".format(sub_max_memory))
+sort_mem_opt = ''
+if args.max_memory != '':
+    if args.dump_counts_parallel == 'true':
+        (value, unit) = ParseMemoryString(args.max_memory)
+        sub_memory = value/num_train_sets
+        if sub_memory != float(value)/num_train_sets:
+            if unit == 'K':
+                sub_memory = value*1024/num_train_sets
+                unit = ''
+            if unit == 'M':
+                sub_memory = value*1024/num_train_sets
+                unit = 'K'
+            if unit == 'G':
+                sub_memory = value*1024/num_train_sets
+                unit = 'M'
+            if (unit in ['b', '%', '']) and (sub_memory == 0):
+                ExitProgram("max_memory for each of the {0} train sets is {1}{2}."
+                            "Please reset a larger max_memory value".format(
+                            num_train_sets, float(value)/num_train_sets, unit))
+        sub_max_memory = str(sub_memory) + unit
+        sort_mem_opt = ("--buffer-size={0} ".format(sub_max_memory))
+    else:
+        sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
 
 if not os.path.isdir(args.dest_count_dir):
     try:

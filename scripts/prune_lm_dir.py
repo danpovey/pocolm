@@ -74,6 +74,36 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
 if os.system("validate_lm_dir.py " + args.lm_dir_in) != 0:
     sys.exit("prune_lm_dir.py: failed to validate input LM-dir")
 
+# verify the input string max_memory
+if args.max_memory != '':
+    # valid string max_memory must have at least two items 
+    if len(args.max_memory) >= 2:
+        s = args.max_memory
+        # case1: valid string max_memory can be formatted as "integer + letter or '%'"
+        # the unit of memory size can also be 'T', 'P', 'E', 'Z', or 'Y'. They
+        # are not included here considering their rare use in practice
+        if s[-1] in ['b', '%', 'K', 'M', 'G']:
+            if not s[-2].isdigit():
+                sys.exit("prune_lm_dir.py: the penultimate item of --max-memory "
+                         "must be a digit.")
+            # max memory size must be larger than zero
+            if int(s[:-1]) == 0:
+                sys.exit("prune_lm_dir.py: --max-memory must be > 0 {unit}.".format(
+                         unit = s[-1]))    
+        # case2: valid string max_memory can be a pure numerical value
+        elif s[-1].isdigit():
+            for x in s[:-1]:
+                if not x.isdigit():
+                    sys.exit("prune_lm_dir.py: if the last item of --max-memory is i"
+                             "a digit, all the rest items should also be digits.")
+            # max memory size must be larger than zero
+            if int(s) == 0:
+                sys.exit("prune_lm_dir.py: --max-memory must be > 0 bytes.")
+        else:
+            sys.exit("prune_lm_dir.py: the format of string --max-memory is not correct.")
+    else:
+         sys.exit("prune_lm_dir.py: the lenght of string --max-memory must >= 2.")
+
 num_splits = None
 if os.path.exists(args.lm_dir_in + "/num_splits"):
     f = open(args.lm_dir_in + "/num_splits")
@@ -99,7 +129,9 @@ else:
         sys.exit("prune_lm_dir.py: 'steps' cannot be empty.")
 
 # set the memory restriction for "sort"
-sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
+sort_mem_opt = ''
+if args.max_memory != '':
+  sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
 
 # returns num-words in this lm-dir.
 def GetNumWords(lm_dir_in):

@@ -31,6 +31,7 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
 # this will affect the program "sort" that we call.
 os.environ['LC_ALL'] = 'C'
+
 # this temporary directory will be used by "sort".
 os.environ['TMPDIR'] = args.temp_dir
 
@@ -41,13 +42,45 @@ if not os.path.isdir(args.temp_dir):
     sys.exit("format_arpa_lm.py: expected directory {0} to exist.".format(
             args.temp_dir))
 
+# verify the input string max_memory
+if args.max_memory != '':
+    # valid string max_memory must have at least two items 
+    if len(args.max_memory) >= 2:
+        s = args.max_memory
+        # case1: valid string max_memory can be formatted as "integer + letter or '%'"
+        # the unit of memory size can also be 'T', 'P', 'E', 'Z', or 'Y'. They
+        # are not included here considering their rare use in practice
+        if s[-1] in ['b', '%', 'K', 'M', 'G']:
+            if not s[-2].isdigit():
+                sys.exit("format_arpa_lm.py: the penultimate item of --max-memory "
+                         "must be a digit.")
+            # max memory size must be larger than zero
+            if int(s[:-1]) == 0:
+                sys.exit("format_arpa_lm.py: --max-memory must be > 0 {unit}.".format(
+                         unit = s[-1]))    
+        # case2: valid string max_memory can be a pure numerical value
+        elif s[-1].isdigit():
+            for x in s[:-1]:
+                if not x.isdigit():
+                    sys.exit("format_arpa_lm.py: if the last item of --max-memory is i"
+                             "a digit, all the rest items should also be digits.")
+            # max memory size must be larger than zero
+            if int(s) == 0:
+                sys.exit("format_arpa_lm.py: --max-memory must be > 0 bytes.")
+        else:
+            sys.exit("format_arpa_lm.py: the format of string --max-memory is not correct.")
+    else:
+         sys.exit("format_arpa_lm.py: the lenght of string --max-memory must >= 2.")
+
 # read ngram order.
 f = open(args.lm_dir + "/ngram_order");
 ngram_order = int(f.readline())
 f.close()
 
 # set the memory restriction for "sort"
-sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
+sort_mem_opt = ''
+if args.max_memory != '':
+  sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
 
 # work out num_words.  Note: this doesn't count epsilon; it's the
 # same as the highest numbered word symbol.

@@ -31,8 +31,37 @@ os.environ['LC_ALL'] = 'C'
 
 
 if os.system("validate_lm_dir.py " + args.lm_dir_in) != 0:
-    sys.exit("split_lm_dir.py: failed to validate input LM-dir")
+    sys.exit("get_data_prob.py: failed to validate input LM-dir")
 
+# verify the input string max_memory
+if args.max_memory != '':
+    # valid string max_memory must have at least two items 
+    if len(args.max_memory) >= 2:
+        s = args.max_memory
+        # case1: valid string max_memory can be formatted as "integer + letter or '%'"
+        # the unit of memory size can also be 'T', 'P', 'E', 'Z', or 'Y'. They
+        # are not included here considering their rare use in practice
+        if s[-1] in ['b', '%', 'K', 'M', 'G']:
+            if not s[-2].isdigit():
+                sys.exit("get_data_prob.py: the penultimate item of --max-memory "
+                         "must be a digit.")
+            # max memory size must be larger than zero
+            if int(s[:-1]) == 0:
+                sys.exit("get_data_prob.py: --max-memory must be > 0 {unit}.".format(
+                         unit = s[-1]))    
+        # case2: valid string max_memory can be a pure numerical value
+        elif s[-1].isdigit():
+            for x in s[:-1]:
+                if not x.isdigit():
+                    sys.exit("get_data_prob.py: if the last item of --max-memory is i"
+                             "a digit, all the rest items should also be digits.")
+            # max memory size must be larger than zero
+            if int(s) == 0:
+                sys.exit("get_data_prob.py: --max-memory must be > 0 bytes.")
+        else:
+            sys.exit("get_data_prob.py: the format of string --max-memory is not correct.")
+    else:
+         sys.exit("get_data_prob.py: the lenght of string --max-memory must >= 2.")
 
 num_splits = None
 
@@ -42,7 +71,7 @@ if os.path.exists(args.lm_dir_in + "/num_splits"):
     f.close()
 
 if not os.path.exists(args.text_in):
-    sys.exit("split_lm_dir.py: input text data {0} does not exist".format(args.text_in))
+    sys.exit("get_data_prob.py: input text data {0} does not exist".format(args.text_in))
 
 def GetNgramOrder(lm_dir):
     f = open(lm_dir + "/ngram_order");
@@ -62,7 +91,9 @@ os.environ['TMPDIR'] = work_dir
 ngram_order = GetNgramOrder(args.lm_dir_in)
 
 # set the memory restriction for "sort"
-sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
+sort_mem_opt = ''
+if args.max_memory != '':
+  sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
 
 # create
 if args.text_in[-3:] == '.gz':

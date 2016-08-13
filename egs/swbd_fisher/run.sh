@@ -19,13 +19,14 @@ num_word=40000
 lm_dir="data/lm/"
 arpa_dir="data/arpa/"
 
-max_memory='--max-memory=20G'
-# If you do not want to set memory limitation for "sort", you can use 
-# max_memory = 
-# Choices for the max-memory can be: 
-# 1) integer + 'G' or 'K' or 'M' ... 
-# 2) integer + 'b', meaning using default units and no multiplication
-# 3) integer + '%', meaning percentage of memory
+max_memory='--max-memory=10G'
+# If you do not want to set memory limitation for "sort", you can use
+#max_memory=
+# Choices for the max-memory can be:
+# 1) integer + 'K', 'M', 'G', ... 
+# 2) integer + 'b', meaning using default unit byte and no multiplication
+# 3) integer + '%', meaning a percentage of memory
+# 4) integer, default unit is byte
 
 fold_dev_opt=
 # If you want to fold the dev-set in to the 'swbd1' set to produce the final

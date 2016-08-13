@@ -54,7 +54,7 @@ parser.add_argument("--keep-int-data",  type=str, choices=['true','false'],
                     'This is useful when user trains different orders of model with the same int-data. '
                     'It is valid only when --cleanup=true')
 parser.add_argument("--max-memory", type=str, default='',
-                    help="Memory limitation for sort.")
+                    help="Memory limitation for sort called by get_counts.py.")
 parser.add_argument("text_dir",
                     help="Directory containing the training text.")
 parser.add_argument("order",
@@ -78,6 +78,36 @@ if args.num_splits < 1:
 
 if args.warm_start_ratio < 1:
     sys.exit("train_lm.py: --warm-start-ratio must be >=1.")
+
+# verify the input string max_memory
+if args.max_memory != '':
+    # valid string max_memory must have at least two items 
+    if len(args.max_memory) >= 2:
+        s = args.max_memory
+        # case1: valid string max_memory can be formatted as "integer + letter or '%'"
+        # the unit of memory size can also be 'T', 'P', 'E', 'Z', or 'Y'. They
+        # are not included here considering their rare use in practice
+        if s[-1] in ['b', '%', 'K', 'M', 'G']:
+            if not s[-2].isdigit():
+                sys.exit("train_lm.py: the penultimate item of --max-memory "
+                         "must be a digit.")
+            # max memory size must be larger than zero
+            if int(s[:-1]) == 0:
+                sys.exit("train_lm.py: --max-memory must be > 0 {unit}.".format(
+                         unit = s[-1]))    
+        # case2: valid string max_memory can be a pure numerical value
+        elif s[-1].isdigit():
+            for x in s[:-1]:
+                if not x.isdigit():
+                    sys.exit("train_lm.py: if the last item of --max-memory is i"
+                             "a digit, all the rest items should also be digits.")
+            # max memory size must be larger than zero
+            if int(s) == 0:
+                sys.exit("train_lm.py: --max-memory must be > 0 bytes.")
+        else:
+            sys.exit("train_lm.py: the format of string --max-memory is not correct.")
+    else:
+         sys.exit("train_lm.py: the lenght of string --max-memory must >= 2.")
 
 work_dir = os.path.join(args.lm_dir, 'work')
 log_dir = os.path.join(work_dir, "log")
