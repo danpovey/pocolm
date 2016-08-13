@@ -79,26 +79,20 @@ if args.max_memory != '':
     # valid string max_memory must have at least two items 
     if len(args.max_memory) >= 2:
         s = args.max_memory
-        # case1: valid string max_memory can be formatted as "integer + letter or '%'"
+        # valid string max_memory can be formatted as:
+        # "a positive integer + a letter or a '%'" or "a positive integer"
         # the unit of memory size can also be 'T', 'P', 'E', 'Z', or 'Y'. They
         # are not included here considering their rare use in practice
-        if s[-1] in ['b', '%', 'K', 'M', 'G']:
-            if not s[-2].isdigit():
-                sys.exit("prune_lm_dir.py: the penultimate item of --max-memory "
-                         "must be a digit.")
+        if s[-1] in ['b', '%', 'K', 'M', 'G'] or s[-1].isdigit():
+            for x in s[:-1]:
+                if not x.isdigit():
+                    sys.exit("prune_lm_dir.py: --max-memory should be formatted as "
+                             "'a positive integer' or 'a positive integer appended "
+                             "with 'b', 'K', 'M','G', or '%''.")
             # max memory size must be larger than zero
             if int(s[:-1]) == 0:
                 sys.exit("prune_lm_dir.py: --max-memory must be > 0 {unit}.".format(
                          unit = s[-1]))    
-        # case2: valid string max_memory can be a pure numerical value
-        elif s[-1].isdigit():
-            for x in s[:-1]:
-                if not x.isdigit():
-                    sys.exit("prune_lm_dir.py: if the last item of --max-memory is i"
-                             "a digit, all the rest items should also be digits.")
-            # max memory size must be larger than zero
-            if int(s) == 0:
-                sys.exit("prune_lm_dir.py: --max-memory must be > 0 bytes.")
         else:
             sys.exit("prune_lm_dir.py: the format of string --max-memory is not correct.")
     else:
