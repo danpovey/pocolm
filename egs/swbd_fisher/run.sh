@@ -24,9 +24,9 @@ max_memory='--max-memory=10G'
 #max_memory=
 # Choices for the max-memory can be:
 # 1) integer + 'K', 'M', 'G', ... 
-# 2) integer + 'b', meaning using default unit byte and no multiplication
+# 2) integer + 'b', meaning unit is byte and no multiplication
 # 3) integer + '%', meaning a percentage of memory
-# 4) integer, default unit is byte
+# 4) integer, default unit is 'K'
 
 fold_dev_opt=
 # If you want to fold the dev-set in to the 'swbd1' set to produce the final
