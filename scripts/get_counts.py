@@ -449,16 +449,16 @@ if args.max_memory != '':
         (value, unit) = ParseMemoryString(args.max_memory)
         sub_memory = value/num_train_sets
         if sub_memory != float(value)/num_train_sets:
-            if unit == 'K':
+            if unit in ['K', '']:
                 sub_memory = value*1024/num_train_sets
-                unit = ''
+                unit = 'b'
             if unit == 'M':
                 sub_memory = value*1024/num_train_sets
                 unit = 'K'
             if unit == 'G':
                 sub_memory = value*1024/num_train_sets
                 unit = 'M'
-            if (unit in ['b', '%', '']) and (sub_memory == 0):
+            if (unit in ['b', '%']) and (sub_memory == 0):
                 ExitProgram("max_memory for each of the {0} train sets is {1}{2}."
                             "Please reset a larger max_memory value".format(
                             num_train_sets, float(value)/num_train_sets, unit))
