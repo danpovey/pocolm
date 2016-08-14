@@ -53,6 +53,8 @@ parser.add_argument("--keep-int-data",  type=str, choices=['true','false'],
                     default='false', help='whether to avoid the int-dir being cleanuped. '
                     'This is useful when user trains different orders of model with the same int-data. '
                     'It is valid only when --cleanup=true')
+parser.add_argument("--max-memory", type=str, default='',
+                    help="Memory limitation for sort called by get_counts.py.")
 parser.add_argument("text_dir",
                     help="Directory containing the training text.")
 parser.add_argument("order",
@@ -76,6 +78,30 @@ if args.num_splits < 1:
 
 if args.warm_start_ratio < 1:
     sys.exit("train_lm.py: --warm-start-ratio must be >=1.")
+
+# verify the input string max_memory
+if args.max_memory != '':
+    # valid string max_memory must have at least two items 
+    if len(args.max_memory) >= 2:
+        s = args.max_memory
+        # valid string max_memory can be formatted as:
+        # "a positive integer + a letter or a '%'" or "a positive integer"
+        # the unit of memory size can also be 'T', 'P', 'E', 'Z', or 'Y'. They
+        # are not included here considering their rare use in practice
+        if s[-1] in ['b', '%', 'K', 'M', 'G'] or s[-1].isdigit():
+            for x in s[:-1]:
+                if not x.isdigit():
+                    sys.exit("train_lm.py: --max-memory should be formatted as "
+                             "'a positive integer' or 'a positive integer appended "
+                             "with 'b', 'K', 'M','G', or '%''.")
+            # max memory size must be larger than zero
+            if int(s[:-1]) == 0:
+                sys.exit("train_lm.py: --max-memory must be > 0 {unit}.".format(
+                         unit = s[-1]))    
+        else:
+            sys.exit("train_lm.py: the format of string --max-memory is not correct.")
+    else:
+         sys.exit("train_lm.py: the lenght of string --max-memory must >= 2.")
 
 work_dir = os.path.join(args.lm_dir, 'work')
 log_dir = os.path.join(work_dir, "log")
@@ -236,8 +262,8 @@ if os.path.exists(done_file):
     LogMessage("Skip getting counts")
 else:
     LogMessage("Getting ngram counts...")
-    command = "get_counts.py --min-counts='{0}' {1} {2} {3}".format(args.min_counts, \
-            int_dir, args.order, counts_dir)
+    command = "get_counts.py --min-counts='{0}' --max-memory={1} {2} {3} {4}".format(
+            args.min_counts, args.max_memory, int_dir, args.order, counts_dir)
     log_file = os.path.join(log_dir, 'get_counts.log')
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)

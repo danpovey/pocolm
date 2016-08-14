@@ -56,6 +56,8 @@ parser.add_argument("--remove-zeros", type=str, choices=['true','false'],
                     'Only useful for debugging purposes.')
 parser.add_argument("--check-exact-divergence", type=str, choices=['true','false'],
                     default='true', help='')
+parser.add_argument("--max-memory", type=str, default='',
+                    help="Memory limitation for sort.")
 parser.add_argument("lm_dir_in",
                     help="Source directory, for the input language model.")
 parser.add_argument("lm_dir_out",
@@ -71,6 +73,30 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
 
 if os.system("validate_lm_dir.py " + args.lm_dir_in) != 0:
     sys.exit("prune_lm_dir.py: failed to validate input LM-dir")
+
+# verify the input string max_memory
+if args.max_memory != '':
+    # valid string max_memory must have at least two items 
+    if len(args.max_memory) >= 2:
+        s = args.max_memory
+        # valid string max_memory can be formatted as:
+        # "a positive integer + a letter or a '%'" or "a positive integer"
+        # the unit of memory size can also be 'T', 'P', 'E', 'Z', or 'Y'. They
+        # are not included here considering their rare use in practice
+        if s[-1] in ['b', '%', 'K', 'M', 'G'] or s[-1].isdigit():
+            for x in s[:-1]:
+                if not x.isdigit():
+                    sys.exit("prune_lm_dir.py: --max-memory should be formatted as "
+                             "'a positive integer' or 'a positive integer appended "
+                             "with 'b', 'K', 'M','G', or '%''.")
+            # max memory size must be larger than zero
+            if int(s[:-1]) == 0:
+                sys.exit("prune_lm_dir.py: --max-memory must be > 0 {unit}.".format(
+                         unit = s[-1]))    
+        else:
+            sys.exit("prune_lm_dir.py: the format of string --max-memory is not correct.")
+    else:
+         sys.exit("prune_lm_dir.py: the lenght of string --max-memory must >= 2.")
 
 num_splits = None
 if os.path.exists(args.lm_dir_in + "/num_splits"):
@@ -95,6 +121,11 @@ else:
 
     if len(steps) == 0:
         sys.exit("prune_lm_dir.py: 'steps' cannot be empty.")
+
+# set the memory restriction for "sort"
+sort_mem_opt = ''
+if args.max_memory != '':
+  sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
 
 # returns num-words in this lm-dir.
 def GetNumWords(lm_dir_in):
@@ -125,8 +156,8 @@ def GetTotalNumNgrams(lm_dir_in):
 # counts which may not be removed); it requires work/float.all
 # to exist.
 def CreateProtectedCounts(work):
-    command = ("bash -c 'float-counts-to-histories <{0}/float.all | LC_ALL=C sort |"
-               " histories-to-null-counts >{0}/protected.all'".format(work))
+    command = ("bash -c 'float-counts-to-histories <{0}/float.all | LC_ALL=C sort {1}|"
+               " histories-to-null-counts >{0}/protected.all'".format(work, sort_mem_opt))
     log_file = work + "/log/create_protected_counts.log"
     RunCommand(command, log_file, args.verbose == 'true')
 
