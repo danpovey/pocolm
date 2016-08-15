@@ -234,7 +234,7 @@ else:
         LogMessage("Skip generating vocab")
     else:
         LogMessage("Generating vocab with wordlist[{0}]...".format(args.wordlist))
-        command = "wordlist_to_vocab.py {1} > {2}".format(word_counts_dir, vocab)
+        command = "wordlist_to_vocab.py {0} > {1}".format(args.wordlist, vocab)
         log_file = os.path.join(log_dir, 'wordlist_to_vocab.log')
         RunCommand(command, log_file, args.verbose == 'true')
         TouchFile(done_file)
