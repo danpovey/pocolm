@@ -184,7 +184,7 @@ class PreArpaProcessor {
         // The following code relies on the fact that kBosSymbol == 1,
         // documented in pocolm-types.h.
         if (order == 1 && !strncmp(line_str.c_str(), " 1 1\t", 5)) {
-          std::cout << "-99\t" << words.str() << ' ' << (line + 1) << "\n";
+          std::cout << "-99\t" << words.str() << '\t' << (line + 1) << "\n";
           continue;
         }
         // Each line with a backoff prob (except the edge case with <s>)
