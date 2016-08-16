@@ -146,12 +146,39 @@ def WriteMetaparameters(metaparameters, ngram_order, num_train_sets, out_file):
 
 def FormatMetaparameters(metaparameters):
     out = []
+    # get the maximum length of decimals of metaparameters
+    decimal_length = 0
     for param in metaparameters:
-        x = '{:.3f}'.format(param)
-        if x == '0.00':
-            x = '{:.3g}'.format(param)
-        out.append(x)
-
+        temp_length = len(str(param))
+        if decimal_length < temp_length:
+            decimal_length = temp_length
+    decimal_length -= 2
+    
+    temp_original = metaparameters[0]
+    temp = round(temp_original, 3)
+    for param in metaparameters[1:]:
+        round_index = 3
+        x_original = param
+        x = round(x_original, round_index)
+        while(temp == x and round_index <= decimal_length):
+            temp = round(temp_original, round_index + 1)
+            x = round(x_original, round_index + 1)
+            round_index += 1
+        append_param = format(temp, '.{0}f'.format(round_index))
+        if temp == 0.0:
+            append_param = '0.001' 
+        if temp == 1.0:
+            append_param = '0.999'
+        out.append(append_param)
+        temp = x
+        temp_original = x_original
+    # check and append the last parameter
+    if x == 0.0:
+        out.append('0.001')
+    if x == 1.0:
+        out.append('0.999')
+    out.append(format(x))
+    
     return ','.join(out)
 
 def ParseMetaparameters(encoded_str, ngram_order, num_train_sets):
