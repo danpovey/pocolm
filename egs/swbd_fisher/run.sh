@@ -16,8 +16,8 @@ fisher_dirs="/export/corpora3/LDC/LDC2004T19/fe_03_p1_tran/ /export/corpora3/LDC
 local/fisher_data_prep.sh $fisher_dirs
 
 num_word=40000
-lm_dir="data/lm/"
-arpa_dir="data/arpa/"
+lm_dir="data/lm"
+arpa_dir="data/arpa"
 
 max_memory='--max-memory=10G'
 # If you do not want to set memory limitation for "sort", you can use
