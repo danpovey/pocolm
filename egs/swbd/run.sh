@@ -7,8 +7,8 @@ export PATH=$PATH:$POCOLM_ROOT/scripts
 local/swbd_data_prep.sh
 
 num_word=20000
-lm_dir="data/lm/"
-arpa_dir="data/arpa/"
+lm_dir="data/lm"
+arpa_dir="data/arpa"
 
 max_memory='--max-memory=10G'
 # If you do not want to set memory limitation for "sort", you can use
