@@ -47,6 +47,9 @@ class PruneSizeModel:
         # and may change it when we backtrack.
         self.prev_change_power = 0.5
 
+        # this parameter limit the range of threshold when we do the binary search
+        self.max_threshold_change_factor = 4
+
         self.debug = False
 
     def SetInitialThreshold(self, initial_threshold, initial_num_xgrams):
@@ -94,8 +97,10 @@ class PruneSizeModel:
         self.SetCurNumXgrams(cur_num_xgrams)
         self.iter += 1
 
-        self.DebugLog("Iter {0}: threshold={1:.3f}, num_xgrams={2} [vs. intermediate_target={3}]".format(
-              self.iter, cur_threshold, cur_num_xgrams, int(self.GetCurTargetNumXgrams())))
+        self.DebugLog("Iter {0}: threshold={1:.3f}, num_xgrams={2} "
+                      "[vs. modeled_next_num_xgrams={3}, intermediate_target={4}]".format(
+              self.iter, cur_threshold, cur_num_xgrams, int(self.GetCurModeledNumXgrams()),
+              int(self.GetCurTargetNumXgrams())))
 
         if self.MatchTargetNumNgrams(cur_num_xgrams):
             return ('success', None)
@@ -112,7 +117,6 @@ class PruneSizeModel:
 
             while prev_threshold == cur_threshold:
                 prev_threshold = self.GetPrevThreshold()
-                cur_threshold = self.GetCurThreshold()
 
                 # remove prev_threshold from history
                 prev_iter = self.history.pop()
@@ -171,7 +175,7 @@ class PruneSizeModel:
         tolerance = 0.0001 * cur_threshold
 
         # we use a simple binary search here
-        right = 10 * cur_threshold
+        right = self.max_threshold_change_factor * cur_threshold
         left = cur_threshold # we never decrease the threshold
 
         next_larger_num_xgrams = cur_target_num_xgrams
@@ -191,11 +195,6 @@ class PruneSizeModel:
             # the while loop is not breaked by the else clause,
             # so we make sure the modeled_next_num_xgrams >= cur_target_num_xgrams
             next_threshold = left
-
-        if math.fabs(cur_target_num_xgrams - next_larger_num_xgrams) > 0.2 * cur_target_num_xgrams:
-            self.LogMessage("Warning: final modeled_next_num_xgrams[{0}] is far "
-                       "from intermediate_target_num_xgrams[{1}]".format(
-                           next_larger_num_xgrams, cur_target_num_xgrams))
 
         return (next_threshold, next_larger_num_xgrams)
 
