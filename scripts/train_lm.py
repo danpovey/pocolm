@@ -145,41 +145,65 @@ def WriteMetaparameters(metaparameters, ngram_order, num_train_sets, out_file):
     f.close()
 
 def FormatMetaparameters(metaparameters):
+    # store metaparameters as floats during checking and rerounding
     out = []
-    # get the maximum length of decimals of metaparameters
-    decimal_length = 0
+    # final output metaparameters in string
+    out_param = []
+    # round all float metaparameters to 3rd decimal places 
+    round_index = 3
     for param in metaparameters:
-        temp_length = len(str(param))
-        if decimal_length < temp_length:
-            decimal_length = temp_length
-    decimal_length -= 2
+        x = round(param, round_index)
+        out.append(x)
     
-    temp_original = metaparameters[0]
-    temp = round(temp_original, 3)
-    for param in metaparameters[1:]:
-        round_index = 3
-        x_original = param
-        x = round(x_original, round_index)
-        while(temp == x and round_index <= decimal_length):
-            temp = round(temp_original, round_index + 1)
-            x = round(x_original, round_index + 1)
-            round_index += 1
-        append_param = format(temp, '.{0}f'.format(round_index))
-        if temp == 0.0:
-            append_param = '0.001' 
-        if temp == 1.0:
-            append_param = '0.999'
-        out.append(append_param)
-        temp = x
-        temp_original = x_original
-    # check and append the last parameter
-    if x == 0.0:
-        out.append('0.001')
-    if x == 1.0:
-        out.append('0.999')
-    out.append(format(x))
+    size = len(metaparameters)
     
-    return ','.join(out)
+    # check1: whether 0.000 or 1.000 occur because of rounding
+    # after this step, no 0.000 or 1.000 occurs unless the original number equal
+    # to 0 or 1 (if this happen, the parameters are invalid and it exits 
+    # with a warning, while this case can be very rare)
+    for i in range(0, size): 
+        if out[i] in [0.0, 1.0]:
+            out[i] = RoundToProperDigit(metaparameters[i], round_index)
+            if out[i] in [0.0, 1.0]:
+                sys.exit("train_lm.py: there is a {0}. metaparameters should be in range (0, 1).".format(out[i]))
+    
+    # check2: check repeating values. if happen, then reround them until they are different
+    # if there exist same values originally, exit with a warning (this can be very rare) 
+    # after this step, there should be no any repeating values in set out
+    for i in range(0, size):
+        x = out[i]
+        for j in range(i + 1, size):
+            y = out[j]
+            # we will round to the next digit when we detect repeated values
+            round_digit = round_index + 1
+            round_max_digit = max(len(str(metaparameters[i])) - 2, len(str(metaparameters[j])) -2)
+            while x == y and round_digit <= round_max_digit:
+                x = round(metaparameters[i], round_digit)
+                y = round(metaparameters[j], round_digit)
+                round_digit += 1
+            # actually validate_metaparameters.py will validate those parameters later. 
+            # except for satisfying condition that those parameters should be in 
+            # range (0, 1), parameters D1, D2, D3, D4 for a certain xgram model 
+            # should satisfy D1 > D2 > D3 > D4. 
+            # here we only checked the repeating values but not the order relationship
+            if x == y:
+                sys.exit("train_lm.py: {0} and {1} are same. metaparameters can not be exactly same.".format(x,y))
+            out[j] = y
+        
+        # out[i] now is valided and can be appended the output set out_param 
+        out[i] = x
+        out_param.append(format(out[i]))
+    
+    return ','.join(out_param)
+
+def RoundToProperDigit(number, round_index):
+    round_index += 1
+    x = round(number, round_index)
+    round_max_digit = len(str(number)) - 2
+    while x in [0.0, 1.0] and round_index <= round_max_digit:
+       x = round(number, round_index)
+       round_index += 1
+    return x
 
 def ParseMetaparameters(encoded_str, ngram_order, num_train_sets):
     metaparameters = encoded_str.split(',')
