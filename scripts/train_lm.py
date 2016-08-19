@@ -397,7 +397,7 @@ else:
     metaparameters = ReadMetaparameters(metaparam_file)
     LogMessage("You can set --bypass-metaparameter-optimization='{0}' "
                "to get equivalent results".format(
-                   FormatMetaparameters(metaparameters)))
+                   FormatMetaparameters(metaparameters, num_train_sets)))
 
 # make lm dir
 lm_dir = os.path.join(args.lm_dir, lm_name + '.pocolm')
