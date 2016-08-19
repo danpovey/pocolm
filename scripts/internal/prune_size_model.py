@@ -79,8 +79,8 @@ class PruneSizeModel:
             'success': indicates we successfully find a appropriate threshold.
                        the caller could safely return.
                        The args should be None.
-            'overshot': indicates we overshot with the initial threshold.
-                        the caller should die and prompt the user to set a lower initial threshold.
+            'overshoot': indicates we overshot with the initial threshold.
+                        the caller should retry with a lower initial threshold.
                         The args should be None.
             'backtrack': indicates we overshot and need to backtrack.
                         the caller should abondan some recent iterations and
@@ -108,7 +108,8 @@ class PruneSizeModel:
         backtrack_iter = -1
         if self.NumXgrams2NumNgrams(cur_num_xgrams) < self.target_lower_threshold: # we overshot
             if cur_threshold == self.initial_threshold:
-                # overshot with initial threshold, we should die
+                # overshot with initial threshold
+                self.DebugLog("Overshoot with initial_threshold={0}".format(self.initial_threshold))
                 return ('overshoot', None)
 
             # remove cur_threshold from history

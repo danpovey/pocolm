@@ -411,13 +411,19 @@ def FinalizeOutput(final_work_out):
 
 # find threshold in order to match the target-num-ngrams with final LM
 # using PruneSizeModel
-def FindThreshold(model):
-    global initial_num_xgrams, current_num_xgrams, steps
+# this will return a tuple of (threshold, num_iterations), if we overshot with
+# the initial_threshold, it will return (0.0, 0)
+def FindThreshold(initial_threshold):
+    global initial_num_xgrams, current_num_xgrams, num_unigrams, steps
     global logprob_changes, effective_logprob_changes
 
-    model.SetInitialThreshold(args.initial_threshold, initial_num_xgrams)
+    model = PruneSizeModel(num_unigrams, args.target_num_ngrams,
+            args.target_lower_threshold, args.target_upper_threshold)
+#    model.SetDebug(True)
 
-    cur_threshold = args.initial_threshold
+    model.SetInitialThreshold(initial_threshold, initial_num_xgrams)
+
+    cur_threshold = initial_threshold
     backtrack_iter = 0
     step = 0
     iter2step = [0] # This maps a iter-index to the step-index of the last step of that iteration
@@ -431,13 +437,7 @@ def FindThreshold(model):
 
         (action, arguments) = model.GetNextAction(current_num_xgrams)
         if action == 'overshoot':
-            ExitProgram("--initial-threshold={0} is too big, "
-                        "please reduce this value and rerun. "
-                        "Number of n-grams pruning with this threshold is {1} "
-                        "versus --target-num-xgrams={2}".format(
-                            args.initial_threshold,
-                            model.NumXgrams2NumNgrams(current_num_xgrams),
-                            args.target_num_ngrams))
+            return (0.0, 0)
 
         if action == 'backtrack':
             (cur_threshold, backtrack_iter) = arguments
@@ -494,9 +494,9 @@ if args.check_exact_divergence == 'true':
     waiting_thread.start()
 
 if args.target_num_ngrams > 0:
+    # For PruneSizeModel.MatchTargetNumNgrams() and PruneSizeModel.NumXgrams2NumNgrams()
     model = PruneSizeModel(num_unigrams, args.target_num_ngrams,
             args.target_lower_threshold, args.target_upper_threshold)
-#    model.SetDebug(True)
 
     if model.MatchTargetNumNgrams(initial_num_xgrams):
         LogMessage("the input LM is already match the size with target-num-ngrams, do not need any pruning")
@@ -506,7 +506,20 @@ if args.target_num_ngrams > 0:
         ExitProgram("the num-ngrams({0}) of input LM is less than the target-num-ngrams({1}), "
                   "can not do any pruning.".format(model.NumXgrams2NumNgrams(initial_num_xgrams), args.target_num_ngrams))
 
-    (threshold, iter) = FindThreshold(model)
+    threshold = 0.0
+    initial_threshold = args.initial_threshold
+    while threshold == 0.0:
+        (threshold, iter) = FindThreshold(initial_threshold)
+        if threshold > 0.0:
+            break;
+        logprob_changes = []
+        effective_logprob_changes = []
+        thresholds = []
+        steps = []
+        initial_threshold /= 4.0
+        LogMessage("Reduce --initial-threshold to {0}, and retry.".format(
+                    initial_threshold))
+
     LogMessage("Find the threshold {0} in {1} iteration(s)".format(threshold, iter))
     LogMessage("thresholds per iter were " + str(thresholds))
 else:
