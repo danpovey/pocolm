@@ -144,7 +144,7 @@ def WriteMetaparameters(metaparameters, ngram_order, num_train_sets, out_file):
             i += 1
     f.close()
 
-def FormatMetaparameters(metaparameters):
+def FormatMetaparameters(metaparameters, num_train_sets):
     # store metaparameters as floats during checking and rerounding
     out = []
     # final output metaparameters in string
@@ -171,28 +171,32 @@ def FormatMetaparameters(metaparameters):
     # if there exist same values originally, exit with a warning (this can be very rare) 
     # after this step, there should be no any repeating values in set out
     for i in range(0, size):
-        x = out[i]
-        for j in range(i + 1, size):
-            y = out[j]
-            # we will round to the next digit when we detect repeated values
-            round_digit = round_index + 1
-            round_max_digit = max(len(str(metaparameters[i])) - 2, len(str(metaparameters[j])) -2)
-            while x == y and round_digit <= round_max_digit:
-                x = round(metaparameters[i], round_digit)
-                y = round(metaparameters[j], round_digit)
-                round_digit += 1
-            # actually validate_metaparameters.py will validate those parameters later. 
-            # except for satisfying condition that those parameters should be in 
-            # range (0, 1), parameters D1, D2, D3, D4 for a certain xgram model 
-            # should satisfy D1 > D2 > D3 > D4. 
-            # here we only checked the repeating values but not the order relationship
-            if x == y:
-                sys.exit("train_lm.py: {0} and {1} are same. metaparameters can not be exactly same.".format(x,y))
-            out[j] = y
+        # Note: the first #num_train_sets weights are not needed to be checked (they can be the same)
+        if i < num_train_sets:
+            out_param.append(format(out[i]))
+        else:
+            x = out[i]
+            for j in range(i + 1, size):
+                y = out[j]
+                # we will round to the next digit when we detect repeated values
+                round_digit = round_index + 1
+                round_max_digit = max(len(str(metaparameters[i])) - 2, len(str(metaparameters[j])) -2)
+                while x == y and round_digit <= round_max_digit:
+                    x = round(metaparameters[i], round_digit)
+                    y = round(metaparameters[j], round_digit)
+                    round_digit += 1
+                # actually validate_metaparameters.py will validate those parameters later. 
+                # except for satisfying condition that those parameters should be in 
+                # range (0, 1), parameters D1, D2, D3, D4 for a certain xgram model 
+                # should satisfy D1 > D2 > D3 > D4. 
+                # here we only checked the repeating values but not the order relationship
+                if x == y:
+                    sys.exit("train_lm.py: {0} and {1} are the same. metaparameters can not be exactly the same.".format(x,y))
+                out[j] = y
         
-        # out[i] now is valided and can be appended the output set out_param 
-        out[i] = x
-        out_param.append(format(out[i]))
+            # out[i] now is valided and can be appended to the output set out_param 
+            out[i] = x
+            out_param.append(format(out[i]))
     
     return ','.join(out_param)
 
