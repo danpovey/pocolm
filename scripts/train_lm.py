@@ -152,6 +152,7 @@ def FormatMetaparameters(metaparameters, num_train_sets):
     # round all float metaparameters to 3rd decimal places 
     round_index = 3
     for param in metaparameters:
+        assert (param > 0 and param < 1)
         x = round(param, round_index)
         out.append(x)
     
@@ -330,14 +331,14 @@ if args.cleanup == 'true' and args.keep_int_data == 'false':
     done_file = os.path.join(int_dir, '.done')
     os.remove(done_file)
 
+for name in [ 'ngram_order', 'num_train_sets' ]:
+    f = open(os.path.join(counts_dir, name))
+    globals()[name] = int(f.readline())
+    f.close()
+
 metaparam_file = ''
 if args.bypass_metaparameter_optimization != None:
     LogMessage("Bypass optimization steps")
-
-    for name in [ 'ngram_order', 'num_train_sets' ]:
-        f = open(os.path.join(counts_dir, name))
-        globals()[name] = int(f.readline())
-        f.close()
 
     metaparameters = ParseMetaparameters(args.bypass_metaparameter_optimization,
         ngram_order, num_train_sets)
