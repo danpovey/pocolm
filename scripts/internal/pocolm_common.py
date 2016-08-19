@@ -3,6 +3,7 @@
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
 import os, sys, subprocess, time
+from subprocess import CalledProcessError
 
 def ExitProgram(message):
     print("{0}: {1}".format(os.path.basename(sys.argv[0]),
