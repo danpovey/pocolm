@@ -123,13 +123,27 @@ class PruneSizeModel:
                 prev_iter = self.history.pop()
                 backtrack_iter = prev_iter[-1] # set starting iter
 
-            self.AdjustModelForOvershoot()
-            self.DebugLog("Backtrack to iter: {0}, xgrams_change_power={1}, "
-                          "prev_change_power={2}".format(backtrack_iter,
-                              self.xgrams_change_power, self.prev_change_power))
+            prev_threshold = self.GetPrevThreshold()
+            cur_threshold = self.GetCurThreshold()
+            if prev_threshold != cur_threshold:
+                # we will prune again with the same threshold
+                self.DebugLog("Backtrack to iter: {0} without adjust model".format(backtrack_iter))
+            else:
+                self.AdjustModelForOvershoot()
+                self.DebugLog("Backtrack to iter: {0}, xgrams_change_power={1}, "
+                              "prev_change_power={2}".format(backtrack_iter,
+                                  self.xgrams_change_power, self.prev_change_power))
 
-        cur_target_num_xgrams = self.GetIntermediateTargetNumXgrams()
-        (next_threshold, modeled_next_num_xgrams) = self.GetNextThreshold(cur_target_num_xgrams)
+        if backtrack_iter > 0 and prev_threshold != cur_threshold:
+            # we repeat the threshold again to see the full effect of the
+            # threshold (due to "protected" n-grams, that cannot be pruned
+            # until we've pruned away the state they lead to
+            next_threshold = cur_threshold
+            modeled_next_num_xgrams = self.GetCurModeledNumXgrams()
+            cur_target_num_xgrams = self.GetCurTargetNumXgrams()
+        else:
+            cur_target_num_xgrams = self.GetIntermediateTargetNumXgrams()
+            (next_threshold, modeled_next_num_xgrams) = self.GetNextThreshold(cur_target_num_xgrams)
 
         hist = [next_threshold, 0, modeled_next_num_xgrams, cur_target_num_xgrams]
         if backtrack_iter > 0:
