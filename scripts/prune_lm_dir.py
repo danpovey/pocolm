@@ -82,7 +82,7 @@ if os.system("validate_lm_dir.py " + args.lm_dir_in) != 0:
 
 # verify the input string max_memory
 if args.max_memory != '':
-    # valid string max_memory must have at least two items 
+    # valid string max_memory must have at least two items
     if len(args.max_memory) >= 2:
         s = args.max_memory
         # valid string max_memory can be formatted as:
@@ -98,7 +98,7 @@ if args.max_memory != '':
             # max memory size must be larger than zero
             if int(s[:-1]) == 0:
                 sys.exit("prune_lm_dir.py: --max-memory must be > 0 {unit}.".format(
-                         unit = s[-1]))    
+                         unit = s[-1]))
         else:
             sys.exit("prune_lm_dir.py: the format of string --max-memory is not correct.")
     else:
@@ -572,7 +572,12 @@ LogMessage("reduced number of n-grams from {0} to {1}, "
        "i.e. by {2}%".format(initial_num_ngrams, current_num_ngrams,
         100.0 * (initial_num_ngrams - current_num_ngrams) / initial_num_ngrams))
 
-LogMessage("approximate K-L divergence was {0}".format(-sum(effective_logprob_changes)))
+# The following prints the K-L divergence; it breaks out the parts by sign so
+# you can see the effect of the E-M separately (it's usually quite small).
+LogMessage("approximate K-L divergence was {0} + {1} = {2}".format(
+        -sum([max(0.0, x) for x in effective_logprob_changes]),
+        -sum([min(0.0, x) for x in effective_logprob_changes]),
+        -sum(effective_logprob_changes)))
 
 if initial_logprob_per_word != None and steps[-1] == 'EM':
     LogMessage("exact K-L divergence was {0}".format(
