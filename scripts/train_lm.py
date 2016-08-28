@@ -71,7 +71,7 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
 
 if args.num_words < 0:
-    sys.exit("train_lm.py: --num-splits must be >=0.")
+    sys.exit("train_lm.py: --num-words must be >=0.")
 
 if args.num_splits < 1:
     sys.exit("train_lm.py: --num-splits must be >=1.")
