@@ -147,7 +147,7 @@ def WriteMetaparameters(metaparameters, ngram_order, num_train_sets, out_file):
 def FormatMetaparameters(metaparameters, num_train_sets):
     # store metaparameters as floats during checking and rerounding
     out = []
-    # final output metaparameters in string
+    # final output metaparameters as a string list
     out_param = []
     
     # initial check for repeating values
@@ -196,19 +196,17 @@ def FormatMetaparameters(metaparameters, num_train_sets):
 
     return ','.join(out_param)
 
-# this function checks whether there are repeating values in parameters(excluding 
-# the first #number numbers, which are not data-type weights) and if found, return
-# the index of the first pair repeating values 
+# this function checks repeating values in parameters and returns the index
+# of the first pair of repeating values if any is found 
 def FindRepeatingValue(parameters):
-#assert (number >= 1) and (number < len(parameters))
     for i in range(0, len(parameters)):
         for j in range(i + 1, len(parameters)):
             if parameters[i] == parameters[j]:
                 return(i, j)
     return (-1, -1)
 
-# this function rerounds repeating values until they are different and return the values after rerounding
-# if they are indeed the same (collison), exit with a warning (this case can be very rare) 
+# this function rerounds repeating values until they are different and returns the values after rerounding.
+# if they are indeed the same (collison), it exits with a warning (this case can be very rare) 
 def AdjustValues(number1, number2, index1, index2, ref_number1, ref_number2):
     x = number1
     y = number2
