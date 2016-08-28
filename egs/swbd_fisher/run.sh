@@ -54,11 +54,11 @@ for order in 3 4 5; do
   # Note: you'd use --wordlist if you had a previously determined word-list
   # that you wanted to use.
   # Note: the following might be a more reasonable setting:
-  # train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
+  # train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
   #             --min-counts='fisher=2 swbd1=1' \
   #             --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
   #             data/text ${order} ${lm_dir}
-  train_lm.py --num-word=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
+  train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
               --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
               data/text ${order} ${lm_dir}
   unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
