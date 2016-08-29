@@ -81,7 +81,7 @@ if args.warm_start_ratio < 1:
 
 # verify the input string max_memory
 if args.max_memory != '':
-    # valid string max_memory must have at least two items 
+    # valid string max_memory must have at least two items
     if len(args.max_memory) >= 2:
         s = args.max_memory
         # valid string max_memory can be formatted as:
@@ -97,7 +97,7 @@ if args.max_memory != '':
             # max memory size must be larger than zero
             if int(s[:-1]) == 0:
                 sys.exit("train_lm.py: --max-memory must be > 0 {unit}.".format(
-                         unit = s[-1]))    
+                         unit = s[-1]))
         else:
             sys.exit("train_lm.py: the format of string --max-memory is not correct.")
     else:
@@ -161,10 +161,26 @@ def ParseMetaparameters(encoded_str, ngram_order, num_train_sets):
 
     return metaparameters
 
+def CheckFreshness(tgt_file, ref_files):
+    if not os.path.exists(tgt_file):
+      return True
+
+    for f in ref_files:
+      if os.path.getmtime(tgt_file) < os.path.getmtime(f):
+        return True
+
+    return False
+
 # get word counts
 word_counts_dir = os.path.join(work_dir, 'word_counts')
+if os.system("validate_text_dir.py " + args.text_dir) != 0:
+    sys.exit(1)
+last_done_files = []
+for f in os.listdir(args.text_dir):
+    if f.endswith(".txt") or f.endswith(".txt.gz"):
+        last_done_files.append(os.path.join(args.text_dir, f))
 done_file = os.path.join(word_counts_dir, '.done')
-if os.path.exists(done_file):
+if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip getting word counts")
 else:
     LogMessage("Getting word counts...")
@@ -175,8 +191,9 @@ else:
 
 # get unigram weights
 unigram_weights = os.path.join(args.text_dir, 'unigram_weights')
+last_done_files = [done_file]
 done_file = os.path.join(work_dir, '.unigram_weights.done')
-if os.path.exists(done_file):
+if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip getting unigram weights")
 else:
     LogMessage("Getting unigram weights...")
@@ -195,8 +212,9 @@ if args.wordlist == None:
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir)
         vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
+        last_done_files = [done_file]
         done_file = os.path.join(work_dir, '.vocab_' + vocab_name + '.txt.done')
-        if os.path.exists(done_file):
+        if not CheckFreshness(done_file, last_done_files):
             LogMessage("Skip generating vocab")
         else:
             LogMessage("Generating vocab with num-words={0} ...".format(args.num_words))
@@ -211,8 +229,9 @@ if args.wordlist == None:
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir)
         vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
+        last_done_files = [done_file]
         done_file = os.path.join(work_dir, '.vocab_' + vocab_name + '.txt.done')
-        if os.path.exists(done_file):
+        if not CheckFreshness(done_file, last_done_files):
             LogMessage("Skip generating vocab")
         else:
             LogMessage("Generating vocab with unlmited num-words ...")
@@ -229,8 +248,9 @@ else:
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
     vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
+    last_done_files = [done_file]
     done_file = os.path.join(work_dir, '.vocab_' + vocab_name + '.txt.done')
-    if os.path.exists(done_file):
+    if not CheckFreshness(done_file, last_done_files):
         LogMessage("Skip generating vocab")
     else:
         LogMessage("Generating vocab with wordlist[{0}]...".format(args.wordlist))
@@ -241,8 +261,9 @@ else:
 
 # preparing int data
 int_dir = os.path.join(work_dir, 'int_' + vocab_name)
+last_done_files = [done_file]
 done_file = os.path.join(int_dir, '.done')
-if os.path.exists(done_file):
+if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip preparing int data")
 else:
     LogMessage("Preparing int data...")
@@ -257,8 +278,9 @@ log_dir = os.path.join(work_dir, 'log', lm_name)
 if not os.path.isdir(log_dir):
     os.makedirs(log_dir)
 counts_dir = os.path.join(work_dir, 'counts_' + lm_name)
+last_done_files = [done_file]
 done_file = os.path.join(counts_dir, '.done')
-if os.path.exists(done_file):
+if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip getting counts")
 else:
     LogMessage("Getting ngram counts...")
@@ -272,8 +294,7 @@ else:
 if args.cleanup == 'true' and args.keep_int_data == 'false':
     if os.system("cleanup_int_dir.py " + int_dir) != 0:
         sys.exit("train_lm.py: failed to cleanup int dir: " + int_dir)
-    done_file = os.path.join(int_dir, '.done')
-    os.remove(done_file)
+    os.remove(os.path.join(int_dir, '.done'))
 
 metaparam_file = ''
 if args.bypass_metaparameter_optimization != None:
@@ -291,8 +312,9 @@ if args.bypass_metaparameter_optimization != None:
 else:
     # subset counts dir
     subset_counts_dir = counts_dir + '_subset' + str(args.warm_start_ratio)
+    last_done_files = [done_file]
     done_file = os.path.join(subset_counts_dir, '.done')
-    if os.path.exists(done_file):
+    if not CheckFreshness(done_file, last_done_files):
         LogMessage("Skip subsetting counts dir")
     else:
         LogMessage("Subsetting counts dir...")
@@ -305,8 +327,9 @@ else:
     # warm-start optimize metaparameters
     subset_optimize_dir = os.path.join(work_dir, "optimize_{0}_subset{1}".format(lm_name, \
             args.warm_start_ratio))
+    last_done_files = [done_file]
     done_file = os.path.join(subset_optimize_dir, '.done')
-    if os.path.exists(done_file):
+    if not CheckFreshness(done_file, last_done_files):
         LogMessage("Skip warm-start optimizing metaparameters")
     else:
         LogMessage("Optimizing metaparameters for warm-start...")
@@ -320,13 +343,13 @@ else:
     if args.cleanup == 'true':
         if os.system("cleanup_count_dir.py " + subset_counts_dir) != 0:
             sys.exit("train_lm.py: failed to cleanup subset count dir: " + subset_counts_dir)
-        done_file = os.path.join(subset_counts_dir, '.done')
-        os.remove(done_file)
+        os.remove(os.path.join(subset_counts_dir, '.done'))
 
     # optimize metaparameters
     optimize_dir = os.path.join(work_dir, "optimize_{0}".format(lm_name))
+    last_done_files = [done_file]
     done_file = os.path.join(optimize_dir, '.done')
-    if os.path.exists(done_file):
+    if not CheckFreshness(done_file, last_done_files):
         LogMessage("Skip optimizing metaparameters")
     else:
         LogMessage("Optimizing metaparameters...")
@@ -346,8 +369,9 @@ else:
 
 # make lm dir
 lm_dir = os.path.join(args.lm_dir, lm_name + '.pocolm')
+last_done_files = [done_file]
 done_file = os.path.join(lm_dir, '.done')
-if os.path.exists(done_file):
+if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip making lm dir")
 else:
     LogMessage("Making lm dir...")
@@ -366,8 +390,7 @@ else:
 if args.cleanup == 'true':
     if os.system("cleanup_count_dir.py " + counts_dir) != 0:
         sys.exit("train_lm.py: failed to cleanup count dir: " + counts_dir)
-    done_file = os.path.join(counts_dir, '.done')
-    os.remove(done_file)
+    os.remove(os.path.join(counts_dir, '.done'))
 
 if os.system("validate_lm_dir.py " + lm_dir) != 0:
     sys.exit("train_lm.py: failed to validate output LM-dir")
