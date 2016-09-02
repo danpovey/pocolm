@@ -43,6 +43,9 @@ parser.add_argument("--bypass-metaparameter-optimization", type=str, default=Non
                     "a comma separated list. If this is specified, the stages of metaparameter optimization "
                     "would be completely bypassed. One can get the approaviate numbers after "
                     "running one time of train_lm.py.")
+parser.add_argument("--limit-unk-history", type=bool,
+                    help="If True, the left words of <unk> in history of a n-gram will be truncated. "
+                    "run 'get_counts.py -h' to see the details on how to set this option.")
 parser.add_argument("--verbose", type=str, default='false',
                     choices=['true','false'],
                     help="If true, print commands as we execute them.")
@@ -284,8 +287,9 @@ if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip getting counts")
 else:
     LogMessage("Getting ngram counts...")
-    command = "get_counts.py --min-counts='{0}' --max-memory={1} {2} {3} {4}".format(
-            args.min_counts, args.max_memory, int_dir, args.order, counts_dir)
+    command = "get_counts.py --min-counts='{0}' --max-memory={1} {5} {2} {3} {4}".format(
+            args.min_counts, args.max_memory, int_dir, args.order, counts_dir,
+            "--limit-unk-history=True" if args.limit_unk_history else "")
     log_file = os.path.join(log_dir, 'get_counts.log')
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)

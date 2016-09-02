@@ -24,6 +24,8 @@
 #include <iomanip>
 #include <stdlib.h>
 
+#include "pocolm-types.h"
+
 /*
    This standalone C++ program is intended to turn integerized text into
    strings that identify the n-gram counts that we need to count up.
@@ -62,13 +64,30 @@
 
 int main (int argc, char **argv) {
   int ngram_order;
-  if (argc != 2) {
-    std::cerr << "Expected usage: get-text-counts <ngram-order>\n";
+  if (argc != 2 && (argc != 3 || strcmp(argv[1], "--limit-unk-history") != 0)) {
+    std::cerr << "Expected usage: get-text-counts [--limit-unk-history] <ngram-order>\n"
+              << "This program reads lines of integerized text and outputs raw n-grams in\n"
+              << "text form, one per line, in the format <reversed-history> <predicted-word>\n"
+              << "e.g.\n"
+              << "6     5      7\n"
+              << "See comments in code for more details, and get_counts.py for examples.\n"
+              << "If the option --limit-unk-history is given, then any history greater\n"
+              << "than bigram history that is to the left of <unk> (symbol number 3)\n"
+              << "will be truncated (this relates to keeping decoding graphs compact\n"
+              << "for Kaldi purposes).\n";
     exit(1);
   }
+
+  bool limit_int_history = false;
+  if (argc == 3) {
+    limit_int_history = true;
+    argc -= 1;
+    argv += 1;
+  }
+
   ngram_order = atoi(argv[1]);
   if (!(ngram_order > 0)) {
-    std::cerr << "Expected usage: get-text-counts <ngram-order>\n"
+    std::cerr << "Expected usage: get-text-counts [--limit-unk-history] <ngram-order>\n"
               << "ngram-order must be > 0\n";
     exit(1);
   }
@@ -81,15 +100,13 @@ int main (int argc, char **argv) {
     num_lines_processed++;
     std::istringstream str(line);
     line_ints.clear();
-    line_ints.push_back(1);  // <-- 1 is a special symbol representing
-                             // beginning-of-sentence (BOS, or <s>)
+    line_ints.push_back(kBosSymbol);
     int i;
     while (str >> i) {
       assert(i > 2);
       line_ints.push_back(i);
     }
-    line_ints.push_back(2);  // <-- 2 is a special symbol representing
-                             // ebd-of-sentence (EOS, or <s>)
+    line_ints.push_back(kEosSymbol);
     int size = line_ints.size();
     num_words_processed += size;
     // 'count' will contain the reversed history and then the predicted word.
@@ -99,8 +116,12 @@ int main (int argc, char **argv) {
     // for vocabulary sizes up to 10 million - 1... should be enough for
     // a while.
     for (int pos = 1; pos < size; pos++) {
-      for (int h = pos - 1; h >= 0 && h > pos - ngram_order; h--)
+      for (int h = pos - 1; h >= 0 && h > pos - ngram_order; h--) {
         std::cout << std::setfill(' ') << std::setw(7) << line_ints[h] << " ";
+        if (limit_int_history && line_ints[h] == kUnkSymbol) {
+          break;
+        }
+      }
       std::cout << std::setfill(' ') << std::setw(7) << line_ints[pos] << "\n";
       assert(line_ints[pos] < 10000000 &&
              "To deal with vocabularies over 10 million, change setw(7) to setw(8)"

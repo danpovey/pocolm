@@ -57,6 +57,8 @@ parser.add_argument("--num-count-jobs", type=int, default=4,
                     "getting initial counts")
 parser.add_argument("--max-memory", type=str, default='',
                     help="Memory limitation for sort.")
+parser.add_argument("--limit-unk-history", type=bool, default=False,
+                    help="Truncate the left n-gram of an <unk> in history.")
 parser.add_argument("source_int_dir",
                     help="Specify <source_int_dir> the data-source")
 parser.add_argument("ngram_order", type=int,
@@ -271,9 +273,10 @@ def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_s
                        for j in range(1, num_splits + 1) ])
 
     command = "bash -c 'set -o pipefail; export LC_ALL=C; gunzip -c {source_int_dir}/{n}.txt.gz | "\
-            "get-text-counts {ngram_order} | sort {mem_opt}| uniq -c | "\
+            "get-text-counts {limit_unk_history} {ngram_order} | sort {mem_opt}| uniq -c | "\
             "get-int-counts {int_counts_output}'".format(source_int_dir = source_int_dir,
                                               n = n , ngram_order = ngram_order,
+                                              limit_unk_history = "--limit-unk-history" if args.limit_unk_history else "",
                                               mem_opt = sort_mem_opt,
                                               int_counts_output = int_counts_output)
     log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
@@ -347,7 +350,8 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
                'gunzip -c {0}/{1}.txt.gz | distribute-input-lines '.format(source_int_dir, n) +
                ' '.join(['{0}/{1}'.format(tempdir, p) for p in range(num_proc)]) + '& ' +
                'sort -m {0}'.format(sort_mem_opt) +
-               ' '.join([ '<(get-text-counts {0} <{1}/{2} | sort {3})'.format(ngram_order, tempdir, p, sort_mem_opt)
+               ' '.join([ '<(get-text-counts {4} {0} <{1}/{2} | sort {3})'.format(ngram_order, tempdir, p, sort_mem_opt,
+                   "--limit-unk-history" if args.limit_unk_history else "")
                                        for p in range(num_proc) ]) +
                '| uniq -c | get-int-counts {0}'.format(int_counts_output) +
                "'") # end the quote from the 'bash -c'.
