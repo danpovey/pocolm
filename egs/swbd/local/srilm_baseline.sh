@@ -8,13 +8,17 @@
 
 export PATH=$PATH:/home/dpovey/kaldi-trunk/tools/srilm/bin/i686-m64/
 
+num_word=20000
+if [ ! -z $1 ]; then
+  num_word=$1
+fi
+
 if ! command -v ngram-count >&/dev/null; then
   echo "$0: you need to have SRILM on your path (look at the script for guidance)"
   exit 1
 fi
 
-
-for f in data/text/swbd1.txt data/text/dev.txt data/vocab_20k.txt; do
+for f in data/text/swbd1.txt data/text/dev.txt data/lm/work/vocab_${num_word}.txt; do
   if [ ! -f $f ]; then
     echo "$0: expected file $f to exist"
     exit 1
@@ -24,7 +28,7 @@ done
 
 mkdir data/srilm
 
-tail -n +2 data/vocab_20k.txt  | awk '{print $1}' > data/srilm/wordlist
+tail -n +2 data/lm/work/vocab_${num_word}.txt  | awk '{print $1}' > data/srilm/wordlist
 
 ngram-count -text data/text/swbd1.txt -order 3 -limit-vocab -vocab data/srilm/wordlist \
   -unk -map-unk "<unk>" -kndiscount -interpolate -lm data/srilm/sw1.o3g.kn.gz

@@ -87,7 +87,7 @@ for order in 3 4 5; do
 
 done
 
-# local/srilm_baseline.sh
+# (run local/srilm_baseline.sh ${num_word} to see the following result e.g. local/srilm_baseline.sh 40000 )
 
 # the following does does some self-testing, including
 # that the computed derivatives are accurate.

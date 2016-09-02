@@ -71,7 +71,7 @@ for order in 3 4 5; do
 
 done
 
-# local/srilm_baseline.sh
+# (run local/srilm_baseline.sh ${num_word} to see the following result e.g. local/srilm_baseline.sh 20000)
 
 # local/self_test.sh
 
