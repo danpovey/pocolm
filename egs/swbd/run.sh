@@ -43,7 +43,7 @@ bypass_metaparam_optim_opt=
 limit_unk_history_opt=
 # If you want to limit the left of <unk> in the history of a n-gram
 # un-comment the following line
-limit_unk_history_opt="--limit-unk-history=True"
+#limit_unk_history_opt="--limit-unk-history=true"
 
 for order in 3 4 5; do
   train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
