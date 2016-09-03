@@ -23,6 +23,7 @@
 #include <vector>
 #include <iomanip>
 #include <stdlib.h>
+#include <string.h>
 
 #include "pocolm-types.h"
 
