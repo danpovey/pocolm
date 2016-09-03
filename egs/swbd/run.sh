@@ -14,7 +14,7 @@ max_memory='--max-memory=10G'
 # If you do not want to set memory limitation for "sort", you can use
 #max_memory=
 # Choices for the max-memory can be:
-# 1) integer + 'K', 'M', 'G', ... 
+# 1) integer + 'K', 'M', 'G', ...
 # 2) integer + 'b', meaning unit is byte and no multiplication
 # 3) integer + '%', meaning a percentage of memory
 # 4) integer, default unit is 'K'
@@ -40,11 +40,15 @@ bypass_metaparam_optim_opt=
 #for order in 3; do
 #rm -f ${lm_dir}/${num_word}_${order}.pocolm/.done
 
+limit_unk_history_opt=
+# If you want to limit the left of <unk> in the history of a n-gram
+# un-comment the following line
+#limit_unk_history_opt="--limit-unk-history=true"
 
 for order in 3 4 5; do
   train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
               --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
-              data/text ${order} ${lm_dir}
+              ${limit_unk_history_opt} data/text ${order} ${lm_dir}
   unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
 
   mkdir -p ${arpa_dir}
