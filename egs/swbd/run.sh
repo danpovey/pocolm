@@ -7,7 +7,6 @@ export PATH=$PATH:$POCOLM_ROOT/scripts
 local/swbd_data_prep.sh
 
 num_word=20000
-work_dir="data/work"
 lm_dir="data/lm"
 arpa_dir="data/arpa"
 
@@ -39,8 +38,7 @@ bypass_metaparam_optim_opt=
 # Note: to use these example parameters, you may need to remove the .done files
 # to make sure the make_lm_dir.py be called and tain only 3-gram model
 #for order in 3; do
-#  unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
-#  rm -f ${unpruned_lm_dir}/.done
+#rm -f ${lm_dir}/${num_word}_${order}.pocolm/.done
 
 limit_unk_history_opt=
 # If you want to limit the left of <unk> in the history of a n-gram
@@ -48,10 +46,10 @@ limit_unk_history_opt=
 #limit_unk_history_opt="--limit-unk-history=true"
 
 for order in 3 4 5; do
-  unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
   train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
               --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
-              ${limit_unk_history_opt} data/text ${order} ${work_dir} ${unpruned_lm_dir}
+              ${limit_unk_history_opt} data/text ${order} ${lm_dir}
+  unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
 
   mkdir -p ${arpa_dir}
   format_arpa_lm.py ${max_memory} ${unpruned_lm_dir} | gzip -c > ${arpa_dir}/${num_word}_${order}gram_unpruned.arpa.gz
