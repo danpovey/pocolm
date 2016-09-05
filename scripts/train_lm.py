@@ -16,7 +16,12 @@ parser = argparse.ArgumentParser(description="This script trains an n-gram langu
                                  "from <text-dir> and writes out the model to <lm-dir>. "
                                  "The output model dir is in pocolm-format, user can call "
                                  "format_arpa_lm.py with <lm-dir> to get a ARPA-format model. "
-                                 "Pruning a model could be achieve by call prune_lm_dir.py with <lm-dir>.",
+                                 "Pruning a model could be achieve by call prune_lm_dir.py with <lm-dir>."
+                                 "Example usage: "
+                                 "  train_lm.py --num-words=20000 --num-splits=5 --warm-start-ratio=10 "
+                                 "               --max-memory=10G data/text 3 data/work data/lm/20000_3.pocolm"
+                                 "  train_lm.py --wordlist=foo.txt --num-splits=5 --warm-start-ratio=10"
+                                 "               --max-memory=10G data/text 3 data/work data/lm/foo_3.pocolm",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--wordlist", type=str, default=None,
@@ -54,7 +59,7 @@ parser.add_argument("--cleanup",  type=str, choices=['true','false'],
                     default='true', help='Set this to false to disable clean up of the '
                     'work directory.')
 parser.add_argument("--keep-int-data",  type=str, choices=['true','false'],
-                    default='false', help='whether to avoid the int-dir being cleanuped. '
+                    default='false', help='whether to avoid the int-dir being cleaned up. '
                     'This is useful when user trains different orders of model with the same int-data. '
                     'It is valid only when --cleanup=true')
 parser.add_argument("--max-memory", type=str, default='',
@@ -63,6 +68,8 @@ parser.add_argument("text_dir",
                     help="Directory containing the training text.")
 parser.add_argument("order",
                     help="Order of N-gram model to be trained.")
+parser.add_argument("work_dir",
+                    help="Working directory for building the language model.")
 parser.add_argument("lm_dir",
                     help="Output directory where the language model is created.")
 
@@ -107,8 +114,7 @@ if args.max_memory != '':
     else:
          sys.exit("train_lm.py: the lenght of string --max-memory must >= 2.")
 
-work_dir = os.path.join(args.lm_dir, 'work')
-log_dir = os.path.join(work_dir, "log")
+log_dir = os.path.join(args.work_dir, "log")
 if not os.path.isdir(log_dir):
     os.makedirs(log_dir)
 
@@ -176,7 +182,7 @@ def CheckFreshness(tgt_file, ref_files):
     return False
 
 # get word counts
-word_counts_dir = os.path.join(work_dir, 'word_counts')
+word_counts_dir = os.path.join(args.work_dir, 'word_counts')
 if os.system("validate_text_dir.py " + args.text_dir) != 0:
     sys.exit(1)
 last_done_files = []
@@ -196,7 +202,7 @@ else:
 # get unigram weights
 unigram_weights = os.path.join(args.text_dir, 'unigram_weights')
 last_done_files = [done_file]
-done_file = os.path.join(work_dir, '.unigram_weights.done')
+done_file = os.path.join(args.work_dir, '.unigram_weights.done')
 if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip getting unigram weights")
 else:
@@ -212,12 +218,12 @@ vocab = ''
 if args.wordlist == None:
     if args.num_words > 0:
         vocab_name = str(args.num_words)
-        log_dir = os.path.join(work_dir, 'log', vocab_name)
+        log_dir = os.path.join(args.work_dir, 'log', vocab_name)
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir)
-        vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
+        vocab = os.path.join(args.work_dir, 'vocab_' + vocab_name + '.txt')
         last_done_files = [done_file]
-        done_file = os.path.join(work_dir, '.vocab_' + vocab_name + '.txt.done')
+        done_file = os.path.join(args.work_dir, '.vocab_' + vocab_name + '.txt.done')
         if not CheckFreshness(done_file, last_done_files):
             LogMessage("Skip generating vocab")
         else:
@@ -229,12 +235,12 @@ if args.wordlist == None:
             TouchFile(done_file)
     else:
         vocab_name = 'unlimited'
-        log_dir = os.path.join(work_dir,'log', vocab_name)
+        log_dir = os.path.join(args.work_dir,'log', vocab_name)
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir)
-        vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
+        vocab = os.path.join(args.work_dir, 'vocab_' + vocab_name + '.txt')
         last_done_files = [done_file]
-        done_file = os.path.join(work_dir, '.vocab_' + vocab_name + '.txt.done')
+        done_file = os.path.join(args.work_dir, '.vocab_' + vocab_name + '.txt.done')
         if not CheckFreshness(done_file, last_done_files):
             LogMessage("Skip generating vocab")
         else:
@@ -248,12 +254,12 @@ else:
         LogMessage("Ignoring --num-words because --wordlist is specified")
 
     vocab_name = os.path.basename(args.wordlist)
-    log_dir = os.path.join(work_dir,'log', vocab_name)
+    log_dir = os.path.join(args.work_dir,'log', vocab_name)
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
-    vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
+    vocab = os.path.join(args.work_dir, 'vocab_' + vocab_name + '.txt')
     last_done_files = [done_file]
-    done_file = os.path.join(work_dir, '.vocab_' + vocab_name + '.txt.done')
+    done_file = os.path.join(args.work_dir, '.vocab_' + vocab_name + '.txt.done')
     if not CheckFreshness(done_file, last_done_files):
         LogMessage("Skip generating vocab")
     else:
@@ -264,7 +270,7 @@ else:
         TouchFile(done_file)
 
 # preparing int data
-int_dir = os.path.join(work_dir, 'int_' + vocab_name)
+int_dir = os.path.join(args.work_dir, 'int_' + vocab_name)
 last_done_files = [done_file]
 done_file = os.path.join(int_dir, '.done')
 if not CheckFreshness(done_file, last_done_files):
@@ -278,10 +284,10 @@ else:
 
 # get ngram counts
 lm_name = vocab_name + '_' + str(args.order)
-log_dir = os.path.join(work_dir, 'log', lm_name)
+log_dir = os.path.join(args.work_dir, 'log', lm_name)
 if not os.path.isdir(log_dir):
     os.makedirs(log_dir)
-counts_dir = os.path.join(work_dir, 'counts_' + lm_name)
+counts_dir = os.path.join(args.work_dir, 'counts_' + lm_name)
 last_done_files = [done_file]
 done_file = os.path.join(counts_dir, '.done')
 if not CheckFreshness(done_file, last_done_files):
@@ -312,7 +318,7 @@ if args.bypass_metaparameter_optimization != None:
 
     metaparameters = ParseMetaparameters(args.bypass_metaparameter_optimization,
         ngram_order, num_train_sets)
-    metaparam_file = os.path.join(work_dir, 'bypass.metaparams')
+    metaparam_file = os.path.join(args.work_dir, 'bypass.metaparams')
     WriteMetaparameters(metaparameters, ngram_order, num_train_sets, metaparam_file)
 else:
     # subset counts dir
@@ -330,7 +336,7 @@ else:
         TouchFile(done_file)
 
     # warm-start optimize metaparameters
-    subset_optimize_dir = os.path.join(work_dir, "optimize_{0}_subset{1}".format(lm_name, \
+    subset_optimize_dir = os.path.join(args.work_dir, "optimize_{0}_subset{1}".format(lm_name, \
             args.warm_start_ratio))
     last_done_files = [done_file]
     done_file = os.path.join(subset_optimize_dir, '.done')
@@ -351,7 +357,7 @@ else:
         os.remove(os.path.join(subset_counts_dir, '.done'))
 
     # optimize metaparameters
-    optimize_dir = os.path.join(work_dir, "optimize_{0}".format(lm_name))
+    optimize_dir = os.path.join(args.work_dir, "optimize_{0}".format(lm_name))
     last_done_files = [done_file]
     done_file = os.path.join(optimize_dir, '.done')
     if not CheckFreshness(done_file, last_done_files):
@@ -373,9 +379,8 @@ else:
                    FormatMetaparameters(metaparameters)))
 
 # make lm dir
-lm_dir = os.path.join(args.lm_dir, lm_name + '.pocolm')
 last_done_files = [done_file]
-done_file = os.path.join(lm_dir, '.done')
+done_file = os.path.join(args.lm_dir, '.done')
 if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip making lm dir")
 else:
@@ -386,7 +391,7 @@ else:
     if args.fold_dev_into != None:
         opts.append('--fold-dev-into=' + args.fold_dev_into)
     command = "make_lm_dir.py --cleanup={5} --num-splits={0} {1} {2} {3} {4}".format(
-            args.num_splits, ' '.join(opts), counts_dir, metaparam_file, lm_dir, args.cleanup)
+            args.num_splits, ' '.join(opts), counts_dir, metaparam_file, args.lm_dir, args.cleanup)
     log_file = os.path.join(log_dir, 'make_lm_dir.log')
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
@@ -397,16 +402,16 @@ if args.cleanup == 'true':
         sys.exit("train_lm.py: failed to cleanup count dir: " + counts_dir)
     os.remove(os.path.join(counts_dir, '.done'))
 
-if os.system("validate_lm_dir.py " + lm_dir) != 0:
+if os.system("validate_lm_dir.py " + args.lm_dir) != 0:
     sys.exit("train_lm.py: failed to validate output LM-dir")
 
-num_ngrams = GetNumNgrams(lm_dir)
+num_ngrams = GetNumNgrams(args.lm_dir)
 line = "Ngram counts: "
 for order in range(len(num_ngrams) - 2):
     line += str(num_ngrams[order]) + ' + '
 line += str(num_ngrams[-2]) + ' = ' + str(num_ngrams[-1])
 LogMessage("" + line)
 
-LogMessage("Success to train lm, output dir is {0}.".format(lm_dir))
+LogMessage("Success to train lm, output dir is {0}.".format(args.lm_dir))
 LogMessage("You may call format_arpa_lm.py to get ARPA-format lm, ")
 LogMessage("Or call prune_lm_dir.py to prune the lm.")
