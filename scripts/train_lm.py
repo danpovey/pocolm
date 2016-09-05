@@ -67,17 +67,17 @@ parser.add_argument("--keep-int-data",  type=str, choices=['true','false'],
                     'It is valid only when --cleanup=true')
 parser.add_argument("--max-memory", type=str, default='',
                     help="Memory limitation for sort called by get_counts.py.")
-parser.add_argument("--lm-dir", type=str, default='',
-                    help="Output directory where the language model is created."
-                    "If this is not specified, the output directory would be a subdirectory under <work-dir>, "
-                    "with name '<vocab_name>_<order>.pocolm', where the <vocab_name> will be the name of wordlist "
-                    "if --wordlist is specified otherwise the size of vocabulary, and <order> is the ngram order of model.")
 parser.add_argument("text_dir",
                     help="Directory containing the training text.")
 parser.add_argument("order",
                     help="Order of N-gram model to be trained.")
 parser.add_argument("work_dir",
                     help="Working directory for building the language model.")
+parser.add_argument("lm_dir", type=str, default='', nargs='?',
+                    help="Output directory where the language model is created."
+                    "If this is not specified, the output directory would be a subdirectory under <work-dir>, "
+                    "with name '<vocab_name>_<order>.pocolm', where the <vocab_name> will be the name of wordlist "
+                    "if --wordlist is specified otherwise the size of vocabulary, and <order> is the ngram order of model.")
 
 
 args = parser.parse_args()
