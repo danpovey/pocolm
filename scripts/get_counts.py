@@ -467,7 +467,7 @@ if args.max_memory != '':
                 ExitProgram("max_memory for each of the {0} train sets is {1}{2}."
                             "Please reset a larger max_memory value".format(
                             num_train_sets, float(value)/num_train_sets, unit))
-        sub_max_memory = str(sub_memory) + unit
+        sub_max_memory = str(int(sub_memory)) + unit
         sort_mem_opt = ("--buffer-size={0} ".format(sub_max_memory))
     else:
         sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
@@ -488,7 +488,7 @@ if args.min_counts == '':
     # no min-counts specified: use normal pipeline.
     print("get_counts.py: dumping counts", file=sys.stderr)
     threads = []
-    for n in [ "dev" ] + range(1, num_train_sets + 1):
+    for n in [ "dev" ] + list(range(1, num_train_sets + 1)):
         threads.append(threading.Thread(target = GetCountsMultiProcess,
                                         args = [args.source_int_dir, args.dest_count_dir,
                                                 args.ngram_order, str(n), args.num_count_jobs] ))

@@ -258,7 +258,7 @@ def GetInitialLogprob():
         assert like_change_per_word < 0.0001  # should be exactly zero.
     except Exception as e:
         ExitProgram("error running command '{0}', error is '{1}'".format(
-                command, str(e)))
+                command, repr(e)))
     global initial_logprob_per_word
     initial_logprob_per_word = logprob_per_word
 
@@ -267,7 +267,7 @@ def WriteNumNgrams(out_dir, num_ngrams):
     try:
         f = open(out_file, "w")
         for order, num in enumerate(num_ngrams):
-            print(str(order + 1) + ' ' + str(num), file=f)
+            print(str(order + 1) + ' ' + str(int(num)), file=f)
         f.close()
     except:
         ExitProgram("error writing num-ngrams to: " + out_file)
@@ -282,7 +282,7 @@ def RunPruneStep(work_in, work_out, threshold):
                "{work_in}/protected.all {float_star} 2>>{log_file}".format(
                   threshold = threshold, num_words = num_words,
                   work_in = work_in, float_star = float_star, log_file = log_file))
-    with  open(log_file, 'w') as f:
+    with    open(log_file, 'w') as f:
         print("# " + command, file=f)
     try:
         print(command, file=sys.stderr)
@@ -292,7 +292,7 @@ def RunPruneStep(work_in, work_out, threshold):
         [ tot_xgrams, shadowed, protected, pruned ] = p.stdout.readline().split()
         num_ngrams = p.stdout.readline().split()
 
-        assert p.stdout.readline() == ''
+        assert not p.stdout.readline()
         ret = p.wait()
         assert ret == 0
         global current_num_xgrams
@@ -300,7 +300,7 @@ def RunPruneStep(work_in, work_out, threshold):
         current_num_xgrams = int(tot_xgrams) - int(pruned)
     except Exception as e:
         ExitProgram("error running command '{0}', error is '{1}'".format(
-                command, str(e)))
+                command, repr(e)))
 
     WriteNumNgrams(work_out, num_ngrams)
 
@@ -368,7 +368,7 @@ def RunEmStep(work_in, work_out):
         like_change_per_word = like_change / tot_count
     except Exception as e:
         ExitProgram("error running command '{0}', error is '{1}'".format(
-                command, str(e)))
+                command, repr(e)))
 
     command = 'merge-float-counts {0} >{1}/float.all'.format(float_star, work_out)
     log_file = work_out + '/log/merge_float_counts.log'
