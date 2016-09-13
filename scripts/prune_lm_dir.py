@@ -282,7 +282,7 @@ def RunPruneStep(work_in, work_out, threshold):
                "{work_in}/protected.all {float_star} 2>>{log_file}".format(
                   threshold = threshold, num_words = num_words,
                   work_in = work_in, float_star = float_star, log_file = log_file))
-    with    open(log_file, 'w') as f:
+    with open(log_file, 'w') as f:
         print("# " + command, file=f)
     try:
         print(command, file=sys.stderr)
