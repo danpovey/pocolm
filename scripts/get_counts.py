@@ -69,6 +69,9 @@ parser.add_argument("dest_count_dir",
 
 args = parser.parse_args()
 
+# this temporary directory will be used by "sort".
+os.environ['TMPDIR'] = args.dest_count_dir
+
 # this reads the 'names' file (which has lines like "1 switchboard", "2 fisher"
 # and so on), and returns a dictionary from integer id to name.
 def ReadNames(names_file):
@@ -578,4 +581,3 @@ else:
 
 if os.system("validate_count_dir.py " + args.dest_count_dir) != 0:
     ExitProgram("command validate_count_dir.py {0} failed".format(args.dest_count_dir))
-
