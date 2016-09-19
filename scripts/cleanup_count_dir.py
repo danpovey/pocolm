@@ -22,7 +22,7 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])))
 
 def CleanupDir(count_dir, ngram_order, num_train_sets):
-    for n in [ 'dev' ] + range(1, num_train_sets + 1):
+    for n in [ 'dev' ] + list(range(1, num_train_sets + 1)):
         for o in range(2, ngram_order +1):
             filename = os.path.join(count_dir, "int.{0}.{1}".format(n, o))
             if os.path.isfile(filename):

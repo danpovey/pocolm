@@ -141,7 +141,7 @@ if os.path.exists("{0}/unigram_weights".format(args.count_dir)):
     f.close()
 
 
-for n in [ 'dev' ] + range(1, num_train_sets + 1):
+for n in [ 'dev' ] + list(range(1, num_train_sets + 1)):
     for o in range(2, ngram_order +1):
         filename = "{0}/int.{1}.{2}".format(args.count_dir, n, o)
         if not os.path.exists(filename):
