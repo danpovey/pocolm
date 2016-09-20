@@ -150,7 +150,7 @@ if args.max_memory != '':
 # returns num-words in this lm-dir.
 def GetNumWords(lm_dir_in):
     command = "tail -n 1 {0}/words.txt".format(lm_dir_in)
-    line = subprocess.check_output(command, shell = True)
+    line = subprocess.check_output(command, shell = True, universal_newlines = True)
     try:
         a = line.split()
         assert len(a) == 2
@@ -240,7 +240,7 @@ def GetInitialLogprob():
             float_star = float_star))
     try:
         print(command, file=sys.stderr)
-        p = subprocess.Popen(command, stdout = subprocess.PIPE, shell = True)
+        p = subprocess.Popen(command, stdout = subprocess.PIPE, shell = True, universal_newlines = True)
         # the stdout of this program will be something like:
         # 1.63388e+06 -7.39182e+06 10.5411 41.237 49.6758
         # representing: total-count, total-like, and for each order, the like-change
@@ -258,7 +258,7 @@ def GetInitialLogprob():
         assert like_change_per_word < 0.0001  # should be exactly zero.
     except Exception as e:
         ExitProgram("error running command '{0}', error is '{1}'".format(
-                command, str(e)))
+                command, repr(e)))
     global initial_logprob_per_word
     initial_logprob_per_word = logprob_per_word
 
@@ -286,7 +286,7 @@ def RunPruneStep(work_in, work_out, threshold):
         print("# " + command, file=f)
     try:
         print(command, file=sys.stderr)
-        p = subprocess.Popen(command, stdout = subprocess.PIPE, shell = True)
+        p = subprocess.Popen(command, stdout = subprocess.PIPE, shell = True, universal_newlines = True)
         [ word_count, like_change ] = p.stdout.readline().split()
         like_change_per_word = float(like_change) / float(word_count)
         [ tot_xgrams, shadowed, protected, pruned ] = p.stdout.readline().split()
@@ -300,7 +300,7 @@ def RunPruneStep(work_in, work_out, threshold):
         current_num_xgrams = int(tot_xgrams) - int(pruned)
     except Exception as e:
         ExitProgram("error running command '{0}', error is '{1}'".format(
-                command, str(e)))
+                command, repr(e)))
 
     WriteNumNgrams(work_out, num_ngrams)
 
@@ -368,7 +368,7 @@ def RunEmStep(work_in, work_out):
         like_change_per_word = like_change / tot_count
     except Exception as e:
         ExitProgram("error running command '{0}', error is '{1}'".format(
-                command, str(e)))
+                command, repr(e)))
 
     command = 'merge-float-counts {0} >{1}/float.all'.format(float_star, work_out)
     log_file = work_out + '/log/merge_float_counts.log'

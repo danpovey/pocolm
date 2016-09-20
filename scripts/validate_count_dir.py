@@ -2,7 +2,7 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess
+import re, os, argparse, sys, math, warnings, subprocess, itertools
 try:              # since gzip will only be needed if there are gzipped files, accept
     import gzip   # failure to import it.
 except:
@@ -141,7 +141,7 @@ if os.path.exists("{0}/unigram_weights".format(args.count_dir)):
     f.close()
 
 
-for n in [ 'dev' ] + range(1, num_train_sets + 1):
+for n in itertools.chain([ 'dev' ], range(1, num_train_sets + 1)):
     for o in range(2, ngram_order +1):
         filename = "{0}/int.{1}.{2}".format(args.count_dir, n, o)
         if not os.path.exists(filename):

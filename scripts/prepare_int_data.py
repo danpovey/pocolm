@@ -47,7 +47,7 @@ def GetNumTrainSets(int_dir):
 
 def GetNumWords(vocab):
   command = "tail -n 1 {0}".format(vocab)
-  line = subprocess.check_output(command, shell = True)
+  line = subprocess.check_output(command, shell = True, universal_newlines = True)
   try:
     a = line.split()
     assert len(a) == 2
