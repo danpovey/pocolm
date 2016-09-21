@@ -16,7 +16,15 @@ parser = argparse.ArgumentParser(description="This script trains an n-gram langu
                                  "from <text-dir> and writes out the model to <lm-dir>. "
                                  "The output model dir is in pocolm-format, user can call "
                                  "format_arpa_lm.py with <lm-dir> to get a ARPA-format model. "
-                                 "Pruning a model could be achieve by call prune_lm_dir.py with <lm-dir>.",
+                                 "Pruning a model could be achieve by call prune_lm_dir.py with <lm-dir>."
+                                 "If --lm-dir is not specified, the model would be written into a subdirectory of <work_dir>, "
+                                 "see help of --lm-dir for details. "
+                                 "Example usage: "
+                                 "  'train_lm.py --num-words=20000 --num-splits=5 --warm-start-ratio=10 "
+                                 "               --max-memory=10G data/text 3 data/work data/lm/20000_3.pocolm'"
+                                 " or "
+                                 "  'train_lm.py --wordlist=foo.txt --num-splits=5 --warm-start-ratio=10"
+                                 "               --max-memory=10G data/text 3 data/work data/lm/foo_3.pocolm'",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("--wordlist", type=str, default=None,
@@ -63,8 +71,13 @@ parser.add_argument("text_dir",
                     help="Directory containing the training text.")
 parser.add_argument("order",
                     help="Order of N-gram model to be trained.")
-parser.add_argument("lm_dir",
-                    help="Output directory where the language model is created.")
+parser.add_argument("work_dir",
+                    help="Working directory for building the language model.")
+parser.add_argument("lm_dir", type=str, default='', nargs='?',
+                    help="Output directory where the language model is created."
+                    "If this is not specified, the output directory would be a subdirectory under <work-dir>, "
+                    "with name '<vocab_name>_<order>.pocolm', where the <vocab_name> will be the name of wordlist "
+                    "if --wordlist is specified otherwise the size of vocabulary, and <order> is the ngram order of model.")
 
 
 args = parser.parse_args()
@@ -107,7 +120,11 @@ if args.max_memory != '':
     else:
          sys.exit("train_lm.py: the lenght of string --max-memory must >= 2.")
 
-work_dir = os.path.join(args.lm_dir, 'work')
+if args.lm_dir != '':
+  work_dir = args.work_dir
+else:
+  work_dir = os.path.join(args.work_dir, 'work')
+
 log_dir = os.path.join(work_dir, "log")
 if not os.path.isdir(log_dir):
     os.makedirs(log_dir)
@@ -373,7 +390,11 @@ else:
                    FormatMetaparameters(metaparameters)))
 
 # make lm dir
-lm_dir = os.path.join(args.lm_dir, lm_name + '.pocolm')
+if args.lm_dir != '':
+  lm_dir = args.lm_dir
+else:
+  lm_dir = os.path.join(args.work_dir, lm_name + '.pocolm')
+
 last_done_files = [done_file]
 done_file = os.path.join(lm_dir, '.done')
 if not CheckFreshness(done_file, last_done_files):
