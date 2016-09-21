@@ -17,6 +17,8 @@ function add_packages {
   opensuse_packages="$opensuse_packages $3";
 }
 
+status=0
+
 if ! which g++ >&/dev/null; then
   echo "$0: g++ is not installed."
   add_packages gcc-c++ g++ gcc-c++
@@ -42,6 +44,7 @@ fi
 if which python >&/dev/null ; then
   version=`/usr/bin/env python 2>&1 --version | awk '{print $2}' `
   if [[ $version != "2.7"* && $version != "3."* ]] ; then
+    status=1
     if which python2.7 >&/dev/null ; then
       echo "$0: python 2.7 is not the default python (lower version python does not "
       echo "$0: have packages that are required by pocolm). You should make it default"
@@ -64,7 +67,6 @@ if ! python -c 'import numpy' >&/dev/null; then
 fi
 
 printed=false
-status=0
 
 if which apt-get >&/dev/null && ! which zypper >/dev/null; then
   # if we're using apt-get [but we're not OpenSuse, which uses zypper as the

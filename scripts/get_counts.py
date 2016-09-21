@@ -2,7 +2,7 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess, threading, shutil, itertools
+import re, os, argparse, sys, math, warnings, subprocess, threading, shutil
 import tempfile
 import platform
 
@@ -491,7 +491,7 @@ if args.min_counts == '':
     # no min-counts specified: use normal pipeline.
     print("get_counts.py: dumping counts", file=sys.stderr)
     threads = []
-    for n in itertools.chain([ "dev" ], range(1, num_train_sets + 1)):
+    for n in [ "dev" ] + list(range(1, num_train_sets + 1)):
         threads.append(threading.Thread(target = GetCountsMultiProcess,
                                         args = [args.source_int_dir, args.dest_count_dir,
                                                 args.ngram_order, str(n), args.num_count_jobs] ))
