@@ -118,7 +118,7 @@ def ComputeProbs(split_index):
             args.lm_dir_in, work_dir, split_index)
     print (command, file=sys.stderr)
     try:
-        output = subprocess.check_output(command, shell = True)
+        output = subprocess.check_output(command, shell = True, universal_newlines = True)
     except:
         sys.exit("get_data_prob.py: error running command: " + command)
     [ num_words, tot_objf ] = output.split()

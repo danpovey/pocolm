@@ -81,7 +81,6 @@ parser.add_argument("lm_dir", type=str, default='', nargs='?',
 
 
 args = parser.parse_args()
-
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +

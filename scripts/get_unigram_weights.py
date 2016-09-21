@@ -51,7 +51,7 @@ for f in os.listdir(args.count_dir):
         else:
             train_counts[f[0:-7]] = ReadCountsFile(full_path)
 
-train_keys = train_counts.keys()
+train_keys = list(train_counts.keys())
 num_train_files = len(train_keys)
 
 assert num_train_files > 0
