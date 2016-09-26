@@ -27,7 +27,7 @@ def RunCommand(command, log_file, verbose = False):
     print('# running at ' + time.ctime(), file=f)
     f.flush()
     start_time = time.time()
-    ret = subprocess.call(command, shell = True, stderr = f, universal_newlines = True)
+    ret = subprocess.call(command, shell = True, stderr = f, universal_newlines = True, executable = '/bin/bash')
     end_time = time.time()
     print('# exited with return code 0 after {1} seconds'.format(
             ret, '%.1f' % (end_time - start_time)), file=f)
@@ -52,7 +52,7 @@ def GetCommandStdout(command, log_file, verbose = False):
     print('# running at ' + time.ctime(), file=f)
     start_time = time.time()
     try:
-        output = subprocess.check_output(command, shell = True, stderr = f, universal_newlines = True)
+        output = subprocess.check_output(command, shell = True, stderr = f, universal_newlines = True, executable = '/bin/bash')
     except CalledProcessError as e:
         end_time = time.time()
         print(e.output, file=f)
