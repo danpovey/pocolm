@@ -37,7 +37,8 @@ parser.add_argument("--num-splits", type=int, default=1,
                     help="Number of parallel processes would be used during training.")
 parser.add_argument("--warm-start-ratio", type=int, default=10,
                     help="number by which it divide the data to get the warm start for "
-                    "metaparameters optimization.")
+                    "metaparameters optimization  If <= 1, we skip the warm-start"
+                    "and do the optimization with all the data from scratch.")
 parser.add_argument("--min-counts", type=str, default='',
                     help="If specified, apply min-count when we get the ngram counts from training text. "
                          "run 'get_counts.py -h' to see the details on how to set this option.")
@@ -91,9 +92,6 @@ if args.num_words < 0:
 
 if args.num_splits < 1:
     sys.exit("train_lm.py: --num-splits must be >=1.")
-
-if args.warm_start_ratio < 1:
-    sys.exit("train_lm.py: --warm-start-ratio must be >=1.")
 
 # verify the input string max_memory
 if args.max_memory != '':
@@ -203,9 +201,9 @@ done_file = os.path.join(word_counts_dir, '.done')
 if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip getting word counts")
 else:
-    LogMessage("Getting word counts...")
-    command = "get_word_counts.py {0} {1}".format(args.text_dir, word_counts_dir)
     log_file = os.path.join(log_dir, 'get_word_counts.log')
+    LogMessage("Getting word counts... log in " + log_file)
+    command = "get_word_counts.py {0} {1}".format(args.text_dir, word_counts_dir)
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
 
@@ -216,9 +214,9 @@ done_file = os.path.join(work_dir, '.unigram_weights.done')
 if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip getting unigram weights")
 else:
-    LogMessage("Getting unigram weights...")
-    command = "get_unigram_weights.py {0} > {1}".format(word_counts_dir, unigram_weights)
     log_file = os.path.join(log_dir, 'get_unigram_weights.log')
+    LogMessage("Getting unigram weights... log in " + log_file)
+    command = "get_unigram_weights.py {0} > {1}".format(word_counts_dir, unigram_weights)
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
 
@@ -237,10 +235,11 @@ if args.wordlist == None:
         if not CheckFreshness(done_file, last_done_files):
             LogMessage("Skip generating vocab")
         else:
-            LogMessage("Generating vocab with num-words={0} ...".format(args.num_words))
+            log_file = os.path.join(log_dir, 'word_counts_to_vocab.log')
+            LogMessage("Generating vocab with num-words={0} ... log in {1}".format(
+                args.num_words, log_file))
             command = "word_counts_to_vocab.py --num-words={0} {1} > {2}".format(args.num_words, \
                     word_counts_dir,  vocab)
-            log_file = os.path.join(log_dir, 'word_counts_to_vocab.log')
             RunCommand(command, log_file, args.verbose == 'true')
             TouchFile(done_file)
     else:
@@ -254,9 +253,9 @@ if args.wordlist == None:
         if not CheckFreshness(done_file, last_done_files):
             LogMessage("Skip generating vocab")
         else:
-            LogMessage("Generating vocab with unlmited num-words ...")
-            command = "word_counts_to_vocab.py {0} > {1}".format(word_counts_dir,  vocab)
             log_file = os.path.join(log_dir, 'word_counts_to_vocab.log')
+            LogMessage("Generating vocab with unlmited num-words ... log in " + log_file)
+            command = "word_counts_to_vocab.py {0} > {1}".format(word_counts_dir,  vocab)
             RunCommand(command, log_file, args.verbose == 'true')
             TouchFile(done_file)
 else:
@@ -264,7 +263,7 @@ else:
         LogMessage("Ignoring --num-words because --wordlist is specified")
 
     vocab_name = os.path.basename(args.wordlist)
-    log_dir = os.path.join(work_dir,'log', vocab_name)
+    log_dir = os.path.join(work_dir, 'log', vocab_name)
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
     vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
@@ -273,9 +272,10 @@ else:
     if not CheckFreshness(done_file, last_done_files):
         LogMessage("Skip generating vocab")
     else:
-        LogMessage("Generating vocab with wordlist[{0}]...".format(args.wordlist))
-        command = "wordlist_to_vocab.py {0} > {1}".format(args.wordlist, vocab)
         log_file = os.path.join(log_dir, 'wordlist_to_vocab.log')
+        LogMessage("Generating vocab with wordlist[{0}]... log in {1}".format(
+            args.wordlist, log_file))
+        command = "wordlist_to_vocab.py {0} > {1}".format(args.wordlist, vocab)
         RunCommand(command, log_file, args.verbose == 'true')
         TouchFile(done_file)
 
@@ -286,9 +286,9 @@ done_file = os.path.join(int_dir, '.done')
 if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip preparing int data")
 else:
-    LogMessage("Preparing int data...")
-    command = "prepare_int_data.py {0} {1} {2}".format(args.text_dir, vocab, int_dir)
     log_file = os.path.join(log_dir, 'prepare_int_data.log')
+    LogMessage("Preparing int data... log in " + log_file)
+    command = "prepare_int_data.py {0} {1} {2}".format(args.text_dir, vocab, int_dir)
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
 
@@ -303,11 +303,11 @@ done_file = os.path.join(counts_dir, '.done')
 if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip getting counts")
 else:
-    LogMessage("Getting ngram counts...")
+    log_file = os.path.join(log_dir, 'get_counts.log')
+    LogMessage("Getting ngram counts... log in " + log_file)
     command = "get_counts.py --min-counts='{0}' --max-memory={1} --limit-unk-history={5} {2} {3} {4}".format(
             args.min_counts, args.max_memory, int_dir, args.order, counts_dir,
             args.limit_unk_history)
-    log_file = os.path.join(log_dir, 'get_counts.log')
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
 
@@ -331,40 +331,49 @@ if args.bypass_metaparameter_optimization != None:
     metaparam_file = os.path.join(work_dir, 'bypass.metaparams')
     WriteMetaparameters(metaparameters, ngram_order, num_train_sets, metaparam_file)
 else:
-    # subset counts dir
-    subset_counts_dir = counts_dir + '_subset' + str(args.warm_start_ratio)
-    last_done_files = [done_file]
-    done_file = os.path.join(subset_counts_dir, '.done')
-    if not CheckFreshness(done_file, last_done_files):
-        LogMessage("Skip subsetting counts dir")
-    else:
-        LogMessage("Subsetting counts dir...")
-        command = "subset_count_dir.sh {0} {1} {2}".format(counts_dir, \
-                args.warm_start_ratio, subset_counts_dir)
-        log_file = os.path.join(log_dir, 'subset_count_dir.log')
-        RunCommand(command, log_file, args.verbose == 'true')
-        TouchFile(done_file)
+    if args.warm_start_ratio > 1:
+        # Do a first pass of metaparameter optimization with a subset of the
+        # data (it gives a better starting point for the final metaparameter
+        # optimization).
 
-    # warm-start optimize metaparameters
-    subset_optimize_dir = os.path.join(work_dir, "optimize_{0}_subset{1}".format(lm_name, \
-            args.warm_start_ratio))
-    last_done_files = [done_file]
-    done_file = os.path.join(subset_optimize_dir, '.done')
-    if not CheckFreshness(done_file, last_done_files):
-        LogMessage("Skip warm-start optimizing metaparameters")
-    else:
-        LogMessage("Optimizing metaparameters for warm-start...")
-        command = "optimize_metaparameters.py --cleanup={3} --progress-tolerance=1.0e-05 --num-splits={0} {1} {2}".format(
+        # subset counts dir
+        subset_counts_dir = counts_dir + '_subset' + str(args.warm_start_ratio)
+        last_done_files = [done_file]
+        done_file = os.path.join(subset_counts_dir, '.done')
+        if not CheckFreshness(done_file, last_done_files):
+            LogMessage("Skip subsetting counts dir")
+        else:
+            log_file = os.path.join(log_dir, 'subset_count_dir.log')
+            LogMessage("Subsetting counts dir... log in " + log_file)
+            command = "subset_count_dir.sh {0} {1} {2}".format(counts_dir, \
+                                                               args.warm_start_ratio, subset_counts_dir)
+            RunCommand(command, log_file, args.verbose == 'true')
+            TouchFile(done_file)
+
+        # warm-start optimize metaparameters
+        subset_optimize_dir = os.path.join(work_dir, "optimize_{0}_subset{1}".format(lm_name, \
+                                                                                     args.warm_start_ratio))
+        last_done_files = [done_file]
+        done_file = os.path.join(subset_optimize_dir, '.done')
+        if not CheckFreshness(done_file, last_done_files):
+            LogMessage("Skip warm-start optimizing metaparameters")
+        else:
+            log_file = os.path.join(log_dir, 'optimize_metaparameters_warm_start.log')
+            LogMessage("Optimizing metaparameters for warm-start... log in " + log_file)
+            command = "optimize_metaparameters.py --cleanup={3} --progress-tolerance=1.0e-05 --num-splits={0} {1} {2}".format(
                 args.num_splits, subset_counts_dir, subset_optimize_dir, args.cleanup)
-        log_file = os.path.join(log_dir, 'optimize_metaparameters_warm_start.log')
-        RunCommand(command, log_file, args.verbose == 'true')
-        TouchFile(done_file)
+            RunCommand(command, log_file, args.verbose == 'true')
+            TouchFile(done_file)
 
-    # cleanup subset counts dir
-    if args.cleanup == 'true':
-        if os.system("cleanup_count_dir.py " + subset_counts_dir) != 0:
-            sys.exit("train_lm.py: failed to cleanup subset count dir: " + subset_counts_dir)
-        os.remove(os.path.join(subset_counts_dir, '.done'))
+        # cleanup subset counts dir
+        if args.cleanup == 'true':
+            if os.system("cleanup_count_dir.py " + subset_counts_dir) != 0:
+                sys.exit("train_lm.py: failed to cleanup subset count dir: " + subset_counts_dir)
+            os.remove(os.path.join(subset_counts_dir, '.done'))
+        warm_start_opt = ("--gradient-tolerance=0.01 --progress-tolerance=1.0e-03 "
+                          "--warm-start-dir=" + subset_optimize_dir)
+    else:
+        warm_start_opt = ""
 
     # optimize metaparameters
     optimize_dir = os.path.join(work_dir, "optimize_{0}".format(lm_name))
@@ -373,12 +382,11 @@ else:
     if not CheckFreshness(done_file, last_done_files):
         LogMessage("Skip optimizing metaparameters")
     else:
-        LogMessage("Optimizing metaparameters...")
-        command = "optimize_metaparameters.py --warm-start-dir={0} \
-                   --progress-tolerance=1.0e-03 --gradient-tolerance=0.01 \
-                   --num-splits={1} {2} {3}".format(subset_optimize_dir,
-                args.num_splits, counts_dir, optimize_dir)
         log_file = os.path.join(log_dir,'optimize_metaparameters.log')
+        LogMessage("Optimizing metaparameters... log in " + log_file)
+        command = "optimize_metaparameters.py {0} \
+                   --num-splits={1} {2} {3}".format(warm_start_opt,
+                args.num_splits, counts_dir, optimize_dir)
         RunCommand(command, log_file, args.verbose == 'true')
         TouchFile(done_file)
 
@@ -399,7 +407,8 @@ done_file = os.path.join(lm_dir, '.done')
 if not CheckFreshness(done_file, last_done_files):
     LogMessage("Skip making lm dir")
 else:
-    LogMessage("Making lm dir...")
+    log_file = os.path.join(log_dir, 'make_lm_dir.log')
+    LogMessage("Making lm dir... log in " + log_file)
     opts = []
     if args.num_splits > 1:
         opts.append('--keep-splits=true')
@@ -407,7 +416,6 @@ else:
         opts.append('--fold-dev-into=' + args.fold_dev_into)
     command = "make_lm_dir.py --cleanup={5} --num-splits={0} {1} {2} {3} {4}".format(
             args.num_splits, ' '.join(opts), counts_dir, metaparam_file, lm_dir, args.cleanup)
-    log_file = os.path.join(log_dir, 'make_lm_dir.log')
     RunCommand(command, log_file, args.verbose == 'true')
     TouchFile(done_file)
 

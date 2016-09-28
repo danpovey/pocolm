@@ -79,9 +79,9 @@ int main (int argc, char **argv) {
     exit(1);
   }
 
-  bool limit_int_history = false;
+  bool limit_unk_history = false;
   if (argc == 3) {
-    limit_int_history = true;
+    limit_unk_history = true;
     argc -= 1;
     argv += 1;
   }
@@ -119,7 +119,7 @@ int main (int argc, char **argv) {
     for (int pos = 1; pos < size; pos++) {
       for (int h = pos - 1; h >= 0 && h > pos - ngram_order; h--) {
         std::cout << std::setfill(' ') << std::setw(7) << line_ints[h] << " ";
-        if (limit_int_history && line_ints[h] == kUnkSymbol) {
+        if (limit_unk_history && line_ints[h] == kUnkSymbol) {
           break;
         }
       }
