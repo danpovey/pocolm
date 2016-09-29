@@ -55,7 +55,9 @@ parser.add_argument("--bypass-metaparameter-optimization", type=str, default=Non
                     help="This option accepts a string encoding the metaparameters as "
                     "a comma separated list. If this is specified, the stages of metaparameter optimization "
                     "would be completely bypassed. One can get the approaviate numbers after "
-                    "running one time of train_lm.py.")
+                    "running one time of train_lm.py.  Caution: if you change the data "
+                    "or the options, the values are no longer valid and you should "
+                    "remove this option.")
 parser.add_argument("--verbose", type=str, default='false',
                     choices=['true','false'],
                     help="If true, print commands as we execute them.")
