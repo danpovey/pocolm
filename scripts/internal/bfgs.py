@@ -21,11 +21,13 @@ init_hessian   This gives you a way to specify a "better guess" at the initial
 
 """
 def Bfgs(x0, f, f_finite, init_inv_hessian = None,
-         gradient_tolerance = 0.0005, progress_tolerance = 1.0e-06):
+         gradient_tolerance = 0.0005, progress_tolerance = 1.0e-06,
+         verbose = False):
     b = __bfgs(x0, f, f_finite,
                init_inv_hessian = init_inv_hessian,
                gradient_tolerance = gradient_tolerance,
-               progress_tolerance = progress_tolerance)
+               progress_tolerance = progress_tolerance,
+               verbose = verbose)
     return b.Minimize()
 
 
@@ -33,7 +35,7 @@ def Bfgs(x0, f, f_finite, init_inv_hessian = None,
 class __bfgs:
     def __init__(self, x0, f, f_finite, init_inv_hessian = None,
                  gradient_tolerance = 0.0005, progress_tolerance = 1.0e-06,
-                 progress_tolerance_num_iters = 3):
+                 progress_tolerance_num_iters = 3, verbose = False):
         self.c1 = 1.0e-04  # constant used in line search
         self.c2 = 0.9      # constant used in line search
         assert len(x0.shape) == 1
@@ -45,6 +47,7 @@ class __bfgs:
         self.progress_tolerance = progress_tolerance
         assert progress_tolerance_num_iters >= 1
         self.progress_tolerance_num_iters = progress_tolerance_num_iters
+        self.verbose = verbose
 
         if not self.f_finite(x0):
             self.LogMessage("Function is not finite at initial point {0}".format(x0))
@@ -140,6 +143,9 @@ class __bfgs:
         phi = [phi_0]
         phi_dash = [phi_dash_0]
 
+        if self.verbose:
+            self.LogMessage("Search direction is: {0}".format(self.p))
+
         if phi_dash_0 >= 0.0:
             self.LogMessage("{0}: line search failed unexpectedly: not a descent "
                             "direction")
@@ -189,7 +195,10 @@ class __bfgs:
         (phi_lo, phi_dash_lo) = self.FunctionValueAndDerivativeForAlpha(alpha_lo)
         (phi_hi, phi_dash_hi) = self.FunctionValueAndDerivativeForAlpha(alpha_hi)
 
-        min_diff = 1.0e-10
+        # the minimum interval length [on alpha] that we allow is normally
+        # 1.0e-10; but if the magnitude of the search direction is large, we make
+        # it proportionally smaller.
+        min_diff = 1.0e-10 / max(1.0, math.sqrt(np.dot(self.p, self.p)))
         while True:
             if abs(alpha_lo - alpha_hi) < min_diff:
                 self.LogMessage("Line search failed, interval is too small: [{0},{1}]".format(
@@ -238,6 +247,8 @@ class __bfgs:
         return self.f_finite(x)
 
     def FunctionValueAndDerivativeForAlpha(self, alpha):
+        if self.verbose:
+            self.LogMessage("Trying alpha = {0}".format(alpha))
         x = self.x[-1] + self.p * alpha
         (value, deriv) = self.FunctionValueAndDerivative(x)
         return (value, np.dot(self.p, deriv))

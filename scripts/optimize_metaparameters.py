@@ -309,7 +309,8 @@ if not args.read_inv_hessian is None:
 (x, value, deriv, inv_hessian) = bfgs.Bfgs(x0, GetObjfAndDeriv, MetaparametersAreAllowed,
                                            init_inv_hessian = inv_hessian,
                                            gradient_tolerance = args.gradient_tolerance,
-                                           progress_tolerance = args.progress_tolerance)
+                                           progress_tolerance = args.progress_tolerance,
+                                           verbose = False)
 
 print("optimize_metaparameters: final metaparameters are ", x, file=sys.stderr)
 
