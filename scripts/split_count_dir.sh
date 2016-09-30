@@ -10,20 +10,20 @@ fi
 
 
 if [ $# != 2 ]; then
-  echo "Usage:"
-  echo "  $0 [options] <source-count-dir> <num-splits>"
-  echo "e.g.:  $0 data/counts_3 10"
-  echo
-  echo "This script splits the data-counts stored in <source-count-dir>"
-  echo "and puts them in e.g. <source-count-dir>/split10/{1,2,3,4,...,10},"
-  echo "with the same directory structure as a normal count directory."
-  echo "The data-counts are split based on the most recent word in the"
-  echo "history [these integer word-ids are distributed modulo the <num-splits>]"
-  echo
-  echo "Options"
-  echo "   --parallel <true|false>  [default: false]"
-  echo "      Setting --parallel true will enable parallel"
-  echo "      processing of multiple data sources by this script."
+  echo "Usage:" 1>&2
+  echo "  $0 [options] <source-count-dir> <num-splits>" 1>&2
+  echo "e.g.:  $0 data/counts_3 10" 1>&2
+  echo 1>&2
+  echo "This script splits the data-counts stored in <source-count-dir>" 1>&2
+  echo "and puts them in e.g. <source-count-dir>/split10/{1,2,3,4,...,10}," 1>&2
+  echo "with the same directory structure as a normal count directory." 1>&2
+  echo "The data-counts are split based on the most recent word in the" 1>&2
+  echo "history [these integer word-ids are distributed modulo the <num-splits>]" 1>&2
+  echo 1>&2
+  echo "Options" 1>&2
+  echo "   --parallel <true|false>  [default: false]" 1>&2
+  echo "      Setting --parallel true will enable parallel" 1>&2
+  echo "      processing of multiple data sources by this script." 1>&2
   exit 1
 fi
 
@@ -39,12 +39,12 @@ dir=$1
 num_splits=$2
 
 if ! validate_count_dir.py $dir; then
-  echo "$0: expected input $dir to be a valid count directory."
+  echo "$0: expected input $dir to be a valid count directory." 1>&2
   exit 1
 fi
 
 if ! [ "$num_splits" -gt 1 ]; then
-  echo "$0: invalid num-splits (must be >1): '$num_splits'"
+  echo "$0: invalid num-splits (must be >1): '$num_splits'" 1>&2
   exit 1
 fi
 
@@ -58,11 +58,11 @@ for s in $(seq $num_splits); do
 done
 
 if $all_newer && validate_count_dir.py $dir/split$num_splits/1; then
-  echo "$0: not splitting since split dir already exists in $dir/split$num_splits"
+  echo "$0: not splitting since split dir already exists in $dir/split$num_splits" 1>&2
   exit 0
 fi
 
-echo "$0: creating split counts in $dir/split$num_splits"
+echo "$0: creating split counts in $dir/split$num_splits" 1>&2
 
 
 old_split_modulus=1
@@ -90,7 +90,7 @@ files=$(echo int.dev; for s in dev $(seq $num_train_sets); do for o in $(seq 2 $
 
 for f in $files; do
   if [ ! -f $dir/$f ]; then
-    echo "$0: expected $dir/$f to exist"
+    echo "$0: expected $dir/$f to exist" 1>&2
     exit 1
   fi
   split_files=$(for s in $(seq $num_splits); do echo $dir/split$num_splits/$s/$f; done)
@@ -100,6 +100,6 @@ done
 
 validate_count_dir.py $dir/split$num_splits/1 || exit 1
 
-echo "$0: Success"
+echo "$0: Success" 1>&2
 
 exit 0
