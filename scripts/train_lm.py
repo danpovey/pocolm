@@ -296,6 +296,9 @@ else:
 
 # get ngram counts
 lm_name = vocab_name + '_' + str(args.order)
+if args.min_counts != '':
+    # replace '=' to '@', since '=' need to be escaped in shell
+    lm_name += '_' + '-'.join(args.min_counts.replace('=', '@').split())
 log_dir = os.path.join(work_dir, 'log', lm_name)
 if not os.path.isdir(log_dir):
     os.makedirs(log_dir)
@@ -440,3 +443,5 @@ LogMessage("" + line)
 LogMessage("Success to train lm, output dir is {0}.".format(lm_dir))
 LogMessage("You may call format_arpa_lm.py to get ARPA-format lm, ")
 LogMessage("Or call prune_lm_dir.py to prune the lm.")
+# print the final lm dir to the caller
+print(lm_dir)

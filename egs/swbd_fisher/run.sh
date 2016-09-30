@@ -58,36 +58,37 @@ for order in 3 4 5; do
   # Note: you'd use --wordlist if you had a previously determined word-list
   # that you wanted to use.
   # Note: the following might be a more reasonable setting:
-  # train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
+  # unpruned_lm_dir=$(train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
   #             --min-counts='fisher=2 swbd1=1' \
   #             --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
-  #             ${limit_unk_history_opt} data/text ${order} ${lm_dir}
-  train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
+  #             ${limit_unk_history_opt} data/text ${order} ${lm_dir})
+  unpruned_lm_dir=$(train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
               --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
-              ${limit_unk_history_opt} data/text ${order} ${lm_dir}
-  unpruned_lm_dir=${lm_dir}/${num_word}_${order}.pocolm
+              ${limit_unk_history_opt} data/text ${order} ${lm_dir})
+  lm_name=$(basename $unpruned_lm_dir)
+  lm_name=${lm_name%.pocolm}
 
   mkdir -p ${arpa_dir}
-  format_arpa_lm.py ${max_memory} ${unpruned_lm_dir} | gzip -c > ${arpa_dir}/${num_word}_${order}gram_unpruned.arpa.gz
+  format_arpa_lm.py ${max_memory} ${unpruned_lm_dir} | gzip -c > ${arpa_dir}/${lm_name}_${order}gram_unpruned.arpa.gz
 
   # example of pruning.  note: the threshold can be less than or more than one.
   get_data_prob.py ${max_memory} data/text/dev.txt ${unpruned_lm_dir} 2>&1 | grep -F '[perplexity'
   for threshold in 1.0 2.0 4.0; do
-    pruned_lm_dir=${lm_dir}/${num_word}_${order}_prune${threshold}.pocolm
+    pruned_lm_dir=${lm_dir}/${lm_name}_prune${threshold}.pocolm
     prune_lm_dir.py --final-threshold=${threshold} ${max_memory} ${unpruned_lm_dir} ${pruned_lm_dir} 2>&1 | tail -n 5 | head -n 3
     get_data_prob.py ${max_memory} data/text/dev.txt ${pruned_lm_dir} 2>&1 | grep -F '[perplexity'
 
-    format_arpa_lm.py ${max_memory} ${pruned_lm_dir} | gzip -c > data/arpa/${num_word}_${order}gram_prune${threshold}.arpa.gz
+    format_arpa_lm.py ${max_memory} ${pruned_lm_dir} | gzip -c > ${arpa_dir}/${lm_name}_${order}gram_prune${threshold}.arpa.gz
 
   done
 
   # example of pruning by size.
   size=1000000
-  pruned_lm_dir=${lm_dir}/${num_word}_${order}_prune${size}.pocolm
+  pruned_lm_dir=${lm_dir}/${lm_name}_prune${size}.pocolm
   prune_lm_dir.py --target-num-ngrams=${size} ${max_memory} ${unpruned_lm_dir} ${pruned_lm_dir} 2>&1 | tail -n 8 | head -n 6 | grep -v 'log-prob changes'
   get_data_prob.py data/text/dev.txt ${max_memory} ${pruned_lm_dir} 2>&1 | grep -F '[perplexity'
 
-  format_arpa_lm.py ${max_memory} ${pruned_lm_dir} | gzip -c > data/arpa/${num_word}_${order}gram_prune${size}.arpa.gz
+  format_arpa_lm.py ${max_memory} ${pruned_lm_dir} | gzip -c > ${arpa_dir}/${lm_name}_${order}gram_prune${size}.arpa.gz
 
 done
 
