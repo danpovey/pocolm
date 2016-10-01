@@ -297,8 +297,8 @@ else:
 # get ngram counts
 lm_name = vocab_name + '_' + str(args.order)
 if args.min_counts != '':
-    # replace '=' to '@', since '=' need to be escaped in shell
-    lm_name += '_' + '-'.join(args.min_counts.replace('=', '@').split())
+    # replace '=' to '-', since '=' need to be escaped in shell
+    lm_name += '_' + '_'.join(args.min_counts.replace('=', '-').split())
 log_dir = os.path.join(work_dir, 'log', lm_name)
 if not os.path.isdir(log_dir):
     os.makedirs(log_dir)
