@@ -79,7 +79,7 @@ parser.add_argument("work_dir",
 parser.add_argument("lm_dir", type=str, default='', nargs='?',
                     help="Output directory where the language model is created."
                     "If this is not specified, the output directory would be a subdirectory under <work-dir>, "
-                    "with name '<vocab_name>_<order>.pocolm', where the <vocab_name> will be the name of wordlist "
+                    "with name '<vocab_name>_<order>_[min-counts].pocolm', where the <vocab_name> will be the name of wordlist "
                     "if --wordlist is specified otherwise the size of vocabulary, and <order> is the ngram order of model.")
 
 
@@ -443,5 +443,3 @@ LogMessage("" + line)
 LogMessage("Success to train lm, output dir is {0}.".format(lm_dir))
 LogMessage("You may call format_arpa_lm.py to get ARPA-format lm, ")
 LogMessage("Or call prune_lm_dir.py to prune the lm.")
-# print the final lm dir to the caller
-print(lm_dir)
