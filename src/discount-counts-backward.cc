@@ -282,9 +282,9 @@ class CountDiscounterBackward {
     if (!(*end == 0.0)) {
       std::cerr << "discount-counts: expected float, got '" << str << "'\n";
     }
-    if (!(ans >= 0.0 and ans < 1.0)) {
-      std::cerr << "discount-counts: discounting values must be "
-                << ">=0.0 and <1.0: " << str << "\n";
+    if (!(ans >= 0.0 and ans <= 1.0)) {
+      std::cerr << "discount-counts-backward: discounting values must be "
+                << ">=0.0 and <= 1.0: " << str << "\n";
       exit(1);
     }
     return ans;
