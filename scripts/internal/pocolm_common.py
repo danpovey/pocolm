@@ -7,7 +7,7 @@ from subprocess import CalledProcessError
 
 def ExitProgram(message):
     print("{0}: {1}".format(os.path.basename(sys.argv[0]),
-                            message, file=sys.stderr))
+                            message), file=sys.stderr)
     # we exit in this way in case we're inside a thread in a multi-threaded
     # program; we want the entire program to exit.
     os._exit(1)
@@ -29,7 +29,7 @@ def RunCommand(command, log_file, verbose = False):
     start_time = time.time()
     ret = subprocess.call(command, shell = True, stderr = f, universal_newlines = True, executable = '/bin/bash')
     end_time = time.time()
-    print('# exited with return code 0 after {1} seconds'.format(
+    print('# exited with return code {0} after {1} seconds'.format(
             ret, '%.1f' % (end_time - start_time)), file=f)
     f.close()
     if ret != 0:

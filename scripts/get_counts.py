@@ -2,7 +2,7 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess, threading, shutil
+import re, os, argparse, sys, math, warnings, subprocess, threading, shutil, glob
 import tempfile
 import platform
 
@@ -266,7 +266,8 @@ def SaveNgramOrder(dest_count_dir, ngram_order):
 # If num-splits >= 1 [relevant when we're using min-counts], then it dumps its output
 ## {dest_count_dir}/int.{n}.split{j} with n = 1..num_train_sets, j=1..num_splits.
 
-def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_splits = 0):
+def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n,
+        max_mem, num_splits = 0):
     if num_splits == 0:
         int_counts_output = "/dev/null " + " ".join([ "{0}/int.{1}.{2}".format(dest_count_dir, n, o)
                                                       for o in range(2, ngram_order + 1) ])
@@ -281,7 +282,8 @@ def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_s
             "get-int-counts {int_counts_output}'".format(source_int_dir = source_int_dir,
                                               n = n , ngram_order = ngram_order,
                                               limit_unk_history = "--limit-unk-history" if args.limit_unk_history == 'true' else "",
-                                              mem_opt = sort_mem_opt,
+                                              mem_opt = "--buffer-size={0}".format(max_mem) if max_mem != '' else '',
+
                                               int_counts_output = int_counts_output)
     log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
         dest_count_dir = dest_count_dir, n = n)
@@ -301,7 +303,7 @@ def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n, num_s
 # It will use just one process if the amount of data is quite small or if
 # the platform is Cygwin (where named pipes don't work)
 def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_proc,
-                          num_splits = 0):
+                          max_mem, num_splits = 0):
     try:
         file_size = os.path.getsize('{0}/{1}.txt.gz'.format(source_int_dir, n))
     except:
@@ -315,7 +317,7 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
             print("get_counts.py: cygwin platform detected so named pipes won't work; "
                   "using a single process (will be slower)")
         return GetCountsSingleProcess(source_int_dir, dest_count_dir,
-                                      ngram_order, n, num_splits)
+                                      ngram_order, n, max_mem, num_splits)
 
     if num_splits == 0:
         int_counts_output = "/dev/null " + " ".join([ "{0}/int.{1}.{2}".format(dest_count_dir, n, o)
@@ -337,14 +339,22 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
     # from other internal pipes; and we can't do this using '|' in the shell, we
     # need to use mkfifo.  This does not work properly on cygwin.
 
-    log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
-        dest_count_dir = dest_count_dir, n = n)
+    log_dir = "{dest_count_dir}/log".format(dest_count_dir = dest_count_dir)
+    [os.remove(x) for x in glob.glob("{log_dir}/.{n}.*.error".format(
+          log_dir = log_dir, n = n))]
+
+    log_file = "{log_dir}/get_counts.{n}.log".format(log_dir = log_dir, n = n)
+
     test_command = "bash -c 'set -o pipefail; (echo a; echo b) | "\
         "distribute-input-lines /dev/null /dev/null'";
     # We run the following command just to make sure distribute-input-lines is
     # on the path and compiled, since we get hard-to-debug errors if it fails.
     RunCommand(test_command, log_file)
 
+    if max_mem == '':
+        mem_opt = ''
+    else:
+        mem_opt = "--buffer-size={0}".format(DivideMemory(max_mem, num_proc + 1))
     # we use "bash -c '...'" to make sure it gets run in bash, since
     # for example 'set -o pipefail' would only work in bash.
     command = ("bash -c 'set -o pipefail; set -e; export LC_ALL=C; mkdir -p {0}; ".format(tempdir) +
@@ -353,14 +363,18 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
                'trap "rm -r {0}" SIGINT SIGKILL SIGTERM EXIT; '.format(tempdir) +
                'gunzip -c {0}/{1}.txt.gz | distribute-input-lines '.format(source_int_dir, n) +
                ' '.join(['{0}/{1}'.format(tempdir, p) for p in range(num_proc)]) + '& ' +
-               'sort -m {0}'.format(sort_mem_opt) +
-               ' '.join([ '<(get-text-counts {4} {0} <{1}/{2} | sort {3})'.format(ngram_order, tempdir, p, sort_mem_opt,
-                   "--limit-unk-history" if args.limit_unk_history == 'true' else "")
+               'sort -m {0} '.format(mem_opt) +
+               ' '.join([ '<(get-text-counts {4} {0} <{1}/{2} | sort {3} || touch {5}/.{6}.{2}.error)'.format(ngram_order, tempdir, p, mem_opt,
+                   "--limit-unk-history" if args.limit_unk_history == 'true' else "", log_dir, n)
                                        for p in range(num_proc) ]) +
                '| uniq -c | get-int-counts {0}'.format(int_counts_output) +
                "'") # end the quote from the 'bash -c'.
 
     RunCommand(command, log_file, args.verbose=='true')
+
+    if len(glob.glob("{log_dir}/.{n}.*.error".format(log_dir = log_dir, n = n))) > 0:
+        ExitProgram("Something went wrong for the get-text-counts or sort command for training set {n}.".format(n = n))
+
 
 
 # This function applies the min-counts (it is only called if you supplied the
@@ -431,6 +445,28 @@ def ParseMemoryString(s):
     else:
         return (int(s), '')
 
+def DivideMemory(total, n):
+    (value, unit) = ParseMemoryString(total)
+    sub_memory = value / n
+    if sub_memory != float(value) / n:
+        if unit in ['K', 'k', '']:
+            sub_memory = value * 1024 / n
+            unit = 'b'
+        elif unit in ['M', 'm']:
+            sub_memory = value * 1024 / n
+            unit = 'K'
+        elif unit in ['G', 'g']:
+            sub_memory = value * 1024 / n
+            unit = 'M'
+        elif (unit in ['B', 'b', '%']) and (sub_memory == 0):
+            ExitProgram("max_memory for each of the {0} train sets is {1}{2}."
+                        "Please reset a larger max_memory value".format(
+                        n, float(value)/n, unit))
+        else:
+            ExitProgram("Invalid format for max_memory. "
+                "Please 'man sort' to see how to set buffer size.")
+    return str(int(sub_memory)) + unit
+
 # make sure 'scripts' and 'src' directory are on the path
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
@@ -450,31 +486,6 @@ f = open(args.source_int_dir + "/num_train_sets")
 num_train_sets = int(f.readline())
 f.close()
 
-# set the memory restriction for "sort"
-sort_mem_opt = ''
-if args.max_memory != '':
-    if args.dump_counts_parallel == 'true':
-        (value, unit) = ParseMemoryString(args.max_memory)
-        sub_memory = value/num_train_sets
-        if sub_memory != float(value)/num_train_sets:
-            if unit in ['K', '']:
-                sub_memory = value*1024/num_train_sets
-                unit = 'b'
-            if unit == 'M':
-                sub_memory = value*1024/num_train_sets
-                unit = 'K'
-            if unit == 'G':
-                sub_memory = value*1024/num_train_sets
-                unit = 'M'
-            if (unit in ['b', '%']) and (sub_memory == 0):
-                ExitProgram("max_memory for each of the {0} train sets is {1}{2}."
-                            "Please reset a larger max_memory value".format(
-                            num_train_sets, float(value)/num_train_sets, unit))
-        sub_max_memory = str(int(sub_memory)) + unit
-        sort_mem_opt = ("--buffer-size={0} ".format(sub_max_memory))
-    else:
-        sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
-
 if not os.path.isdir(args.dest_count_dir):
     try:
         os.makedirs(args.dest_count_dir+'/log')
@@ -491,10 +502,17 @@ if args.min_counts == '':
     # no min-counts specified: use normal pipeline.
     print("get_counts.py: dumping counts", file=sys.stderr)
     threads = []
+    if args.max_memory != '':
+      if args.dump_counts_parallel == 'true':
+          max_mem = DivideMemory(args.max_memory, num_train_sets + 1)
+      else:
+          max_mem = args.max_memory
+    else:
+        max_mem = ''
     for n in [ "dev" ] + list(range(1, num_train_sets + 1)):
         threads.append(threading.Thread(target = GetCountsMultiProcess,
                                         args = [args.source_int_dir, args.dest_count_dir,
-                                                args.ngram_order, str(n), args.num_count_jobs] ))
+                                                args.ngram_order, str(n), args.num_count_jobs, max_mem] ))
         threads[-1].start()
         if args.dump_counts_parallel == 'false':
             threads[-1].join()
@@ -509,7 +527,7 @@ if args.min_counts == '':
 else:
     # First process the dev data, the min-counts aren't relevant here.
     GetCountsSingleProcess(args.source_int_dir, args.dest_count_dir,
-                           args.ngram_order, 'dev')
+                           args.ngram_order, 'dev', args.max_memory)
     MergeDevData(args.dest_count_dir, args.ngram_order)
 
     num_mc_jobs = args.num_min_count_jobs
@@ -525,11 +543,18 @@ else:
 
     # First, dump the counts split up by most-recent-history instead of ngram-order.
     print("get_counts.py: dumping counts", file=sys.stderr)
+    if args.max_memory != '':
+      if args.dump_counts_parallel == 'true':
+          max_mem = DivideMemory(args.max_memory, num_train_sets)
+      else:
+          max_mem = args.max_memory
+    else:
+        max_mem = ''
     threads = []
     for n in range(1, num_train_sets + 1):
         threads.append(threading.Thread(target = GetCountsMultiProcess,
                                         args = [args.source_int_dir, args.dest_count_dir,
-                                                args.ngram_order, str(n), args.num_count_jobs,
+                                                args.ngram_order, str(n), args.num_count_jobs, max_mem,
                                                 num_mc_jobs] ))
         threads[-1].start()
         if args.dump_counts_parallel == 'false':

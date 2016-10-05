@@ -5,6 +5,8 @@
 # from multiple sources with SRILM's (check /local/pocolm_with_srilm_combination.sh).
 
 set -e
+set -o pipefail
+
 export POCOLM_ROOT=$(cd ../..; pwd -P)
 export PATH=$PATH:$POCOLM_ROOT/scripts
 
