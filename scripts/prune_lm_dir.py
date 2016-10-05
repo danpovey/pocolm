@@ -89,7 +89,7 @@ if args.max_memory != '':
         # "a positive integer + a letter or a '%'" or "a positive integer"
         # the unit of memory size can also be 'T', 'P', 'E', 'Z', or 'Y'. They
         # are not included here considering their rare use in practice
-        if s[-1] in ['b', '%', 'K', 'M', 'G'] or s[-1].isdigit():
+        if s[-1] in ['b', 'B', '%', 'k', 'K', 'm', 'M', 'g', 'G'] or s[-1].isdigit():
             for x in s[:-1]:
                 if not x.isdigit():
                     sys.exit("prune_lm_dir.py: --max-memory should be formatted as "
@@ -103,6 +103,8 @@ if args.max_memory != '':
             sys.exit("prune_lm_dir.py: the format of string --max-memory is not correct.")
     else:
          sys.exit("prune_lm_dir.py: the lenght of string --max-memory must >= 2.")
+    if args.max_memory[-1] == 'B': # sort seems not recognize 'B'
+        args.max_memory[-1] = 'b'
 
 num_splits = None
 if os.path.exists(args.lm_dir_in + "/num_splits"):

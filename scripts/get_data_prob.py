@@ -35,14 +35,14 @@ if os.system("validate_lm_dir.py " + args.lm_dir_in) != 0:
 
 # verify the input string max_memory
 if args.max_memory != '':
-    # valid string max_memory must have at least two items 
+    # valid string max_memory must have at least two items
     if len(args.max_memory) >= 2:
         s = args.max_memory
         # valid string max_memory can be formatted as:
         # "a positive integer + a letter or a '%'" or "a positive integer"
         # the unit of memory size can also be 'T', 'P', 'E', 'Z', or 'Y'. They
         # are not included here considering their rare use in practice
-        if s[-1] in ['b', '%', 'K', 'M', 'G'] or s[-1].isdigit():
+        if s[-1] in ['b', 'B', '%', 'k', 'K', 'm', 'M', 'g', 'G'] or s[-1].isdigit():
             for x in s[:-1]:
                 if not x.isdigit():
                     sys.exit("get_data_prob.py: --max-memory should be formatted as "
@@ -51,11 +51,13 @@ if args.max_memory != '':
             # max memory size must be larger than zero
             if int(s[:-1]) == 0:
                 sys.exit("get_data_prob.py: --max-memory must be > 0 {unit}.".format(
-                         unit = s[-1]))    
+                         unit = s[-1]))
         else:
             sys.exit("get_data_prob.py: the format of string --max-memory is not correct.")
     else:
          sys.exit("get_data_prob.py: the lenght of string --max-memory must >= 2.")
+    if args.max_memory[-1] == 'B': # sort seems not recognize 'B'
+        args.max_memory[-1] = 'b'
 
 num_splits = None
 
