@@ -200,9 +200,9 @@ def BarrierFunctionAndDeriv(x):
     assert len(x) == num_train_sets + 4 * (ngram_order - 1)
     for i in range(num_train_sets):
         xi = x[i]
-        # the constraints are: xi > 0.0, and 1.0 - xi > 0.0
-        barrier += epsilon * (log(xi - 0.0) + log(1.0 - xi))
-        derivs[i] += epsilon * ((1.0 / xi) + (-1.0 / (1.0 - xi)))
+        # the constraints are: xi > delta, and 1.0 - xi > delta
+        barrier += epsilon * (log(xi - delta) + log(1.0 - xi - delta))
+        derivs[i] += epsilon * ((1.0 / (xi - delta)) + (-1.0 / (1.0 - xi - delta)))
 
     for o in range(2, ngram_order + 1):
         dim_offset = num_train_sets + 4 * (o-2)
