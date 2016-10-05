@@ -2,7 +2,7 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess, threading, shutil
+import re, os, argparse, sys, math, warnings, subprocess, threading, shutil, glob
 import tempfile
 import platform
 
@@ -339,8 +339,12 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
     # from other internal pipes; and we can't do this using '|' in the shell, we
     # need to use mkfifo.  This does not work properly on cygwin.
 
-    log_file = "{dest_count_dir}/log/get_counts.{n}.log".format(
-        dest_count_dir = dest_count_dir, n = n)
+    log_dir = "{dest_count_dir}/log".format(dest_count_dir = dest_count_dir)
+    [os.remove(x) for x in glob.glob("{log_dir}/.{n}.*.error".format(
+          log_dir = log_dir, n = n))]
+
+    log_file = "{log_dir}/get_counts.{n}.log".format(log_dir = log_dir, n = n)
+
     test_command = "bash -c 'set -o pipefail; (echo a; echo b) | "\
         "distribute-input-lines /dev/null /dev/null'";
     # We run the following command just to make sure distribute-input-lines is
@@ -360,13 +364,17 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
                'gunzip -c {0}/{1}.txt.gz | distribute-input-lines '.format(source_int_dir, n) +
                ' '.join(['{0}/{1}'.format(tempdir, p) for p in range(num_proc)]) + '& ' +
                'sort -m {0} '.format(mem_opt) +
-               ' '.join([ '<(get-text-counts {4} {0} <{1}/{2} | sort {3})'.format(ngram_order, tempdir, p, mem_opt,
-                   "--limit-unk-history" if args.limit_unk_history == 'true' else "")
+               ' '.join([ '<(get-text-counts {4} {0} <{1}/{2} | sort {3} || touch {5}/.{6}.{2}.error)'.format(ngram_order, tempdir, p, mem_opt,
+                   "--limit-unk-history" if args.limit_unk_history == 'true' else "", log_dir, n)
                                        for p in range(num_proc) ]) +
                '| uniq -c | get-int-counts {0}'.format(int_counts_output) +
                "'") # end the quote from the 'bash -c'.
 
     RunCommand(command, log_file, args.verbose=='true')
+
+    if len(glob.glob("{log_dir}/.{n}.*.error".format(log_dir = log_dir, n = n))) > 0:
+        ExitProgram("Something went wrong for the get-text-counts or sort command for training set {n}.".format(n = n))
+
 
 
 # This function applies the min-counts (it is only called if you supplied the

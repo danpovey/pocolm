@@ -2,8 +2,14 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess, shutil
+import re, os, argparse, sys, math, warnings, subprocess, shutil, glob
 from collections import defaultdict
+
+# make sure scripts/internal is on the pythonpath.
+sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys.path
+
+# for ExitProgram and RunCommand
+from pocolm_common import *
 
 parser = argparse.ArgumentParser(description="This script turns a pocolm language model "
                                  "directory as created by make_lm_dir.py, into an ARPA-format "
@@ -132,13 +138,15 @@ else:
         mem_opt = ''
     else:
         mem_opt = "--buffer-size={0}".format(DivideMemory(args.max_memory, num_splits + 1))
+
+    [os.remove(x) for x in glob.glob("{lm_dir}/.*.error".format(lm_dir = args.lm_dir))]
     # create command line of the form:
     # sort -m <(command1) <(command2) ... <(commandN) | pre-arpa-to-arpa ...
     # we put it all inside bash -c, because the process substitution <(command)
     # won't always work in /bin/sh.
     command = ("bash -c 'sort -m {mem_opt} ".format(mem_opt = mem_opt) +  # sort -m merges already-sorted files.
                " ".join([ "<(float-counts-to-pre-arpa {opt} {ngram_order} {num_words} "
-                          "{lm_dir}/float.all.{n} | sort {mem_opt})".format(
+                          "{lm_dir}/float.all.{n} | sort {mem_opt} || touch {lm_dir}/.{n}.error)".format(
                     opt = ('--no-unigram' if n > 1 else ''),
                     ngram_order = ngram_order, num_words = num_words,
                     lm_dir = args.lm_dir, n = n, mem_opt = mem_opt) for n in range(1, num_splits + 1)]) +
@@ -151,6 +159,9 @@ ret = os.system(command)
 if ret != 0:
     sys.exit("format_arpa_lm.py: command {0} exited with status {1}".format(
             command, ret))
+
+if len(glob.glob("{lm_dir}/.*.error".format(lm_dir = args.lm_dir))) > 0:
+    ExitProgram("Something went wrong for the float-counts-to-pre-arpa or sort command.")
 
 print("format_arpa_lm.py: succeeded formatting ARPA lm from {0}".format(args.lm_dir),
       file=sys.stderr)
