@@ -441,19 +441,22 @@ def DivideMemory(total, n):
     (value, unit) = ParseMemoryString(total)
     sub_memory = value / n
     if sub_memory != float(value) / n:
-        if unit in ['K', '']:
+        if unit in ['K', 'k', '']:
             sub_memory = value * 1024 / n
             unit = 'b'
-        if unit == 'M':
+        elif unit in ['M', 'm']:
             sub_memory = value * 1024 / n
             unit = 'K'
-        if unit == 'G':
+        elif unit in ['G', 'g']:
             sub_memory = value * 1024 / n
             unit = 'M'
-        if (unit in ['b', '%']) and (sub_memory == 0):
+        elif (unit in ['B', 'b', '%']) and (sub_memory == 0):
             ExitProgram("max_memory for each of the {0} train sets is {1}{2}."
                         "Please reset a larger max_memory value".format(
                         n, float(value)/n, unit))
+        else:
+            ExitProgram("Invalid format for max_memory. "
+                "Please 'man sort' to see how to set buffer size.")
     return str(int(sub_memory)) + unit
 
 # make sure 'scripts' and 'src' directory are on the path
