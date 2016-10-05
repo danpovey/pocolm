@@ -22,6 +22,9 @@ parser.add_argument("--barrier-epsilon", type=float, default=1.0e-04,
                     help="Scaling factor on logarithmic barrier function to "
                     "enforce parameter constraints (should make very little "
                     "difference as long as it is quite small)")
+parser.add_argument("--barrier-delta", type=float, default=1.0e-05,
+                    help="Spacing in barrier function to force at least a finite "
+                    "distance between discounting values that must be separated.")
 parser.add_argument("--gradient-tolerance", type=float, default=0.0005,
                     help="Norm of gradient w.r.t. metaparameters, at which we "
                     "terminate optimization.  Larger->faster, smaller->more accurate.")
@@ -168,13 +171,16 @@ def MetaparametersAreAllowed(x):
     for i in range(num_train_sets):
         if x[i] <= 0.0 or x[i] >= 1.0:
             return False
+    delta = args.barrier_delta
     for o in range(2, ngram_order + 1):
         dim_offset = num_train_sets + 4 * (o-2)
         d1 = x[dim_offset]
         d2 = x[dim_offset + 1]
         d3 = x[dim_offset + 2]
         d4 = x[dim_offset + 3]
-        if not (1.0 > d1 and d1 > d2 and d2 > d3 and d3 > d4 and d4 > 0.0):
+        if not (1.0 - d1 > delta and d1 - d2 > delta and
+                d2 - d3 > delta and d3 - d4 > delta
+                and d4 > delta):
             return False
     return True
 
@@ -187,6 +193,7 @@ def MetaparametersAreAllowed(x):
 # minimizing.
 def BarrierFunctionAndDeriv(x):
     epsilon = args.barrier_epsilon
+    delta = args.barrier_delta
     barrier = 0.0
     derivs = np.array([0.0] * len(x))
     global num_train_sets, ngram_order
@@ -204,21 +211,22 @@ def BarrierFunctionAndDeriv(x):
         d3 = x[dim_offset + 2]
         d4 = x[dim_offset + 3]
         # the constraints are:
-        # 1.0 - d1 > 0.0
-        # d1 - d2 > 0.0
-        # d2 - d3 > 0.0
-        # d3 - d4 > 0.0
-        #      d4 > 0.0
-        barrier += epsilon * (log(1.0 - d1) + log(d1 - d2) + log(d2 - d3) +
-                           log(d3 - d4) + log(d4))
+        # 1.0 - d1 > delta  [actually use nearly_one here]
+        # d1 - d2 > delta
+        # d2 - d3 > delta
+        # d3 - d4 > delta
+        #      d4 > delta
+        barrier += epsilon * (log(1.0 - d1 - delta) + log(d1 - d2 - delta) +
+                              log(d2 - d3 - delta) +  log(d3 - d4 - delta) +
+                              log(d4 - delta))
         # deriv for d1
-        derivs[dim_offset] += epsilon * (-1.0 / (1.0 - d1) + 1.0 / (d1 - d2))
+        derivs[dim_offset] += epsilon * (-1.0 / (1.0 - d1 - delta) + 1.0 / (d1 - d2 - delta))
         # deriv for d2
-        derivs[dim_offset + 1] += epsilon * (-1.0 / (d1 - d2) + 1.0 / (d2 - d3))
+        derivs[dim_offset + 1] += epsilon * (-1.0 / (d1 - d2 - delta) + 1.0 / (d2 - d3 - delta))
         # deriv for d3
-        derivs[dim_offset + 2] += epsilon * (-1.0 / (d2 - d3) + 1.0 / (d3 - d4))
+        derivs[dim_offset + 2] += epsilon * (-1.0 / (d2 - d3 - delta) + 1.0 / (d3 - d4 - delta))
         # deriv for d4
-        derivs[dim_offset + 3] += epsilon * (-1.0 / (d3 - d4) + 1.0 / d4)
+        derivs[dim_offset + 3] += epsilon * (-1.0 / (d3 - d4 - delta) + 1.0 / (d4 - delta))
     return (barrier, derivs)
 
 
