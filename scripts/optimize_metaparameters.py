@@ -152,8 +152,13 @@ def ReadMetaparametersOrDerivs(file):
 def WriteMetaparameters(file, array):
     f = open(file + ".tmp", "w")
     assert len(array) == len(metaparameter_names)
+    delta = args.barrier_delta
     for i in range(len(array)):
-        print(metaparameter_names[i], array[i], file=f)
+        printed_form = str(array[i]);
+        if float(printed_form) <= delta or float(printed_form) >= 1.0 - delta:
+            printed_form = '%.20f' % array[i]
+            assert float(printed_form) > delta and float(printed_format) < 1.0 - delta
+        print(metaparameter_names[i], printed_form, file=f)
     f.close()
     if os.system("cmp -s {0} {0}.tmp".format(file)) == 0:
         os.unlink(file + ".tmp")
