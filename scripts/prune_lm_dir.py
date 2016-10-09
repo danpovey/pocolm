@@ -188,12 +188,12 @@ def CreateProtectedCounts(work):
     RunCommand(command, log_file, args.verbose == 'true')
 
 def SoftLink(src, dest):
-    if os.path.exists(dest):
+    if os.path.lexists(dest):
         os.remove(dest)
     try:
         os.symlink(os.path.abspath(src), dest)
     except:
-        ExitProgram("error linking {0} to {1}".format(src, dest))
+        ExitProgram("error linking {0} to {1}".format(os.path.abspath(src), dest))
 
 def CreateInitialWorkDir():
     # Creates float.all, stats.all, and protected.all in work_dir/step
