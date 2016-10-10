@@ -144,105 +144,68 @@ def WriteMetaparameters(metaparameters, ngram_order, num_train_sets, out_file):
             i += 1
     f.close()
 
-def FormatMetaparameters(metaparameters, num_train_sets):
-    # store metaparameters as floats during checking and rerounding
+def FormatMetaparameters(metaparameters, ngram_order, num_train_sets):
+    assert num_train_sets == len(metaparameters) - (ngram_order - 1) * 4
     out = []
-    # final output metaparameters as a string list
     out_param = []
-    
-    # initial check for repeating values
-    check_set = ([x for x in metaparameters[num_train_sets:] if metaparameters[num_train_sets:].count(x) > 1])
-    if check_set != []:
-        sys.exit("train_lm.py: metaparameters contain duplicated numbers. double check them.")
-
-    # round all float metaparameters to the 3rd decimal place 
-    round_index = 3
-    for param in metaparameters:
-        x = round(param, round_index)
-        out.append(x)
-    
-    size = len(metaparameters)
-    
-    # check range: whether 0.000 or 1.000 occur because of rounding
-    # after this step, no 0.000 or 1.000 occurs unless the original number equal
-    # to 0 or 1 (if this happen, the parameters are invalid and we exit, while
-    # this case ca be very rare)
-    for i in range(0, size): 
-        if out[i] in [0.0, 1.0]:
-            out[i] = RoundToProperDigit(metaparameters[i], round_index)
-            if out[i] in [0.0, 1.0]:
-                sys.exit("train_lm.py: {0}th parameter is {1}. metaparameters should be in range (0, 1)".format(i + 1, out[i]))
-    
-    # append the first #num_train_sets parameters to the output set 
-    # note: the first #num_train_sets parameters (not data-type weights) do not need to be checked
-    assert num_train_sets >= 1 and num_train_sets < len(metaparameters)
-    for param in out[:num_train_sets]:
-        out_param.append(format(param))
    
-    # check repeating value in the rest parameters. 
-    # after this while loop, there should be no repeating values in set out
-    (index1, index2) = FindRepeatingValue(out[num_train_sets:])
-    while (index1 != -1):
-        i = index1 + num_train_sets
-        j = index2 + num_train_sets
-        (updated_param1, updated_param2) = AdjustValues(out[i], out[j], i, j, metaparameters[i], metaparameters[j])
-        out[i] = updated_param1
-        out[j] = updated_param2
-        (index1, index2) = FindRepeatingValue(out[num_train_sets:])
+    for idx, param in enumerate(metaparameters):
+        # check whether metaparameters contain 0.0 or 1.0
+        if param in [0.0, 1.0]:
+            LogMessage("train_lm.py: Warning: The {0}th parameter is exact {1}. metaparameters should be in range (0, 1).".format(idx + 1, param))
+        round_idx = 3
+        x = round(param, round_idx)
+        # check whether 0.000 or 1.000 occurs because of rounding
+        while x in [0.0, 1.0]:
+            round_idx += 1
+            x = round(param, round_idx)
+            if round_idx >= 20:
+                LogMessage("train_lm.py: Warning: The {0}th parameter is too close to {1}. Double check it.".format(idx + 1, x))
+                break
+        out.append(x)
 
-    # now parameters are validated and can be appended to the output set
-    for param in out[num_train_sets:]: 
-        out_param.append(format(param))
+    # check repeating data-type parameters
+    (marker, repeat_values) = FindRepeatingValues(out[:num_train_sets])
+    while marker == True:
+        round_idx += 1
+        for idx, param in enumerate(metaparameters[:num_train_sets]):
+            out[idx] = round(param, round_idx)
+        (marker, repeat_values) = FindRepeatingValues(out[:num_train_sets])
+        # terminate the loop and print out repeating values:
+        if round_idx >= 20:
+            LogMessage("train_lm.py: Warning: There are repeating parameters {0}.".format(repeat_values))
+            break
 
+    # check repeating parameters of a certain order
+    for order in range(2, ngram_order + 1):
+        (marker, repeat_values) = FindRepeatingValues(out[num_train_sets + (order - 2) * 4: num_train_sets + (order - 1) * 4])
+        round_idx = 3
+        while marker == True:
+           round_idx += 1
+           for idx, param in enumerate(metaparameters[num_train_sets + (order - 2) * 4: num_train_sets + (order - 1) * 4]):
+               out[idx + num_train_sets + (order - 2) * 4] = round(param, round_idx)
+           (marker, repeat_values) = FindRepeatingValues(out[num_train_sets +  (order - 2) * 4: num_train_sets + (order - 1) * 4])
+           # terminate the loop and print out repeating values:
+           if round_idx >= 20:
+               LogMessage("train_lm.py: Warning: There are repeating values {0} of order {1}.".format(repeat_values, order))
+               break
+        order += 1
+
+    for param in out: 
+        out_param.append(str(param))
     return ','.join(out_param)
 
-# this function checks repeating values in parameters and returns the index
-# of the first pair of repeating values if any is found 
-def FindRepeatingValue(parameters):
-    for i in range(0, len(parameters)):
-        for j in range(i + 1, len(parameters)):
-            if parameters[i] == parameters[j]:
-                return(i, j)
-    return (-1, -1)
-
-# this function rerounds repeating values until they are different and returns the values after rerounding.
-# if they are indeed the same (collison), it exits with a warning (this case can be very rare) 
-def AdjustValues(number1, number2, index1, index2, ref_number1, ref_number2):
-    x = number1
-    y = number2
-    # set a maximum number for iterations
-    round_max_digit = 20
-    # round to the next decimal place if found collison 
-    round_position = max(len(str(x)) - 2, len(str(y)) - 2) + 1
-    while x == y and round_position <= round_max_digit:
-        x = round(ref_number1, round_position)
-        y = round(ref_number2, round_position)
-        round_position += 1
-    # actually validate_metaparameters.py will validate those parameters later. 
-    # except for satisfying condition that those parameters should be in 
-    # range (0, 1), parameters D1, D2, D3, D4 for a certain xgram model 
-    # should satisfy D1 > D2 > D3 > D4. 
-    # here we only checked the repeating values but not the order relationship
-    if x == y:
-        sys.exit("train_lm.py: the {0}th and {1}th parameters are both {2}. metaparameters can not be exactly the same.".format(index1, index2, y))
-
-    return (x, y)
-
-# this function rerounds a number until it is not zero or one
-def RoundToProperDigit(number, round_index):
-    round_index += 1
-    x = round(number, round_index)
-    round_max_digit = len(str(number)) - 2
-    while x in [0.0, 1.0] and round_index <= round_max_digit:
-       x = round(number, round_index)
-       round_index += 1
-    # since round_max_digit can be smaller than the real decimal places, 
-    # we need double check x. if x still equals to 0 while the original number
-    # is not zero, we just set the round_max_digit to a safe number, eg 20. 
-    if x == 0 and number > 0:
-       x = round(number, 20)
-  
-    return x
+def FindRepeatingValues(parameters):
+    marker = False
+    seen = set()
+    repeat_values = ""
+    for idx, item in enumerate(parameters):
+        if item not in seen and item not in [0.0, 1.0]:
+            seen.add(item)
+        else:
+            marker = True
+            repeat_values += " " + str(item)
+    return (marker, repeat_values)
 
 def ParseMetaparameters(encoded_str, ngram_order, num_train_sets):
     metaparameters = encoded_str.split(',')
@@ -432,7 +395,7 @@ else:
     metaparameters = ReadMetaparameters(metaparam_file)
     LogMessage("You can set --bypass-metaparameter-optimization='{0}' "
                "to get equivalent results".format(
-                   FormatMetaparameters(metaparameters, num_train_sets)))
+                   FormatMetaparameters(metaparameters, ngram_order, num_train_sets)))
 
 # make lm dir
 lm_dir = os.path.join(args.lm_dir, lm_name + '.pocolm')
