@@ -242,7 +242,6 @@ def GetObjfAndDeriv(x):
     global iteration
     if not MetaparametersAreAllowed(x):
         # return negative infinity, and a zero derivative.
-        print("Metaparameters not allowed: ", x)
         return (1.0e+10, np.array([0.0]*len(x)))
 
     metaparameter_file = "{0}/{1}.metaparams".format(args.optimize_dir, iteration)
