@@ -157,7 +157,7 @@ def WriteMetaparameters(file, array):
         printed_form = str(array[i]);
         if float(printed_form) <= delta or float(printed_form) >= 1.0 - delta:
             printed_form = '%.20f' % array[i]
-            assert float(printed_form) > delta and float(printed_format) < 1.0 - delta
+            assert float(printed_form) > delta and float(printed_form) < 1.0 - delta
         print(metaparameter_names[i], printed_form, file=f)
     f.close()
     if os.system("cmp -s {0} {0}.tmp".format(file)) == 0:
