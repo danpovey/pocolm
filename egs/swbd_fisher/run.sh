@@ -59,16 +59,18 @@ for order in 3 4 5; do
   # decide on the vocabulary.
   # Note: you'd use --wordlist if you had a previously determined word-list
   # that you wanted to use.
+  lm_name="${num_word}_${order}"
+  min_counts=''
   # Note: the following might be a more reasonable setting:
-  # unpruned_lm_dir=$(train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
-  #             --min-counts='fisher=2 swbd1=1' \
-  #             --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
-  #             ${limit_unk_history_opt} data/text ${order} ${lm_dir})
-  unpruned_lm_dir=$(train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
+  # min_counts='fisher=2 swbd1=1'
+  if [ -n "${min_counts}" ]; then
+    lm_name+="_`echo ${min_counts} | tr -s "[:blank:]" "_" | tr "=" "-"`"
+  fi
+  unpruned_lm_dir=${lm_dir}/${lm_name}.pocolm
+  train_lm.py --num-words=${num_word} --num-splits=5 --warm-start-ratio=10 ${max_memory} \
+              --min-counts=${min_counts} \
               --keep-int-data=true ${fold_dev_opt} ${bypass_metaparam_optim_opt} \
-              ${limit_unk_history_opt} data/text ${order} ${lm_dir})
-  lm_name=$(basename $unpruned_lm_dir)
-  lm_name=${lm_name%.pocolm}
+              ${limit_unk_history_opt} data/text ${order} ${lm_dir}/work ${unpruned_lm_dir}
 
   mkdir -p ${arpa_dir}
   format_arpa_lm.py ${max_memory} ${unpruned_lm_dir} | gzip -c > ${arpa_dir}/${lm_name}_${order}gram_unpruned.arpa.gz
