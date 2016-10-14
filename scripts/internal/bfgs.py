@@ -160,7 +160,7 @@ class __bfgs:
                 (i > 1 and phi_i >= phi[-2])):
                 return self.Zoom(alpha[-2], alpha_i)
             if abs(phi_dash_i) <= -self.c2 * phi_dash_0:
-                self.LogMessage("Line search: accepting default alpha = {0}".format(alpha_i))
+                self.LogMessage("Line search: accepting alpha = {0}".format(alpha_i))
                 return alpha_i
             if phi_dash_i >= 0:
                 return self.Zoom(alpha_i, alpha[-2])
