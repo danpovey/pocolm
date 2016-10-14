@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser(description="Optimizes metaparameters for LM es
                                  "this utility uses derivatives from get_objf_and_derivs.py or "
                                  "get_objf_and_derivs_split.py",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--gradient-tolerance", type=float, default=0.0005,
+parser.add_argument("--gradient-tolerance", type=float, default=0.000125,
                     help="Norm of gradient w.r.t. metaparameters, at which we "
                     "terminate optimization.  Larger->faster, smaller->more accurate.")
 parser.add_argument("--progress-tolerance", type=float, default=1.0e-06,

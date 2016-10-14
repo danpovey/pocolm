@@ -375,7 +375,7 @@ else:
             if os.system("cleanup_count_dir.py " + subset_counts_dir) != 0:
                 sys.exit("train_lm.py: failed to cleanup subset count dir: " + subset_counts_dir)
             os.remove(os.path.join(subset_counts_dir, '.done'))
-        warm_start_opt = ("--gradient-tolerance=0.01 --progress-tolerance=1.0e-03 "
+        warm_start_opt = ("--gradient-tolerance=0.0025 --progress-tolerance=1.0e-03 "
                           "--warm-start-dir=" + subset_optimize_dir)
     else:
         warm_start_opt = ""
