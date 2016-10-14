@@ -125,6 +125,7 @@ class PreArpaProcessor {
     std::string *vocab_data = &(vocab_[0]);
     int32 vocab_size = vocab_.size(),
         cur_order = -1;
+    bool printed_bos = false;
     std::string line_str,
         extra_line_str;
 
@@ -137,6 +138,14 @@ class PreArpaProcessor {
         goto fail;
       line++;  // consume the ' '
       if (order != cur_order) {
+        if (cur_order == 1 && !printed_bos) {
+          // <s> had no backoff prob (e.g. that state was pruned away).
+          // Print the unigram prob for it as -99, which may be
+          // expected by the ARPA reader.
+          std::cout << "-99\t" << vocab_data[kBosSymbol] << "\n";
+          printed_bos = true;
+        }
+
         // new order.  Print the separators in the ARPA file.
         // e.g. print "\n\\2-grams".
         std::cout << "\n\\" << order << "-grams:\n";
@@ -185,6 +194,8 @@ class PreArpaProcessor {
         // documented in pocolm-types.h.
         if (order == 1 && !strncmp(line_str.c_str(), " 1 1\t", 5)) {
           std::cout << "-99\t" << words.str() << '\t' << (line + 1) << "\n";
+          assert(!printed_bos);
+          printed_bos = true;
           continue;
         }
         // Each line with a backoff prob (except the edge case with <s>)
@@ -301,6 +312,3 @@ int main (int argc, const char **argv) {
 
   std::cerr << "pre-arpa-to-arpa: success\n";
 }
-
-
-
