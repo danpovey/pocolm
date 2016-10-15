@@ -18,14 +18,7 @@ parser = argparse.ArgumentParser(description="Optimizes metaparameters for LM es
                                  "this utility uses derivatives from get_objf_and_derivs.py or "
                                  "get_objf_and_derivs_split.py",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--barrier-epsilon", type=float, default=1.0e-04,
-                    help="Scaling factor on logarithmic barrier function to "
-                    "enforce parameter constraints (should make very little "
-                    "difference as long as it is quite small)")
-parser.add_argument("--barrier-delta", type=float, default=1.0e-05,
-                    help="Spacing in barrier function to force at least a finite "
-                    "distance between discounting values that must be separated.")
-parser.add_argument("--gradient-tolerance", type=float, default=0.0005,
+parser.add_argument("--gradient-tolerance", type=float, default=0.000125,
                     help="Norm of gradient w.r.t. metaparameters, at which we "
                     "terminate optimization.  Larger->faster, smaller->more accurate.")
 parser.add_argument("--progress-tolerance", type=float, default=1.0e-06,
@@ -56,6 +49,9 @@ parser.add_argument("optimize_dir",
                     help="Directory to store temporary files for optimization; final "
                     "metaparameters are written to final.metaparams in this directory.")
 
+# echo command line to stderr for logging.
+print(' '.join(sys.argv), file = sys.stderr)
+
 args = parser.parse_args()
 
 # Add the script dir to the path
@@ -82,10 +78,6 @@ if args.num_splits > 1:
 
 if not os.path.exists(args.optimize_dir + "/work"):
     os.makedirs(args.optimize_dir + "/work")
-
-# you can set this to true for testing, to verify that the objf and derivative
-# from the barrier functions do not mismatch.
-use_zero_objf = False
 
 # read the variables 'ngram_order' and 'num_train_sets'
 # from the corresponding files in count_dir.
@@ -152,12 +144,8 @@ def ReadMetaparametersOrDerivs(file):
 def WriteMetaparameters(file, array):
     f = open(file + ".tmp", "w")
     assert len(array) == len(metaparameter_names)
-    delta = args.barrier_delta
     for i in range(len(array)):
-        printed_form = str(array[i]);
-        if float(printed_form) <= delta or float(printed_form) >= 1.0 - delta:
-            printed_form = '%.20f' % array[i]
-            assert float(printed_form) > delta and float(printed_form) < 1.0 - delta
+        printed_form = '%.20f' % array[i]
         print(metaparameter_names[i], printed_form, file=f)
     f.close()
     if os.system("cmp -s {0} {0}.tmp".format(file)) == 0:
@@ -167,72 +155,129 @@ def WriteMetaparameters(file, array):
         os.rename(file + ".tmp", file)
         return True  # it changed or is new
 
-# This function returns true if the metaparameters are in the allowed region,
-# i.e. the scales are strictly between 0 and 1 and for each order, 1 > d1 > d2 >
-# d3 > 0.  Otherwise it returns false.
-def MetaparametersAreAllowed(x):
-    global num_train_sets, ngram_order
-    assert len(x) == num_train_sets + 4 * (ngram_order - 1)
-    for i in range(num_train_sets):
-        if x[i] <= 0.0 or x[i] >= 1.0:
-            return False
-    delta = args.barrier_delta
-    for o in range(2, ngram_order + 1):
-        dim_offset = num_train_sets + 4 * (o-2)
-        d1 = x[dim_offset]
-        d2 = x[dim_offset + 1]
-        d3 = x[dim_offset + 2]
-        d4 = x[dim_offset + 3]
-        if not (1.0 - d1 > delta and d1 - d2 > delta and
-                d2 - d3 > delta and d3 - d4 > delta
-                and d4 > delta):
-            return False
-    return True
 
 
-# this function, which requires that x be in the 'allowed' region,
-# returns the barrier-function component of the objective function,
-# and its derivative w.r.t. x, as a 2-tuple.
-# this barrier function approaches negative infinity as we get
-# close to the edges of the region.  [note: we negate before
-# minimizing.
-def BarrierFunctionAndDeriv(x):
-    epsilon = args.barrier_epsilon
-    delta = args.barrier_delta
-    barrier = 0.0
-    derivs = np.array([0.0] * len(x))
+def Sigmoid(x):
+    if x > 0:
+        return 1.0 / (1 + math.exp(-x))
+    else:
+        e = math.exp(x)
+        return e / (e + 1.0)
+
+# this is the inverse of the sigmoid function.
+def Logit(x):
+    if (x == 0.0):
+        print("optimize_metaparameters.py: warning: x == 0.")
+        return -100.0;
+    elif (x == 1.0):
+        print("optimize_metaparameters.py: warning: x == 1.")
+        return 100.0;
+    else:
+        return log(x / (1.0 - x))
+
+
+# this takes a set of metaparameters x (and optionally a set of derivatives) in
+# the unconstrained space, and reparameterizes it to the constrained space
+# (the constrained space, e.g. between 0 and 1 for the corpus weights, is
+# the most natural representation of the parameters).
+# the 'derivs' are the derivatives of an objective function w.r.t. x (df/dx).
+def UnconstrainedToConstrained(x):
     global num_train_sets, ngram_order
     assert len(x) == num_train_sets + 4 * (ngram_order - 1)
+    y = np.array([0.0] * len(x))
+
     for i in range(num_train_sets):
-        xi = x[i]
-        # the constraints are: xi > delta, and 1.0 - xi > delta
-        barrier += epsilon * (log(xi - delta) + log(1.0 - xi - delta))
-        derivs[i] += epsilon * ((1.0 / (xi - delta)) + (-1.0 / (1.0 - xi - delta)))
+        y[i] = Sigmoid(x[i])
 
     for o in range(2, ngram_order + 1):
         dim_offset = num_train_sets + 4 * (o-2)
-        d1 = x[dim_offset]
-        d2 = x[dim_offset + 1]
-        d3 = x[dim_offset + 2]
-        d4 = x[dim_offset + 3]
-        # the constraints are:
-        # 1.0 - d1 > delta  [actually use nearly_one here]
-        # d1 - d2 > delta
-        # d2 - d3 > delta
-        # d3 - d4 > delta
-        #      d4 > delta
-        barrier += epsilon * (log(1.0 - d1 - delta) + log(d1 - d2 - delta) +
-                              log(d2 - d3 - delta) +  log(d3 - d4 - delta) +
-                              log(d4 - delta))
-        # deriv for d1
-        derivs[dim_offset] += epsilon * (-1.0 / (1.0 - d1 - delta) + 1.0 / (d1 - d2 - delta))
-        # deriv for d2
-        derivs[dim_offset + 1] += epsilon * (-1.0 / (d1 - d2 - delta) + 1.0 / (d2 - d3 - delta))
-        # deriv for d3
-        derivs[dim_offset + 2] += epsilon * (-1.0 / (d2 - d3 - delta) + 1.0 / (d3 - d4 - delta))
-        # deriv for d4
-        derivs[dim_offset + 3] += epsilon * (-1.0 / (d3 - d4 - delta) + 1.0 / (d4 - delta))
-    return (barrier, derivs)
+        x1 = x[dim_offset]
+        x2 = x[dim_offset + 1]
+        x3 = x[dim_offset + 2]
+        x4 = x[dim_offset + 3]
+        s1 = Sigmoid(x1); s2 = Sigmoid(x2); s3 = Sigmoid(x3); s4 = Sigmoid(x4);
+        d1 = s1; d2 = s1 * s2; d3 = s1 * s2 * s3; d4 = s1 * s2 * s3 * s4
+        y[dim_offset] = d1
+        y[dim_offset + 1] = d2
+        y[dim_offset + 2] = d3
+        y[dim_offset + 3] = d4
+
+    return y
+
+# this takes a set of metaparameters y (and optionally a set of derivatives) in
+# the constrained space (the space where the parameters are in their most
+# natural form), and reparameterizes them into to the unconstrained space;
+# it also transforms the derivatives df_dy.
+# if df_dy is supplied, then returns (x, df_dx), else returns just x.
+def ConstrainedToUnconstrained(y, df_dy = None):
+    global num_train_sets, ngram_order
+    assert len(y) == num_train_sets + 4 * (ngram_order - 1)
+    x = np.array([0.0] * len(y))
+    df_dx = np.array([0.0] * len(y))
+    if df_dy is None:
+        df_dy = np.array([0.0] * len(y))
+        need_deriv = False
+    else:
+        need_deriv = True
+
+    for i in range(num_train_sets):
+        x[i] = Logit(y[i])
+        # dy/dx of y = Sigmoid(x) is y*(1-y).
+        # this is like backprop.
+        df_dx[i] = df_dy[i] * y[i] * (1.0 - y[i])
+
+
+    for o in range(2, ngram_order + 1):
+        dim_offset = num_train_sets + 4 * (o-2)
+        d1 = y[dim_offset]
+        d2 = y[dim_offset + 1]
+        d3 = y[dim_offset + 2]
+        d4 = y[dim_offset + 3]
+        df_dd1 = df_dy[dim_offset]
+        df_dd2 = df_dy[dim_offset + 1]
+        df_dd3 = df_dy[dim_offset + 2]
+        df_dd4 = df_dy[dim_offset + 3]
+        s1 = d1; s2 = d2 / d1; s3 = d3 / d2; s4 = d4 / d3
+        # the following expressions could be made more compact, but in the
+        # following form it's probably easiest to see how they derive (via
+        # backprop) from the expressions for d1 through d4 in the
+        # UnconstrainedToConstrained() function.
+        df_ds1 = df_dd1 + df_dd2 * s2 + df_dd3 * s2 * s3 + df_dd4 * s2 * s3 * s4
+        df_ds2 = df_dd2 * s1 + df_dd3 * s1 * s3 + df_dd4 * s1 * s3 * s4
+        df_ds3 = df_dd3 * s1 * s2 + df_dd4 * s1 * s2 * s4
+        df_ds4 = df_dd4 * s1 * s2 * s3
+        x1 = Logit(s1); x2 = Logit(s2); x3 = Logit(s3); x4 = Logit(s4)
+        x[dim_offset] = Logit(s1)
+        x[dim_offset + 1] = Logit(s2)
+        x[dim_offset + 2] = Logit(s3)
+        x[dim_offset + 3] = Logit(s4)
+        # ds/dx of s = Sigmoid(x) is s*(1-s).
+        df_dx[dim_offset] = df_ds1 * s1 * (1.0 - s1)
+        df_dx[dim_offset + 1] = df_ds2 * s2 * (1.0 - s2)
+        df_dx[dim_offset + 2] = df_ds3 * s3 * (1.0 - s4)
+        df_dx[dim_offset + 3] = df_ds4 * s4 * (1.0 - s4)
+
+    return (x, df_dx) if need_deriv else x
+
+
+def TestConstraints():
+    dim = num_train_sets + 4 * (ngram_order - 1)
+    x0 = np.random.rand(dim)
+    df_dy = np.random.rand(dim)
+    x_delta = np.random.rand(dim) * 0.0001
+    x1 = x0 + x_delta
+    y0 = UnconstrainedToConstrained(x0)
+    y1 = UnconstrainedToConstrained(x1)
+    f0 = np.dot(df_dy, y0)
+    f1 = np.dot(df_dy, y1)
+    delta_f = f1 - f0
+    (x0_check, df_dx) = ConstrainedToUnconstrained(y0, df_dy)
+    delta_f_check = np.dot(df_dx, x_delta)
+    x_diff = np.dot(x0 - x0_check, x0 - x0_check)
+    print("optimize_metaparameters.py: checking constraints: x_diff = {0} [should be small], "
+          "delta_f = {1}, delta_f_check = {2} [should be similar]".format(
+              x_diff, delta_f, delta_f_check), file = sys.stderr)
+
 
 
 # this will return a 2-tuple (objf, deriv).  note, the objective function and
@@ -240,56 +285,49 @@ def BarrierFunctionAndDeriv(x):
 # framed as minimization problems.
 def GetObjfAndDeriv(x):
     global iteration
-    if not MetaparametersAreAllowed(x):
-        # return negative infinity, and a zero derivative.
-        return (1.0e+10, np.array([0.0]*len(x)))
+
+    y = UnconstrainedToConstrained(x)
 
     metaparameter_file = "{0}/{1}.metaparams".format(args.optimize_dir, iteration)
     deriv_file = "{0}/{1}.derivs".format(args.optimize_dir, iteration)
     objf_file = "{0}/{1}.objf".format(args.optimize_dir, iteration)
     log_file = "{0}/{1}.log".format(args.optimize_dir, iteration)
 
-    if use_zero_objf:  # only for testing.
-        objf = 0.0
-        derivs = x * 0.0
+
+    changed_or_new = WriteMetaparameters(metaparameter_file, y)
+    prev_metaparameter_file = "{0}/{1}.metaparams".format(args.optimize_dir, iteration - 1)
+    enable_caching = True # if true, enable re-use of files from a previous run.
+    if enable_caching and (not changed_or_new and os.path.exists(deriv_file) and
+                           os.path.exists(objf_file) and
+                           os.path.getmtime(deriv_file) >
+                           os.path.getmtime(metaparameter_file)):
+        print("optimize_metaparameters.py: using previously computed objf and deriv "
+              "info from {0} and {1} (presumably you are rerunning after a partially "
+              "finished run)".format(deriv_file, objf_file), file=sys.stderr)
     else:
-        changed_or_new = WriteMetaparameters(metaparameter_file, x)
-        prev_metaparameter_file = "{0}/{1}.metaparams".format(args.optimize_dir, iteration - 1)
-        enable_caching = True # if true, enable re-use of files from a previous run.
-        if enable_caching and (not changed_or_new and os.path.exists(deriv_file) and
-                               os.path.exists(objf_file) and
-                               os.path.getmtime(deriv_file) >
-                               os.path.getmtime(metaparameter_file)):
-            print("optimize_metaparameters.py: using previously computed objf and deriv "
-                  "info from {0} and {1} (presumably you are rerunning after a partially "
-                  "finished run)".format(deriv_file, objf_file), file=sys.stderr)
-        else:
-            # we need to call get_objf_and_derivs.py
-            command = ("get_objf_and_derivs{maybe_split}.py {split_opt} --cleanup={cleanup} --derivs-out={derivs} {counts} {metaparams} "
-                       "{objf} {work}".format(derivs = deriv_file, counts = args.count_dir,
-                                              metaparams = metaparameter_file,
-                                                      maybe_split = "_split" if args.num_splits > 1 else "",
-                                                      split_opt= ("--num-splits={0}".format(args.num_splits) if
-                                                                  args.num_splits > 1 else ""),
-                                                      cleanup = args.cleanup,
-                                              objf = objf_file, work = args.optimize_dir + "/work"))
-            RunCommand(command, log_file, verbose = True)
-        derivs = ReadMetaparametersOrDerivs(deriv_file)
-        objf = ReadObjf(objf_file)
-        iteration += 1
+        # we need to call get_objf_and_derivs.py
+        command = ("get_objf_and_derivs{maybe_split}.py {split_opt} --cleanup={cleanup} --derivs-out={derivs} {counts} {metaparams} "
+                   "{objf} {work}".format(derivs = deriv_file, counts = args.count_dir,
+                                          metaparams = metaparameter_file,
+                                          maybe_split = "_split" if args.num_splits > 1 else "",
+                                          split_opt= ("--num-splits={0}".format(args.num_splits) if
+                                                      args.num_splits > 1 else ""),
+                                          cleanup = args.cleanup,
+                                          objf = objf_file, work = args.optimize_dir + "/work"))
+        RunCommand(command, log_file, verbose = True)
+    df_dy = ReadMetaparametersOrDerivs(deriv_file)
+    objf = ReadObjf(objf_file)
+    iteration += 1
 
+    (x2, df_dx) = ConstrainedToUnconstrained(y, df_dy)
 
-    # Add something for the barrier functions to enforce constraints.  Note, the
-    # derivatives couldn't easily be computed if any of the scales were to
-    # become exactly zero, so it's easier to use a barrier function to enforce
-    # the constraints, so we don't have to deal with that issue.
-    (barrier_objf, barrier_derivs) = BarrierFunctionAndDeriv(x)
+    # check that x == x2, we just changed variables back and forth so it should
+    # be the same.
+    if math.sqrt(np.dot(x - x2, x - x2)) > 0.001:
+        print("optimize_metaparameters.py: warning: difference {0} versus {1}\n".format(x, x2))
 
-    barrier_free_magnitude = math.sqrt(np.vdot(derivs, derivs))
-    objf += barrier_objf
-    derivs += barrier_derivs
-    print("Evaluation %d: objf=%.6f, deriv-magnitude=%.6f (with barrier function; without = %.6f)" %
-          (iteration, objf, math.sqrt(np.vdot(derivs, derivs)), barrier_free_magnitude),
+    print("Evaluation %d: objf=%.6f, deriv-magnitude=%.6f " %
+          (iteration, objf, math.sqrt(np.vdot(df_dx, df_dx))),
            file=sys.stderr)
 
     # we need to negate the objective function and derivatives, since we are
@@ -298,14 +336,22 @@ def GetObjfAndDeriv(x):
     global value0
     if value0 == None:
         value0 = objf * scale
-    return (objf * scale, derivs * scale)
+    return (objf * scale, df_dx * scale)
 
 
-x0 = ReadMetaparametersOrDerivs(args.optimize_dir + "/0.metaparams")
+# Uncomment the following to check that the derivatives are correct (w.r.t.
+# the change of variables); you have to look at the output, it doesn't
+# fail automatically.
+# TestConstraints()
+
+y0 = ReadMetaparametersOrDerivs(args.optimize_dir + "/0.metaparams")
+x0 = ConstrainedToUnconstrained(y0)  # change of variables to make it an
+                                     # unconstrained optimization problem.
+
 # 'iteration' will affect the filenames used to write the metaparameters
 # and derivatives.
 iteration = 0
-# value0 will store the first evaluated objective function.a
+# value0 will store the first evaluated objective function.
 value0 = None
 
 inv_hessian = None
@@ -318,27 +364,27 @@ if not args.read_inv_hessian is None:
                  "has wrong shape.".format(args.read_inv_hessian),
                  file=sys.stderr)
 
-(x, value, deriv, inv_hessian) = bfgs.Bfgs(x0, GetObjfAndDeriv, MetaparametersAreAllowed,
+(x, value, deriv, inv_hessian) = bfgs.Bfgs(x0, GetObjfAndDeriv, (lambda x: True),
                                            init_inv_hessian = inv_hessian,
                                            gradient_tolerance = args.gradient_tolerance,
                                            progress_tolerance = args.progress_tolerance,
-                                           verbose = False)
+                                           verbose = True)
 
-print("optimize_metaparameters: final metaparameters are ", x, file=sys.stderr)
+y = UnconstrainedToConstrained(x)
+print("optimize_metaparameters: final metaparameters are ", y, file=sys.stderr)
 
-WriteMetaparameters("{0}/final.metaparams".format(args.optimize_dir), x)
+WriteMetaparameters("{0}/final.metaparams".format(args.optimize_dir), y)
 
 old_objf = -1.0 * value0
 new_objf = -1.0 * value
 
-print("optimize_metaparameters.py: log-prob on dev data (with barrier function) increased "
-      "from %.6f to %.6f over %d passes of derivative estimation (penalized perplexity: %.6f->%.6f" %
+print("optimize_metaparameters.py: log-prob on dev data increased "
+      "from %.6f to %.6f over %d passes of derivative estimation (perplexity: %.6f->%.6f" %
       (old_objf, new_objf, iteration, math.exp(-old_objf), math.exp(-new_objf)),
       file=sys.stderr)
 
-print("optimize_metaparameters.py: final perplexity without barrier function was %.6f "
-      "(perplexity: %.6f)" % (new_objf - BarrierFunctionAndDeriv(x)[0],
-                               math.exp(-(new_objf - BarrierFunctionAndDeriv(x)[0]))),
+print("optimize_metaparameters.py: final objf was %.6f (perplexity: %.6f)" %
+      (new_objf, math.exp(-new_objf)),
        file=sys.stderr)
 
 print("optimize_metaparameters.py: do `diff -y {0}/{{0,final}}.metaparams` "
