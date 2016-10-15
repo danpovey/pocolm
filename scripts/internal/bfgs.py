@@ -212,6 +212,8 @@ class __bfgs:
             # alpha_hi, we actually want to be a little bit closer to alpha_lo,
             # so we go one third of the distance between alpha_lo and alpha_hi.
             alpha_j = alpha_lo + 0.3333 * (alpha_hi - alpha_lo)
+            if self.verbose:
+                self.LogMessage("Trying alpha = {0}".format(alpha_j))
             (phi_j, phi_dash_j) = self.FunctionValueAndDerivativeForAlpha(alpha_j)
             if phi_j > phi_0 + self.c1 * alpha_j * phi_dash_0 or phi_j >= phi_lo:
                 (alpha_hi, phi_hi, phi_dash_hi) = (alpha_j, phi_j, phi_dash_j)
@@ -247,8 +249,6 @@ class __bfgs:
         return self.f_finite(x)
 
     def FunctionValueAndDerivativeForAlpha(self, alpha):
-        if self.verbose:
-            self.LogMessage("Trying alpha = {0}".format(alpha))
         x = self.x[-1] + self.p * alpha
         (value, deriv) = self.FunctionValueAndDerivative(x)
         return (value, np.dot(self.p, deriv))

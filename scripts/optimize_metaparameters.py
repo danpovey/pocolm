@@ -339,7 +339,10 @@ def GetObjfAndDeriv(x):
     return (objf * scale, df_dx * scale)
 
 
-TestConstraints()
+# Uncomment the following to check that the derivatives are correct (w.r.t.
+# the change of variables); you have to look at the output, it doesn't
+# fail automatically.
+# TestConstraints()
 
 y0 = ReadMetaparametersOrDerivs(args.optimize_dir + "/0.metaparams")
 x0 = ConstrainedToUnconstrained(y0)  # change of variables to make it an
