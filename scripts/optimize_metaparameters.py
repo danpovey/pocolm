@@ -144,9 +144,33 @@ def ReadMetaparametersOrDerivs(file):
 def WriteMetaparameters(file, array):
     f = open(file + ".tmp", "w")
     assert len(array) == len(metaparameter_names)
+
+    # Even though mathematically none of the values can be <= 0 or >= 1, they
+    # might be so to machine precision or in the printed format, so we impose
+    # maxima and minima very close to 1 to ensure this does not happen.
+    assert len(array) == num_train_sets + 4 * (ngram_order - 1)
+    floors = []
+    ceilings = []
+    for i in range(num_train_sets):
+        floors.append(1.0e-10)
+        # want a number that's distinct from 1 in single precision.
+        ceilings.append(1.0 - 1.0e-6)
+    for i in range(ngram_order - 1):
+        floors += [ 1.0e-10, 1.0e-11, 1.0e-12, 1.0e-13 ]
+        # want ceilings that get farther from 1 and that are distinct from 1 and
+        # from each other in single precision.
+        for m in [ 0.25e-05, 0.5e-05, 0.75e-05, 1.0e-05 ]:
+            ceilings.append(1.0 - m)
+
     for i in range(len(array)):
-        printed_form = '%.20f' % array[i]
+        value = array[i]
+        if value < floors[i]:
+            value = floors[i]
+        if value > ceilings[i]:
+            value = ceilings[i]
+        printed_form = '%.15f' % value
         print(metaparameter_names[i], printed_form, file=f)
+
     f.close()
     if os.system("cmp -s {0} {0}.tmp".format(file)) == 0:
         os.unlink(file + ".tmp")
