@@ -82,6 +82,8 @@ parser.add_argument("lm_dir", type=str, default='', nargs='?',
                     "with name '<vocab_name>_<order>_[min-counts].pocolm', where the <vocab_name> will be the name of wordlist "
                     "if --wordlist is specified otherwise the size of vocabulary, and <order> is the ngram order of model.")
 
+# echo command line to stderr for logging.
+print(' '.join(sys.argv), file = sys.stderr)
 
 args = parser.parse_args()
 # Add the script dir and the src dir to the path.
