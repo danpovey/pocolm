@@ -396,6 +396,8 @@ if not args.read_inv_hessian is None:
 
 y = UnconstrainedToConstrained(x)
 print("optimize_metaparameters: final metaparameters are ", y, file=sys.stderr)
+if y[-4] < 0.1:
+  sys.exit("your dev set is probably in your training set; this is not advisable")
 
 WriteMetaparameters("{0}/final.metaparams".format(args.optimize_dir), y)
 
