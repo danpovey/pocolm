@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser(description="Usage: "
                                  "<dest-counts-dir>.",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument("--dump-counts-parallel", type=str, default='true',
+parser.add_argument("--dump-counts-parallel", type=str, default='false',
                     choices=['true','false'],
                     help="If true, while obtaining the original counts, process multiple data-sources "
                     "in parallel (configurable because 'sort' may use a fair amount of memory).")
