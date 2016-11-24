@@ -2,15 +2,19 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess, shutil, threading
-from collections import defaultdict
-from subprocess import CalledProcessError
+import os
+import argparse
+import sys
+# from collections import defaultdict
+# from subprocess import CalledProcessError
 
 # make sure scripts/internal is on the pythonpath.
-sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys.path
+sys.path = [os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal"] + sys.path
 
-# for ExitProgram and RunCommand
-from pocolm_common import *
+# for LogMessage and RunCommand
+from pocolm_common import RunCommand
+from pocolm_common import LogMessage
+from pocolm_common import TouchFile
 
 parser = argparse.ArgumentParser(description="This script trains an n-gram language model with <order> "
                                  "from <text-dir> and writes out the model to <lm-dir>. "
@@ -43,7 +47,7 @@ parser.add_argument("--min-counts", type=str, default='',
                     help="If specified, apply min-count when we get the ngram counts from training text. "
                          "run 'get_counts.py -h' to see the details on how to set this option.")
 parser.add_argument("--limit-unk-history", type=str, default='false',
-                    choices=['true','false'],
+                    choices=['true', 'false'],
                     help="If true, the left words of <unk> in history of a n-gram will be truncated. "
                     "run 'get_counts.py -h' to see the details on how to set this option.")
 parser.add_argument("--fold-dev-into", type=str,
@@ -59,12 +63,12 @@ parser.add_argument("--bypass-metaparameter-optimization", type=str, default=Non
                     "or the options, the values are no longer valid and you should "
                     "remove this option.")
 parser.add_argument("--verbose", type=str, default='false',
-                    choices=['true','false'],
+                    choices=['true', 'false'],
                     help="If true, print commands as we execute them.")
-parser.add_argument("--cleanup",  type=str, choices=['true','false'],
+parser.add_argument("--cleanup",  type=str, choices=['true', 'false'],
                     default='true', help='Set this to false to disable clean up of the '
                     'work directory.')
-parser.add_argument("--keep-int-data",  type=str, choices=['true','false'],
+parser.add_argument("--keep-int-data",  type=str, choices=['true', 'false'],
                     default='false', help='whether to avoid the int-dir being cleanuped. '
                     'This is useful when user trains different orders of model with the same int-data. '
                     'It is valid only when --cleanup=true')
@@ -83,13 +87,13 @@ parser.add_argument("lm_dir", type=str, default='', nargs='?',
                     "if --wordlist is specified otherwise the size of vocabulary, and <order> is the ngram order of model.")
 
 # echo command line to stderr for logging.
-print(' '.join(sys.argv), file = sys.stderr)
+print(' '.join(sys.argv), file=sys.stderr)
 
 args = parser.parse_args()
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
+                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src")
 
 if args.num_words < 0:
     sys.exit("train_lm.py: --num-words must be >=0.")
@@ -115,25 +119,26 @@ if args.max_memory != '':
             # max memory size must be larger than zero
             if int(s[:-1]) == 0:
                 sys.exit("train_lm.py: --max-memory must be > 0 {unit}.".format(
-                         unit = s[-1]))
+                         unit=s[-1]))
         else:
             sys.exit("train_lm.py: the format of string --max-memory is not correct.")
     else:
-         sys.exit("train_lm.py: the lenght of string --max-memory must >= 2.")
+        sys.exit("train_lm.py: the lenght of string --max-memory must >= 2.")
 
 if args.lm_dir != '':
-  work_dir = args.work_dir
+    work_dir = args.work_dir
 else:
-  work_dir = os.path.join(args.work_dir, 'work')
+    work_dir = os.path.join(args.work_dir, 'work')
 
 log_dir = os.path.join(work_dir, "log")
 if not os.path.isdir(log_dir):
     os.makedirs(log_dir)
 
+
 def GetNumNgrams(lm_dir_in):
     tot_num_ngrams = 0
     num_ngrams = []
-    f = open(os.path.join(lm_dir_in, "num_ngrams"));
+    f = open(os.path.join(lm_dir_in, "num_ngrams"))
     for line in f:
         n = int(line.split()[1])
         num_ngrams.append(n)
@@ -143,14 +148,16 @@ def GetNumNgrams(lm_dir_in):
 
     return num_ngrams
 
+
 def ReadMetaparameters(metaparameter_file):
     metaparameters = []
-    f = open(metaparameter_file);
+    f = open(metaparameter_file)
     for line in f:
         metaparameters.append(float(line.split()[1]))
     f.close()
 
     return metaparameters
+
 
 def WriteMetaparameters(metaparameters, ngram_order, num_train_sets, out_file):
     assert(len(metaparameters) == (ngram_order - 1) * 4 + num_train_sets)
@@ -166,6 +173,7 @@ def WriteMetaparameters(metaparameters, ngram_order, num_train_sets, out_file):
             i += 1
     f.close()
 
+
 def FormatMetaparameters(metaparameters):
     out = []
     for param in metaparameters:
@@ -176,6 +184,7 @@ def FormatMetaparameters(metaparameters):
 
     return ','.join(out)
 
+
 def ParseMetaparameters(encoded_str, ngram_order, num_train_sets):
     metaparameters = encoded_str.split(',')
     assert(len(metaparameters) == (ngram_order - 1) * 4 + num_train_sets)
@@ -183,15 +192,17 @@ def ParseMetaparameters(encoded_str, ngram_order, num_train_sets):
 
     return metaparameters
 
+
 def CheckFreshness(tgt_file, ref_files):
     if not os.path.exists(tgt_file):
-      return True
-
-    for f in ref_files:
-      if os.path.getmtime(tgt_file) < os.path.getmtime(f):
         return True
 
+    for f in ref_files:
+        if os.path.getmtime(tgt_file) < os.path.getmtime(f):
+            return True
+
     return False
+
 
 # get word counts
 word_counts_dir = os.path.join(work_dir, 'word_counts')
@@ -227,7 +238,7 @@ else:
 # generate vocab
 vocab_name = ''
 vocab = ''
-if args.wordlist == None:
+if args.wordlist is None:
     if args.num_words > 0:
         vocab_name = str(args.num_words)
         log_dir = os.path.join(work_dir, 'log', vocab_name)
@@ -242,13 +253,13 @@ if args.wordlist == None:
             log_file = os.path.join(log_dir, 'word_counts_to_vocab.log')
             LogMessage("Generating vocab with num-words={0} ... log in {1}".format(
                 args.num_words, log_file))
-            command = "word_counts_to_vocab.py --num-words={0} {1} > {2}".format(args.num_words, \
-                    word_counts_dir,  vocab)
+            command = "word_counts_to_vocab.py --num-words={0} {1} > {2}".format(
+                    args.num_words, word_counts_dir,  vocab)
             RunCommand(command, log_file, args.verbose == 'true')
             TouchFile(done_file)
     else:
         vocab_name = 'unlimited'
-        log_dir = os.path.join(work_dir,'log', vocab_name)
+        log_dir = os.path.join(work_dir, 'log', vocab_name)
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir)
         vocab = os.path.join(work_dir, 'vocab_' + vocab_name + '.txt')
@@ -325,16 +336,16 @@ if args.cleanup == 'true' and args.keep_int_data == 'false':
     os.remove(os.path.join(int_dir, '.done'))
 
 metaparam_file = ''
-if args.bypass_metaparameter_optimization != None:
+if args.bypass_metaparameter_optimization is not None:
     LogMessage("Bypass optimization steps")
 
-    for name in [ 'ngram_order', 'num_train_sets' ]:
+    for name in ['ngram_order', 'num_train_sets']:
         f = open(os.path.join(counts_dir, name))
         globals()[name] = int(f.readline())
         f.close()
 
     metaparameters = ParseMetaparameters(args.bypass_metaparameter_optimization,
-        ngram_order, num_train_sets)
+                                         ngram_order, num_train_sets)
     metaparam_file = os.path.join(work_dir, 'bypass.metaparams')
     WriteMetaparameters(metaparameters, ngram_order, num_train_sets, metaparam_file)
 else:
@@ -352,14 +363,14 @@ else:
         else:
             log_file = os.path.join(log_dir, 'subset_count_dir.log')
             LogMessage("Subsetting counts dir... log in " + log_file)
-            command = "subset_count_dir.sh {0} {1} {2}".format(counts_dir, \
-                                                               args.warm_start_ratio, subset_counts_dir)
+            command = "subset_count_dir.sh {0} {1} {2}".format(
+                    counts_dir, args.warm_start_ratio, subset_counts_dir)
             RunCommand(command, log_file, args.verbose == 'true')
             TouchFile(done_file)
 
         # warm-start optimize metaparameters
-        subset_optimize_dir = os.path.join(work_dir, "optimize_{0}_subset{1}".format(lm_name, \
-                                                                                     args.warm_start_ratio))
+        subset_optimize_dir = os.path.join(work_dir, "optimize_{0}_subset{1}".format(
+            lm_name, args.warm_start_ratio))
         last_done_files = [done_file]
         done_file = os.path.join(subset_optimize_dir, '.done')
         if not CheckFreshness(done_file, last_done_files):
@@ -389,11 +400,11 @@ else:
     if not CheckFreshness(done_file, last_done_files):
         LogMessage("Skip optimizing metaparameters")
     else:
-        log_file = os.path.join(log_dir,'optimize_metaparameters.log')
+        log_file = os.path.join(log_dir, 'optimize_metaparameters.log')
         LogMessage("Optimizing metaparameters... log in " + log_file)
         command = "optimize_metaparameters.py {0} \
-                   --num-splits={1} {2} {3}".format(warm_start_opt,
-                args.num_splits, counts_dir, optimize_dir)
+                   --num-splits={1} {2} {3}".format(
+                           warm_start_opt, args.num_splits, counts_dir, optimize_dir)
         RunCommand(command, log_file, args.verbose == 'true')
         TouchFile(done_file)
 
@@ -405,9 +416,9 @@ else:
 
 # make lm dir
 if args.lm_dir != '':
-  lm_dir = args.lm_dir
+    lm_dir = args.lm_dir
 else:
-  lm_dir = os.path.join(args.work_dir, lm_name + '.pocolm')
+    lm_dir = os.path.join(args.work_dir, lm_name + '.pocolm')
 
 last_done_files = [done_file]
 done_file = os.path.join(lm_dir, '.done')
@@ -419,7 +430,7 @@ else:
     opts = []
     if args.num_splits > 1:
         opts.append('--keep-splits=true')
-    if args.fold_dev_into != None:
+    if args.fold_dev_into is not None:
         opts.append('--fold-dev-into=' + args.fold_dev_into)
     command = "make_lm_dir.py --cleanup={5} --num-splits={0} {1} {2} {3} {4}".format(
             args.num_splits, ' '.join(opts), counts_dir, metaparam_file, lm_dir, args.cleanup)

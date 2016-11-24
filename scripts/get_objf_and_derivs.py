@@ -2,13 +2,18 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess
+import re
+import os
+import argparse
+import sys
 
 # make sure scripts/internal is on the pythonpath.
-sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys.path
+sys.path = [os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal"] + sys.path
 
 # for ExitProgram, RunCommand and GetCommandStdout
-from pocolm_common import *
+from pocolm_common import ExitProgram
+from pocolm_common import RunCommand
+from pocolm_common import GetCommandStdout
 
 
 parser = argparse.ArgumentParser(description="Given a counts directory and a set of "
@@ -23,13 +28,13 @@ parser.add_argument("--fold-dev-into-int", type=int,
                     "should be folded (not compatible with the --derivs-out option)")
 parser.add_argument("--derivs-out", type=str,
                     help="Filename to which to write derivatives (if supplied)")
-parser.add_argument("--need-model", type=str, default="false", choices=["true","false"],
+parser.add_argument("--need-model", type=str, default="false", choices=["true", "false"],
                     help="If true, this script will create work_dir/float.all (the merged "
                     "file of counts")
-parser.add_argument("--cleanup", type=str, default="true", choices=["true","false"],
+parser.add_argument("--cleanup", type=str, default="true", choices=["true", "false"],
                     help="If true, remove intermediate files in work_dir "
                     "that won't be used in future")
-parser.add_argument("--verbose", type=str, default='false', choices=['true','false'],
+parser.add_argument("--verbose", type=str, default='false', choices=['true', 'false'],
                     help="If true, print commands as we execute them.")
 parser.add_argument("count_dir",
                     help="Directory from which to obtain counts files\n")
@@ -40,10 +45,7 @@ parser.add_argument("objf_out",
 parser.add_argument("work_dir",
                     help="Directory used to temporarily store files and for logs")
 
-
-
 args = parser.parse_args()
-
 
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
@@ -58,13 +60,13 @@ if os.system("validate_count_dir.py " + args.count_dir) != 0:
 
 # read the variables 'ngram_order', 'num_train_sets' and 'num_words'
 # from the corresponding files in count_dir.
-for name in [ 'ngram_order', 'num_train_sets', 'num_words' ]:
+for name in ['ngram_order', 'num_train_sets', 'num_words']:
     f = open(args.count_dir + os.sep + name)
     globals()[name] = int(f.readline())
     f.close()
 
-if args.fold_dev_into_int != None:
-    if args.derivs_out != None:
+if args.fold_dev_into_int is not None:
+    if args.derivs_out is not None:
         sys.exit("get_objf_and_derivs.py: --fold-dev-into-int and --derivs-out "
                  "options are not compatible.")
     if not args.fold_dev_into_int >= 1 and args.fold_dev_into_int <= num_train_sets:
@@ -73,12 +75,10 @@ if args.fold_dev_into_int != None:
 
 if os.system("validate_metaparameters.py --ngram-order={ngram_order} "
              "--num-train-sets={num_train_sets} {metaparameters}".format(
-        ngram_order = ngram_order, num_train_sets = num_train_sets,
-        metaparameters = args.metaparameters)) != 0:
+        ngram_order=ngram_order, num_train_sets=num_train_sets,
+        metaparameters=args.metaparameters)) != 0:
     sys.exit("get_objf_and_derivs.py: failed to validate metaparameters "
              + args.metaparameters)
-
-
 
 # read the metaparameters as dicts.
 # train_set_scale will be a map from integer
@@ -103,10 +103,11 @@ f.close()
 
 
 def RemoveFiles(dir, filenames):
-  for filename in filenames:
-      filepath = os.path.join(dir, filename)
-      if os.path.isfile(filepath):
-          os.remove(filepath)
+    for filename in filenames:
+        filepath = os.path.join(dir, filename)
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+
 
 def Cleanup():
     filenames = ['float.1']
@@ -114,12 +115,13 @@ def Cleanup():
         filenames.append('float.all')
 
     for o in range(2, ngram_order + 1):
-        for prefix in ['discount.','discount_derivs.','float_derivs.']:
+        for prefix in ['discount.', 'discount_derivs.', 'float_derivs.']:
             filenames.append(prefix + str(o - 1))
-        for prefix in ['float.','merged.','merged_derivs.','float_derivs.']:
+        for prefix in ['float.', 'merged.', 'merged_derivs.', 'float_derivs.']:
             filenames.append(prefix + str(o))
 
     RemoveFiles(args.work_dir, filenames)
+
 
 # This function does the count merging for the specified
 # n-gram order, writing to $work_dir/merged.$order
@@ -132,49 +134,50 @@ def Cleanup():
 def MergeCounts(order):
     # merge counts of the specified order > 1.
     assert order > 1
-    command = "merge-counts";
+    command = "merge-counts"
     for n in range(1, num_train_sets + 1):
         command += " {counts}/int.{train_set}.{order},{scale}".format(
-            counts = args.count_dir, train_set = n, order = order,
-            scale = train_set_scale[n])
-    if args.fold_dev_into_int != None:
+            counts=args.count_dir, train_set=n, order=order,
+            scale=train_set_scale[n])
+    if args.fold_dev_into_int is not None:
         command += " {counts}/int.dev.{order},{scale}".format(
-            counts = args.count_dir, order = order,
-            scale = train_set_scale[args.fold_dev_into_int])
+            counts=args.count_dir, order=order,
+            scale=train_set_scale[args.fold_dev_into_int])
 
     # for orders less than the highest order, we also have to include the
     # discount counts from the one-higher order.  there is no scale here, so
     # the program will expect general-counts, not int-counts.
     if order < ngram_order:
         command += " {work}/discount.{order}".format(
-            work = args.work_dir, order = order)
+            work=args.work_dir, order=order)
     # the output gets redirected to the output file.
     command += " >{work}/merged.{order}".format(
-        work = args.work_dir, order = order)
+        work=args.work_dir, order=order)
     log_file = "{0}/log/merge_counts.{1}.log".format(args.work_dir, order)
-    RunCommand(command, log_file, args.verbose=='true')
+    RunCommand(command, log_file, args.verbose == 'true')
+
 
 def MergeCountsBackward(order):
     global scale_derivs
     # merge counts of the specified order > 1; the backprop phase.
     assert order > 1
     command = "merge-counts-backward {work}/merged.{order} {work}/merged_derivs.{order} ".format(
-        work = args.work_dir, order = order)
+        work=args.work_dir, order=order)
 
     for n in range(1, num_train_sets + 1):
         command += " {counts}/int.{train_set}.{order} {scale}".format(
-            counts = args.count_dir, train_set = n, order = order,
-            scale = train_set_scale[n])
+            counts=args.count_dir, train_set=n, order=order,
+            scale=train_set_scale[n])
     # for orders less than the highest order, we also have to include the
     # discount counts from the one-higher order, and provide a filename
     # for it to output the derivatives w.r.t. that file.
     if order < ngram_order:
         command += " {work}/discount.{order} {work}/discount_derivs.{order}".format(
-            work = args.work_dir, order = order)
+            work=args.work_dir, order=order)
     log_file = "{0}/log/merge_counts_backward.{1}.log".format(args.work_dir, order)
-    output = GetCommandStdout(command, log_file, args.verbose=='true')
+    output = GetCommandStdout(command, log_file, args.verbose == 'true')
     try:
-        this_scale_derivs = [ float(n) / num_dev_set_words for n in output.split() ]
+        this_scale_derivs = [float(n) / num_dev_set_words for n in output.split()]
         assert len(scale_derivs) == num_train_sets
         # the scaling factors are applied for each order > 1, and the
         # derivatives will be a sum over the derivatives for each of these
@@ -189,10 +192,11 @@ def DiscountCounts(order):
     # discount counts of the specified order > 1.
     assert order > 1
     command = "discount-counts {d1} {d2} {d3} {d4} {work}/merged.{order} {work}/float.{order} {work}/discount.{orderm1} ".format(
-        d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
-        work = args.work_dir, order = order, orderm1 = order - 1)
+        d1=d1[order], d2=d2[order], d3=d3[order], d4=d4[order],
+        work=args.work_dir, order=order, orderm1=order - 1)
     log_file = "{0}/log/discount_counts.{1}.log".format(args.work_dir, order)
-    RunCommand(command, log_file, args.verbose=='true')
+    RunCommand(command, log_file, args.verbose == 'true')
+
 
 def DiscountCountsBackward(order):
     # discount counts of the specified order > 1; backprop version.
@@ -200,12 +204,12 @@ def DiscountCountsBackward(order):
     command = ("discount-counts-backward {d1} {d2} {d3} {d4} {work}/merged.{order} {work}/float.{order} "
                "{work}/float_derivs.{order} {work}/discount.{orderm1} {work}/discount_derivs.{orderm1} "
                "{work}/merged_derivs.{order}".format(
-            d1 = d1[order], d2 = d2[order], d3 = d3[order], d4 = d4[order],
-            work = args.work_dir, order = order, orderm1 = order - 1))
+                   d1=d1[order], d2=d2[order], d3=d3[order], d4=d4[order],
+                   work=args.work_dir, order=order, orderm1=order - 1))
     log_file = "{0}/log/discount_counts_backward.{1}.log".format(args.work_dir, order)
-    output = GetCommandStdout(command, log_file, args.verbose=='true')
+    output = GetCommandStdout(command, log_file, args.verbose == 'true')
     try:
-        [ deriv1, deriv2, deriv3, deriv4 ] = output.split()
+        [deriv1, deriv2, deriv3, deriv4] = output.split()
     except:
         sys.exit("get_objf_and_derivs.py: could not parse output of command: " + output)
     d1_deriv[order] = float(deriv1) / num_dev_set_words
@@ -216,22 +220,25 @@ def DiscountCountsBackward(order):
 
 def DiscountCountsOrder1():
     command = "discount-counts-1gram {num_words} <{work}/discount.1 >{work}/float.1".format(
-        num_words = num_words, work = args.work_dir)
+            num_words=num_words, work=args.work_dir)
     log_file = "{0}/log/discount_counts_order1.log".format(args.work_dir)
-    RunCommand(command, log_file, args.verbose=='true')
+    RunCommand(command, log_file, args.verbose == 'true')
+
 
 def DiscountCountsOrder1Backward():
     command = ("discount-counts-1gram-backward {work}/discount.1 {work}/float.1 "
-               "{work}/float_derivs.1 {work}/discount_derivs.1".format(work = args.work_dir))
+               "{work}/float_derivs.1 {work}/discount_derivs.1".format(work=args.work_dir))
     log_file = "{0}/log/discount_counts_order1_backward.log".format(args.work_dir)
-    RunCommand(command, log_file, args.verbose=='true')
+    RunCommand(command, log_file, args.verbose == 'true')
+
 
 def ParseNumNgrams(out_dir, merge_all_orders_log):
     try:
         num = []
         f = open(merge_all_orders_log, "r")
         for line in f:
-            if line[0] == '#': continue
+            if line[0] == '#':
+                continue
             m = re.search('Write (.*) individual n-grams.', line)
             if m:
                 # The matched string should be 'num1 + num2 = tot' or just 'num1' for unigram model
@@ -254,25 +261,27 @@ def ParseNumNgrams(out_dir, merge_all_orders_log):
     except:
         sys.exit("get_objf_and_derivs.py: error writing num-ngrams to: " + out_file)
 
+
 def MergeAllOrders():
     command = ("merge-float-counts " +
-               " ".join([ "{0}/float.{1}".format(args.work_dir, n) for n in range(1, ngram_order + 1) ])
+               " ".join(["{0}/float.{1}".format(args.work_dir, n) for n in range(1, ngram_order + 1)])
                + ">{0}/float.all".format(args.work_dir))
     log_file = "{0}/log/merge_all_orders.log".format(args.work_dir)
-    RunCommand(command, log_file, args.verbose=='true')
+    RunCommand(command, log_file, args.verbose == 'true')
     ParseNumNgrams(args.work_dir, log_file)
+
 
 def ComputeObjfAndFinalDerivs(need_derivs):
     global num_dev_set_words, objf
     command = "compute-probs {work}/float.all {counts}/int.dev ".format(
-        work = args.work_dir, counts = args.count_dir)
+            work=args.work_dir, counts=args.count_dir)
     if need_derivs:
-        command +=" ".join([ "{work}/float_derivs.{order}".format(work = args.work_dir, order = n)
-                             for n in range(1, ngram_order + 1) ])
+        command += " ".join(["{work}/float_derivs.{order}".format(work=args.work_dir, order=n)
+                             for n in range(1, ngram_order + 1)])
     log_file = "{0}/log/compute_objf_and_final_derivs.log".format(args.work_dir)
-    output = GetCommandStdout(command, log_file, args.verbose=='true')
+    output = GetCommandStdout(command, log_file, args.verbose == 'true')
     try:
-        [ num_dev_set_words, tot_objf ] = output.split()
+        [num_dev_set_words, tot_objf] = output.split()
         num_dev_set_words = int(num_dev_set_words)
         objf = float(tot_objf) / num_dev_set_words
     except:
@@ -288,6 +297,7 @@ def ComputeObjfAndFinalDerivs(need_derivs):
     except:
         sys.exit("get_objf_and_derivs.py: error writing objective function to: " +
                  args.objf_out)
+
 
 def WriteDerivs():
     try:
@@ -318,16 +328,16 @@ for o in range(ngram_order, 1, -1):
 
 DiscountCountsOrder1()
 MergeAllOrders()
-ComputeObjfAndFinalDerivs(args.derivs_out != None)
+ComputeObjfAndFinalDerivs(args.derivs_out is not None)
 
-if args.derivs_out == None:
+if args.derivs_out is None:
     if args.cleanup == 'true':
         Cleanup()
     sys.exit(0)
 
 # scale_derivs will be an array of the derivatives of the objective function
 # w.r.t. the scaling factors of the training sets.
-scale_derivs = [ 0 ] * num_train_sets
+scale_derivs = [0] * num_train_sets
 # the following dicts will be indexed by the order.
 d1_deriv = {}
 d2_deriv = {}

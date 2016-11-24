@@ -2,7 +2,8 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings
+import argparse
+import sys
 
 parser = argparse.ArgumentParser(description="This script prints to its standard output "
                                  "an initial version of the file of meta-parameters, "
@@ -16,11 +17,11 @@ parser.add_argument("--weights", type=str,
                     help="If supplied, the filename for weights from unigram "
                     "LM estimation (e.g. as obtained from get_unigram_weights.py). "
                     "In this case you must also supply the --names option to "
-                    "help interpret the weights.");
+                    "help interpret the weights.")
 parser.add_argument("--names", type=str,
                     help="Required if the --weights option is used, to help "
                     "interpret the weights (as we want them expressed in terms of "
-                    "the integer names of the training sets)");
+                    "the integer names of the training sets)")
 parser.add_argument("--ngram-order", type=int,
                     help="The N-gram order of your final LM (required)")
 parser.add_argument("--num-train-sets", type=int,
@@ -33,14 +34,14 @@ args = parser.parse_args()
 # and so on), and returns a dictionary from integer id to name.
 def ReadNames(names_file):
     try:
-        f = open(names_file, "r");
+        f = open(names_file, "r")
     except:
         sys.exit("initialize_metaparameters.py: failed to open --names={0}"
                  " for reading".format(names_file))
-    number_to_name = { }
+    number_to_name = {}
     for line in f:
         try:
-            [ number, name ] = line.split();
+            [number, name] = line.split()
             number = int(number)
         except:
             sys.exit("initialize_metaparameters.py: Bad line '{0}' in names file {1}".format(
@@ -58,14 +59,14 @@ def ReadNames(names_file):
 # floating-point weight.
 def ReadWeights(weights_file):
     try:
-        f = open(weights_file, "r");
+        f = open(weights_file, "r")
     except:
         sys.exit("initialize_metaparameters.py: failed to open --weights={0}"
                  " for reading".format(weights_file))
-    name_to_weight = { }
+    name_to_weight = {}
     for line in f:
         try:
-            [ name, weight ] = line.split();
+            [name, weight] = line.split()
             weight = float(weight)
         except:
             sys.exit("initialize_metaparameters.py: Bad line '{0}' in weights file {1}".format(
@@ -77,19 +78,20 @@ def ReadWeights(weights_file):
     f.close()
     return name_to_weight
 
-if args.num_train_sets == None or  args.num_train_sets <= 0:
+
+if args.num_train_sets is None or args.num_train_sets <= 0:
     sys.exit("initialize_metaparameters.py: --num-train-sets must be supplied, and >0.")
 
-if args.ngram_order == None or args.ngram_order <= 1:
+if args.ngram_order is None or args.ngram_order <= 1:
     sys.exit("initialize_metaparameters.py: --num-train-sets must be supplied, and >1.")
 
 
 # set all the weights to 0.5, it will give them room to grow (since
 # we'll constrain them to not exceed 1.0).
-weights = [ 0.5 ] * args.num_train_sets
+weights = [0.5] * args.num_train_sets
 
-if args.weights != None:
-    if args.names == None:
+if args.weights is not None:
+    if args.names is None:
         sys.exit("initialize_metaparameters.py: if --weights is supplied, "
                  "--names must also be supplied.")
     number_to_name = ReadNames(args.names)
@@ -123,7 +125,7 @@ for n in range(args.num_train_sets):
 weight_lower_limit = 0.01
 if min(weights) < weight_lower_limit:
     shift = weight_lower_limit - min(weights)
-    weights = [ x + shift for x in weights ]
+    weights = [x + shift for x in weights]
 
 # Next, in order to come reasonably close to placing the weights
 # in the 'middle' of the range [0, 1], and keeping the barrier
@@ -141,7 +143,7 @@ max_weight = max(weights)
 # or scale = 1 / (min_weight + max_weight)
 
 scale = 1.0 / (min_weight + max_weight)
-weights = [ x * scale for x in weights ]
+weights = [x * scale for x in weights]
 
 # At this point we print out the weights.
 # The general format of the meta-parameters file is:
@@ -162,4 +164,3 @@ for o in range(2, args.ngram_order + 1):
     print("order{0}_D2 0.4".format(o))
     print("order{0}_D3 0.2".format(o))
     print("order{0}_D4 0.1".format(o))
-

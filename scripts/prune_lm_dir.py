@@ -2,16 +2,24 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess, shutil, threading
-from collections import defaultdict
-from subprocess import CalledProcessError
+import os
+import argparse
+import sys
+import subprocess
+import shutil
+import threading
+# from collections import defaultdict
+# from subprocess import CalledProcessError
 
 # make sure scripts/internal is on the pythonpath.
-sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys.path
-from prune_size_model import *
+sys.path = [os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal"] + sys.path
+from prune_size_model import PruneSizeModel
 
 # for ExitProgram and RunCommand
-from pocolm_common import *
+from pocolm_common import ExitProgram
+from pocolm_common import RunCommand
+from pocolm_common import GetCommandStdout
+from pocolm_common import LogMessage
 
 parser = argparse.ArgumentParser(description="This script takes an lm-dir, as produced by make_lm_dir.py, "
                                  "that should not have the counts split up into pieces, and it prunes "
@@ -52,15 +60,15 @@ parser.add_argument("--max-iter", type=int, default=20,
                     help="Max iterations allowed to find the threshold for target-num-ngrams LM. "
                     "This is only relevant if --target-num-ngrams is specified.")
 parser.add_argument("--verbose", type=str, default='false',
-                    choices=['true','false'],
+                    choices=['true', 'false'],
                     help="If true, print commands as we execute them.")
-parser.add_argument("--cleanup",  type=str, choices=['true','false'],
+parser.add_argument("--cleanup",  type=str, choices=['true', 'false'],
                     default='true', help='Set this to false to disable clean up of the '
                     'work directory.')
-parser.add_argument("--remove-zeros", type=str, choices=['true','false'],
+parser.add_argument("--remove-zeros", type=str, choices=['true', 'false'],
                     default='true', help='Set this to false to disable an optimization. '
                     'Only useful for debugging purposes.')
-parser.add_argument("--check-exact-divergence", type=str, choices=['true','false'],
+parser.add_argument("--check-exact-divergence", type=str, choices=['true', 'false'],
                     default='true', help='')
 parser.add_argument("--max-memory", type=str, default='',
                     help="Memory limitation for sort.")
@@ -75,7 +83,7 @@ args = parser.parse_args()
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
+                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src")
 
 if os.system("validate_lm_dir.py " + args.lm_dir_in) != 0:
     ExitProgram("failed to validate input LM-dir")
@@ -98,12 +106,12 @@ if args.max_memory != '':
             # max memory size must be larger than zero
             if int(s[:-1]) == 0:
                 sys.exit("prune_lm_dir.py: --max-memory must be > 0 {unit}.".format(
-                         unit = s[-1]))
+                         unit=s[-1]))
         else:
             sys.exit("prune_lm_dir.py: the format of string --max-memory is not correct.")
     else:
-         sys.exit("prune_lm_dir.py: the lenght of string --max-memory must >= 2.")
-    if args.max_memory[-1] == 'B': # sort seems not recognize 'B'
+        sys.exit("prune_lm_dir.py: the lenght of string --max-memory must >= 2.")
+    if args.max_memory[-1] == 'B':  # sort seems not recognize 'B'
         args.max_memory[-1] = 'b'
 
 num_splits = None
@@ -115,7 +123,7 @@ if os.path.exists(args.lm_dir_in + "/num_splits"):
 work_dir = args.lm_dir_out + "/work"
 
 if args.target_num_ngrams > 0:
-    if args.target_lower_threshold != None:
+    if args.target_lower_threshold is not None:
         if args.target_lower_threshold >= args.target_num_ngrams:
             ExitProgram("--target-lower-threshold[{0}] should be less than "
                         "--target-num-ngrams[{1}].".format(
@@ -123,7 +131,7 @@ if args.target_num_ngrams > 0:
     else:
         args.target_lower_threshold = int(0.95 * args.target_num_ngrams)
 
-    if args.target_upper_threshold != None:
+    if args.target_upper_threshold is not None:
         if args.target_upper_threshold <= args.target_num_ngrams:
             ExitProgram("--target-upper-threshold[{0}] should be larger than "
                         "--target-num-ngrams[{1}].".format(
@@ -147,12 +155,14 @@ else:
 # set the memory restriction for "sort"
 sort_mem_opt = ''
 if args.max_memory != '':
-  sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
+    sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
 
 # returns num-words in this lm-dir.
+
+
 def GetNumWords(lm_dir_in):
     command = "tail -n 1 {0}/words.txt".format(lm_dir_in)
-    line = subprocess.check_output(command, shell = True, universal_newlines = True)
+    line = subprocess.check_output(command, shell=True, universal_newlines=True)
     try:
         a = line.split()
         assert len(a) == 2
@@ -162,21 +172,24 @@ def GetNumWords(lm_dir_in):
                 line, command))
     return ans
 
+
 def GetNgramOrder(lm_dir_in):
-    f = open(lm_dir_in + "/ngram_order");
+    f = open(lm_dir_in + "/ngram_order")
     return int(f.readline())
+
 
 def GetNumGrams(lm_dir_in):
     num_unigrams = 0
     # we generally use num_xgrams to refer to num_ngrams - num_unigrams
     tot_num_xgrams = 0
-    f = open(lm_dir_in + "/num_ngrams");
+    f = open(lm_dir_in + "/num_ngrams")
     for order, line in enumerate(f):
         if order == 0:
             num_unigrams = int(line.split()[1])
             continue
         tot_num_xgrams += int(line.split()[1])
     return (num_unigrams, tot_num_xgrams)
+
 
 # This script creates work/protected.all (listing protected
 # counts which may not be removed); it requires work/float.all
@@ -187,6 +200,7 @@ def CreateProtectedCounts(work):
     log_file = work + "/log/create_protected_counts.log"
     RunCommand(command, log_file, args.verbose == 'true')
 
+
 def SoftLink(src, dest):
     if os.path.lexists(dest):
         os.remove(dest)
@@ -195,6 +209,7 @@ def SoftLink(src, dest):
     except:
         ExitProgram("error linking {0} to {1}".format(os.path.abspath(src), dest))
 
+
 def CreateInitialWorkDir():
     # Creates float.all, stats.all, and protected.all in work_dir/step
     work0dir = work_dir + "/step0"
@@ -202,11 +217,11 @@ def CreateInitialWorkDir():
     if not os.path.isdir(work0dir + "/log"):
         os.makedirs(work0dir + "/log")
     SoftLink(args.lm_dir_in + "/num_ngrams", work0dir + "/num_ngrams")
-    if num_splits == None:
+    if num_splits is None:
         SoftLink(args.lm_dir_in + "/float.all", work0dir + "/float.all")
     else:
-        splits_star = ' '.join([ args.lm_dir_in + "/float.all." + str(n)
-                                 for n in range(1, num_splits + 1) ])
+        splits_star = ' '.join([args.lm_dir_in + "/float.all." + str(n)
+                               for n in range(1, num_splits + 1)])
         command = "merge-float-counts " + splits_star + " >{0}/float.all".format(work0dir)
         log_file = work0dir + "/log/merge_initial_float_counts.log"
         RunCommand(command, log_file, args.verbose == 'true')
@@ -214,8 +229,8 @@ def CreateInitialWorkDir():
     # create protected.all
     CreateProtectedCounts(work0dir)
 
-    stats_star = ' '.join([ "{0}/stats.{1}".format(work0dir, n)
-                            for n in range(1, ngram_order + 1) ])
+    stats_star = ' '.join(["{0}/stats.{1}".format(work0dir, n)
+                          for n in range(1, ngram_order + 1)])
 
     # create stats.{1,2,3..}
     # e.g. command = 'float-counts-to-float-stats 20000 foo/work/step0/stats.1 '
@@ -230,19 +245,20 @@ def CreateInitialWorkDir():
     log_file = work0dir + "/log/merge_float_counts.log"
     RunCommand(command, log_file, args.verbose == 'true')
     for f in stats_star.split():
-        os.remove(f);
+        os.remove(f)
+
 
 # sets initial_logprob_per_word.
 def GetInitialLogprob():
     work0dir = work_dir + "/step0"
-    float_star = ' '.join([ '/dev/null' for n in range(1, ngram_order + 1) ])
+    float_star = ' '.join(['/dev/null' for n in range(1, ngram_order + 1)])
     command = ('float-counts-estimate {num_words} {work0dir}/float.all '
                '{work0dir}/stats.all {float_star} '.format(
-            num_words = num_words, work0dir = work0dir,
-            float_star = float_star))
+                   num_words=num_words, work0dir=work0dir,
+                   float_star=float_star))
     try:
         print(command, file=sys.stderr)
-        p = subprocess.Popen(command, stdout = subprocess.PIPE, shell = True, universal_newlines = True)
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, universal_newlines=True)
         # the stdout of this program will be something like:
         # 1.63388e+06 -7.39182e+06 10.5411 41.237 49.6758
         # representing: total-count, total-like, and for each order, the like-change
@@ -264,6 +280,7 @@ def GetInitialLogprob():
     global initial_logprob_per_word
     initial_logprob_per_word = logprob_per_word
 
+
 def WriteNumNgrams(out_dir, num_ngrams):
     out_file = out_dir + "/num_ngrams"
     try:
@@ -274,24 +291,25 @@ def WriteNumNgrams(out_dir, num_ngrams):
     except:
         ExitProgram("error writing num-ngrams to: " + out_file)
 
+
 def RunPruneStep(work_in, work_out, threshold):
     # set float_star = 'work_out/float.1 work_out/float.2 ...'
-    float_star = " ".join([ '{0}/float.{1}'.format(work_out, n)
-                            for n in range(1, ngram_order + 1) ])
+    float_star = " ".join(['{0}/float.{1}'.format(work_out, n)
+                          for n in range(1, ngram_order + 1)])
     # create work_out/float.{1,2,..}
     log_file = work_out + '/log/float_counts_prune.log'
     command = ("float-counts-prune {threshold} {num_words} {work_in}/float.all "
                "{work_in}/protected.all {float_star} 2>>{log_file}".format(
-                  threshold = threshold, num_words = num_words,
-                  work_in = work_in, float_star = float_star, log_file = log_file))
-    with  open(log_file, 'w') as f:
+                  threshold=threshold, num_words=num_words,
+                  work_in=work_in, float_star=float_star, log_file=log_file))
+    with open(log_file, 'w') as f:
         print("# " + command, file=f)
     try:
         print(command, file=sys.stderr)
-        p = subprocess.Popen(command, stdout = subprocess.PIPE, shell = True, universal_newlines = True)
-        [ word_count, like_change ] = p.stdout.readline().split()
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, universal_newlines=True)
+        [word_count, like_change] = p.stdout.readline().split()
         like_change_per_word = float(like_change) / float(word_count)
-        [ tot_xgrams, shadowed, protected, pruned ] = p.stdout.readline().split()
+        [tot_xgrams, shadowed, protected, pruned] = p.stdout.readline().split()
         num_ngrams = p.stdout.readline().split()
 
         assert p.stdout.readline() == ''
@@ -321,15 +339,15 @@ def RunPruneStep(work_in, work_out, threshold):
         # in this case we pipe the output of merge-float-counts into
         # float-counts-stats-remove-zeros.
         # set stats_star = 'work_out/stats.1 work_out/stats.2 ..'
-        stats_star = " ".join([ '{0}/stats.{1}'.format(work_out, n)
-                                for n in range(1, ngram_order + 1) ])
+        stats_star = " ".join(['{0}/stats.{1}'.format(work_out, n)
+                              for n in range(1, ngram_order + 1)])
 
         command = ('merge-float-counts {float_star} | float-counts-stats-remove-zeros '
                    '{num_words} /dev/stdin {work_in}/stats.all {work_out}/float.all '
                    '{stats_star}'.format(
-                num_words = num_words, float_star = float_star,
-                work_in = work_in, work_out = work_out,
-                stats_star = stats_star))
+                       num_words=num_words, float_star=float_star,
+                       work_in=work_in, work_out=work_out,
+                       stats_star=stats_star))
         log_file = work_out + '/log/remove_zeros.log'
         RunCommand(command, log_file, args.verbose == 'true')
         # create work_out/stats.all
@@ -346,12 +364,12 @@ def RunPruneStep(work_in, work_out, threshold):
 
 def RunEmStep(work_in, work_out):
     # set float_star = 'work_out/float.1 work_out/float.2 ...'
-    float_star = " ".join([ '{0}/float.{1}'.format(work_out, n)
-                            for n in range(1, ngram_order + 1) ])
+    float_star = " ".join(['{0}/float.{1}'.format(work_out, n)
+                          for n in range(1, ngram_order + 1)])
 
     command = ('float-counts-estimate {num_words} {work_in}/float.all {work_in}/stats.all '
-               '{float_star}'.format(num_words = num_words, work_in = work_in,
-                                     float_star = float_star))
+               '{float_star}'.format(num_words=num_words, work_in=work_in,
+                                     float_star=float_star))
     log_file = work_out + "/log/float_counts_estimate.log"
     try:
         output = GetCommandStdout(command, log_file, args.verbose == 'true')
@@ -407,14 +425,14 @@ def RunStep(step_number, threshold, **kwargs):
             assert scale != 0.0
         except:
             ExitProgram("invalid step (wrong --steps "
-                     "option): '{0}'".format(step_text))
+                        "option): '{0}'".format(step_text))
         return RunPruneStep(work_in, work_out, threshold * scale)
 
     elif step_text == 'EM':
         return RunEmStep(work_in, work_out)
     else:
         ExitProgram("invalid step (wrong --steps "
-                 "option): '{0}'".format(step_text))
+                    "option): '{0}'".format(step_text))
 
 
 def FinalizeOutput(final_work_out):
@@ -433,7 +451,7 @@ def FinalizeOutput(final_work_out):
     f = open(args.lm_dir_out + "/was_pruned", "w")
     print("true", file=f)
     f.close()
-    for f in [ 'names', 'words.txt', 'ngram_order', 'metaparameters' ]:
+    for f in ['names', 'words.txt', 'ngram_order', 'metaparameters']:
         try:
             shutil.copy(args.lm_dir_in + "/" + f,
                         args.lm_dir_out + "/" + f)
@@ -453,7 +471,7 @@ def FindThreshold(initial_threshold):
     global logprob_changes, effective_logprob_changes
 
     model = PruneSizeModel(num_unigrams, args.target_num_ngrams,
-            args.target_lower_threshold, args.target_upper_threshold)
+                           args.target_lower_threshold, args.target_upper_threshold)
 #    model.SetDebug(True)
 
     model.SetInitialThreshold(initial_threshold, initial_num_xgrams)
@@ -461,7 +479,7 @@ def FindThreshold(initial_threshold):
     cur_threshold = initial_threshold
     backtrack_iter = 0
     step = 0
-    iter2step = [0] # This maps a iter-index to the step-index of the last step of that iteration
+    iter2step = [0]  # This maps a iter-index to the step-index of the last step of that iteration
     while True:
         steps += ['prune*1.0']
         logprob_change = RunStep(step, cur_threshold, in_step=iter2step[backtrack_iter])
@@ -501,6 +519,7 @@ def FindThreshold(initial_threshold):
         cur_threshold = arguments
         backtrack_iter = model.iter
 
+
 if not os.path.isdir(work_dir):
     try:
         os.makedirs(work_dir)
@@ -524,14 +543,14 @@ CreateInitialWorkDir()
 if args.check_exact_divergence == 'true':
     if args.target_num_ngrams <= 0 and steps[-1] != 'EM':
         LogMessage("--check-exact-divergence=true won't give you the "
-              "exact divergence because the last step is not 'EM'.")
+                   "exact divergence because the last step is not 'EM'.")
     waiting_thread = threading.Thread(target=GetInitialLogprob)
     waiting_thread.start()
 
 if args.target_num_ngrams > 0:
     # For PruneSizeModel.MatchTargetNumNgrams() and PruneSizeModel.NumXgrams2NumNgrams()
     model = PruneSizeModel(num_unigrams, args.target_num_ngrams,
-            args.target_lower_threshold, args.target_upper_threshold)
+                           args.target_lower_threshold, args.target_upper_threshold)
 
     if model.MatchTargetNumNgrams(initial_num_xgrams):
         LogMessage("the input LM is already match the size with target-num-ngrams, do not need any pruning")
@@ -539,14 +558,15 @@ if args.target_num_ngrams > 0:
 
     if args.target_num_ngrams > model.NumXgrams2NumNgrams(initial_num_xgrams):
         ExitProgram("the num-ngrams({0}) of input LM is less than the target-num-ngrams({1}), "
-                  "can not do any pruning.".format(model.NumXgrams2NumNgrams(initial_num_xgrams), args.target_num_ngrams))
+                    "can not do any pruning.".format(
+                        model.NumXgrams2NumNgrams(initial_num_xgrams), args.target_num_ngrams))
 
     threshold = 0.0
     initial_threshold = args.initial_threshold
     while threshold == 0.0:
         (threshold, iter) = FindThreshold(initial_threshold)
         if threshold > 0.0:
-            break;
+            break
         logprob_changes = []
         effective_logprob_changes = []
         thresholds = []
@@ -565,7 +585,7 @@ else:
 
 FinalizeOutput(work_dir + "/step" + str(len(steps)))
 
-if waiting_thread != None:
+if waiting_thread is not None:
     waiting_thread.join()
 
 LogMessage("log-prob changes per step were " + str(logprob_changes))
@@ -573,8 +593,8 @@ LogMessage("log-prob changes per step were " + str(logprob_changes))
 initial_num_ngrams = initial_num_xgrams + num_unigrams
 current_num_ngrams = current_num_xgrams + num_unigrams
 LogMessage("reduced number of n-grams from {0} to {1}, "
-       "i.e. by {2}%".format(initial_num_ngrams, current_num_ngrams,
-        100.0 * (initial_num_ngrams - current_num_ngrams) / initial_num_ngrams))
+           "i.e. by {2}%".format(initial_num_ngrams, current_num_ngrams,
+                                 100.0 * (initial_num_ngrams - current_num_ngrams) / initial_num_ngrams))
 
 # The following prints the K-L divergence; it breaks out the parts by sign so
 # you can see the effect of the E-M separately (it's usually quite small).
@@ -583,7 +603,7 @@ LogMessage("approximate K-L divergence was {0} + {1} = {2}".format(
         -sum([min(0.0, x) for x in effective_logprob_changes]),
         -sum(effective_logprob_changes)))
 
-if initial_logprob_per_word != None and steps[-1] == 'EM':
+if initial_logprob_per_word is not None and steps[-1] == 'EM':
     LogMessage("exact K-L divergence was {0}".format(
             initial_logprob_per_word - final_logprob_per_word))
 

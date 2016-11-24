@@ -3,16 +3,19 @@
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
 import numpy as np
-
-import re, os, argparse, sys, math, warnings, shutil
+import os
+import argparse
+import sys
+import math
 from math import log
 
 # we need to add the ./internal/ subdirectory to the pythonpath before importing
 # 'bfgs'.
-sys.path = [ os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal" ] + sys.path
+sys.path = [os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal"] + sys.path
 import bfgs
-# for ExitProgram, RunCommand and GetCommandStdout
-from pocolm_common import *
+# for GetCommandStdout
+from pocolm_common import RunCommand
+
 
 parser = argparse.ArgumentParser(description="Optimizes metaparameters for LM estimation; "
                                  "this utility uses derivatives from get_objf_and_derivs.py or "
@@ -23,7 +26,7 @@ parser.add_argument("--gradient-tolerance", type=float, default=0.000125,
                     "terminate optimization.  Larger->faster, smaller->more accurate.")
 parser.add_argument("--progress-tolerance", type=float, default=1.0e-06,
                     help="Tolerance for amount of objective function progress, amortized over "
-                    "3 iterations, to be used as a termination condition for BFGS.");
+                    "3 iterations, to be used as a termination condition for BFGS.")
 parser.add_argument("--num-splits", type=int, default=1,
                     help="Controls the number of parallel processes used to "
                     "get objective functions and derivatives.  If >1, then "
@@ -40,7 +43,7 @@ parser.add_argument("--warm-start-dir", type=str,
                     "run on a subset of data.  Setting --subset-optimize-dir=X is "
                     "equivalent to setting --read-inv-hessian=X/final.inv_hessian and "
                     "--initial-metaparameters=X/final.metaparams")
-parser.add_argument("--cleanup", type=str, default="true", choices=["true","false"],
+parser.add_argument("--cleanup", type=str, default="true", choices=["true", "false"],
                     help="If true, remove intermediate files in work_dir "
                     "that won't be used in future")
 parser.add_argument("count_dir",
@@ -50,16 +53,16 @@ parser.add_argument("optimize_dir",
                     "metaparameters are written to final.metaparams in this directory.")
 
 # echo command line to stderr for logging.
-print(' '.join(sys.argv), file = sys.stderr)
+print(' '.join(sys.argv), file=sys.stderr)
 
 args = parser.parse_args()
 
 # Add the script dir to the path
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])));
+                      os.path.abspath(os.path.dirname(sys.argv[0])))
 
-if args.warm_start_dir != None:
-    if args.initial_metaparameters != None or args.read_inv_hessian != None:
+if args.warm_start_dir is not None:
+    if args.initial_metaparameters is not None or args.read_inv_hessian is not None:
         sys.exit("optimize_metaparameters.py: if you set --subset-optimize-dir "
                  "you should not set --initial-metaparameters or "
                  "--read-inv-hessian.")
@@ -81,12 +84,12 @@ if not os.path.exists(args.optimize_dir + "/work"):
 
 # read the variables 'ngram_order' and 'num_train_sets'
 # from the corresponding files in count_dir.
-for name in [ 'ngram_order', 'num_train_sets' ]:
+for name in ['ngram_order', 'num_train_sets']:
     f = open(args.count_dir + os.sep + name)
     globals()[name] = int(f.readline())
     f.close()
 
-if args.initial_metaparameters != None:
+if args.initial_metaparameters is not None:
     # the reason we do the cmp before copying, is that
     # if we copy even if it's the same as before, it messes with the caching.
     if (os.system("cmp -s {0} {1}/0.metaparams || cp {0} {1}/0.metaparams".format(
@@ -107,35 +110,38 @@ else:
 
     command = ("initialize_metaparameters.py {0} --ngram-order={1} --num-train-sets={2} "
                ">{3}/0.metaparams".format(weight_opts, ngram_order,
-                                          num_train_sets, args.optimize_dir));
+                                          num_train_sets, args.optimize_dir))
     if os.system(command) != 0:
         sys.exit("optimize_metaparameters.py: failed to initialize parameters, command was: " +
                  command)
 
+
 def ReadObjf(file):
     f = open(file, "r")
     line = f.readline()
-    assert  len(line.split()) == 1
+    assert len(line.split()) == 1
     assert f.readline() == ''
     f.close()
     return float(line)
 
-metaparameter_names = None
 
+metaparameter_names = None
 # this function reads metaparameters or derivatives from 'file', and returns
 # them as a vector (in the form of a numpy array).
+
+
 def ReadMetaparametersOrDerivs(file):
     global metaparameter_names
     f = open(file, "r")
     a = f.readlines()
-    if metaparameter_names == None:
-        metaparameter_names = [ line.split()[0] for line in a ]
+    if metaparameter_names is None:
+        metaparameter_names = [line.split()[0] for line in a]
     else:
-        if not metaparameter_names == [ line.split()[0] for line in a ]:
+        if not metaparameter_names == [line.split()[0] for line in a]:
             sys.exit("optimize_metaparameters.py: mismatch in metaparameter names; "
                      "try cleaning directory " + args.optimize_dir)
     f.close()
-    return np.array([ float(line.split()[1]) for line in a ])
+    return np.array([float(line.split()[1]) for line in a])
 
 
 # this function writes the metaparameters in the numpy array 'array'
@@ -156,10 +162,10 @@ def WriteMetaparameters(file, array):
         # want a number that's distinct from 1 in single precision.
         ceilings.append(1.0 - 1.0e-6)
     for i in range(ngram_order - 1):
-        floors += [ 1.0e-10, 1.0e-11, 1.0e-12, 1.0e-13 ]
+        floors += [1.0e-10, 1.0e-11, 1.0e-12, 1.0e-13]
         # want ceilings that get farther from 1 and that are distinct from 1 and
         # from each other in single precision.
-        for m in [ 0.25e-05, 0.5e-05, 0.75e-05, 1.0e-05 ]:
+        for m in [0.25e-05, 0.5e-05, 0.75e-05, 1.0e-05]:
             ceilings.append(1.0 - m)
 
     for i in range(len(array)):
@@ -180,7 +186,6 @@ def WriteMetaparameters(file, array):
         return True  # it changed or is new
 
 
-
 def Sigmoid(x):
     if x > 0:
         return 1.0 / (1 + math.exp(-x))
@@ -188,14 +193,15 @@ def Sigmoid(x):
         e = math.exp(x)
         return e / (e + 1.0)
 
+
 # this is the inverse of the sigmoid function.
 def Logit(x):
     if (x == 0.0):
         print("optimize_metaparameters.py: warning: x == 0.")
-        return -100.0;
+        return -100.0
     elif (x == 1.0):
         print("optimize_metaparameters.py: warning: x == 1.")
-        return 100.0;
+        return 100.0
     else:
         return log(x / (1.0 - x))
 
@@ -219,8 +225,14 @@ def UnconstrainedToConstrained(x):
         x2 = x[dim_offset + 1]
         x3 = x[dim_offset + 2]
         x4 = x[dim_offset + 3]
-        s1 = Sigmoid(x1); s2 = Sigmoid(x2); s3 = Sigmoid(x3); s4 = Sigmoid(x4);
-        d1 = s1; d2 = s1 * s2; d3 = s1 * s2 * s3; d4 = s1 * s2 * s3 * s4
+        s1 = Sigmoid(x1)
+        s2 = Sigmoid(x2)
+        s3 = Sigmoid(x3)
+        s4 = Sigmoid(x4)
+        d1 = s1
+        d2 = s1 * s2
+        d3 = s1 * s2 * s3
+        d4 = s1 * s2 * s3 * s4
         y[dim_offset] = d1
         y[dim_offset + 1] = d2
         y[dim_offset + 2] = d3
@@ -233,7 +245,9 @@ def UnconstrainedToConstrained(x):
 # natural form), and reparameterizes them into to the unconstrained space;
 # it also transforms the derivatives df_dy.
 # if df_dy is supplied, then returns (x, df_dx), else returns just x.
-def ConstrainedToUnconstrained(y, df_dy = None):
+
+
+def ConstrainedToUnconstrained(y, df_dy=None):
     global num_train_sets, ngram_order
     assert len(y) == num_train_sets + 4 * (ngram_order - 1)
     x = np.array([0.0] * len(y))
@@ -250,7 +264,6 @@ def ConstrainedToUnconstrained(y, df_dy = None):
         # this is like backprop.
         df_dx[i] = df_dy[i] * y[i] * (1.0 - y[i])
 
-
     for o in range(2, ngram_order + 1):
         dim_offset = num_train_sets + 4 * (o-2)
         d1 = y[dim_offset]
@@ -261,7 +274,10 @@ def ConstrainedToUnconstrained(y, df_dy = None):
         df_dd2 = df_dy[dim_offset + 1]
         df_dd3 = df_dy[dim_offset + 2]
         df_dd4 = df_dy[dim_offset + 3]
-        s1 = d1; s2 = d2 / d1; s3 = d3 / d2; s4 = d4 / d3
+        s1 = d1
+        s2 = d2 / d1
+        s3 = d3 / d2
+        s4 = d4 / d3
         # the following expressions could be made more compact, but in the
         # following form it's probably easiest to see how they derive (via
         # backprop) from the expressions for d1 through d4 in the
@@ -270,7 +286,10 @@ def ConstrainedToUnconstrained(y, df_dy = None):
         df_ds2 = df_dd2 * s1 + df_dd3 * s1 * s3 + df_dd4 * s1 * s3 * s4
         df_ds3 = df_dd3 * s1 * s2 + df_dd4 * s1 * s2 * s4
         df_ds4 = df_dd4 * s1 * s2 * s3
-        x1 = Logit(s1); x2 = Logit(s2); x3 = Logit(s3); x4 = Logit(s4)
+        x1 = Logit(s1)
+        x2 = Logit(s2)
+        x3 = Logit(s3)
+        x4 = Logit(s4)
         x[dim_offset] = Logit(s1)
         x[dim_offset + 1] = Logit(s2)
         x[dim_offset + 2] = Logit(s3)
@@ -300,8 +319,7 @@ def TestConstraints():
     x_diff = np.dot(x0 - x0_check, x0 - x0_check)
     print("optimize_metaparameters.py: checking constraints: x_diff = {0} [should be small], "
           "delta_f = {1}, delta_f_check = {2} [should be similar]".format(
-              x_diff, delta_f, delta_f_check), file = sys.stderr)
-
+              x_diff, delta_f, delta_f_check), file=sys.stderr)
 
 
 # this will return a 2-tuple (objf, deriv).  note, the objective function and
@@ -317,10 +335,9 @@ def GetObjfAndDeriv(x):
     objf_file = "{0}/{1}.objf".format(args.optimize_dir, iteration)
     log_file = "{0}/{1}.log".format(args.optimize_dir, iteration)
 
-
     changed_or_new = WriteMetaparameters(metaparameter_file, y)
     prev_metaparameter_file = "{0}/{1}.metaparams".format(args.optimize_dir, iteration - 1)
-    enable_caching = True # if true, enable re-use of files from a previous run.
+    enable_caching = True  # if true, enable re-use of files from a previous run.
     if enable_caching and (not changed_or_new and os.path.exists(deriv_file) and
                            os.path.exists(objf_file) and
                            os.path.getmtime(deriv_file) >
@@ -331,14 +348,14 @@ def GetObjfAndDeriv(x):
     else:
         # we need to call get_objf_and_derivs.py
         command = ("get_objf_and_derivs{maybe_split}.py {split_opt} --cleanup={cleanup} --derivs-out={derivs} {counts} {metaparams} "
-                   "{objf} {work}".format(derivs = deriv_file, counts = args.count_dir,
-                                          metaparams = metaparameter_file,
-                                          maybe_split = "_split" if args.num_splits > 1 else "",
-                                          split_opt= ("--num-splits={0}".format(args.num_splits) if
+                   "{objf} {work}".format(derivs=deriv_file, counts=args.count_dir,
+                                          metaparams=metaparameter_file,
+                                          maybe_split="_split" if args.num_splits > 1 else "",
+                                          split_opt=("--num-splits={0}".format(args.num_splits) if
                                                       args.num_splits > 1 else ""),
-                                          cleanup = args.cleanup,
-                                          objf = objf_file, work = args.optimize_dir + "/work"))
-        RunCommand(command, log_file, verbose = True)
+                                          cleanup=args.cleanup,
+                                          objf=objf_file, work=args.optimize_dir + "/work"))
+        RunCommand(command, log_file, verbose=True)
     df_dy = ReadMetaparametersOrDerivs(deriv_file)
     objf = ReadObjf(objf_file)
     iteration += 1
@@ -352,13 +369,13 @@ def GetObjfAndDeriv(x):
 
     print("Evaluation %d: objf=%.6f, deriv-magnitude=%.6f " %
           (iteration, objf, math.sqrt(np.vdot(df_dx, df_dx))),
-           file=sys.stderr)
+          file=sys.stderr)
 
     # we need to negate the objective function and derivatives, since we are
     # minimizing.
     scale = -1.0
     global value0
-    if value0 == None:
+    if value0 is None:
         value0 = objf * scale
     return (objf * scale, df_dx * scale)
 
@@ -370,8 +387,7 @@ def GetObjfAndDeriv(x):
 
 y0 = ReadMetaparametersOrDerivs(args.optimize_dir + "/0.metaparams")
 x0 = ConstrainedToUnconstrained(y0)  # change of variables to make it an
-                                     # unconstrained optimization problem.
-
+                                    # unconstrained optimization problem.
 # 'iteration' will affect the filenames used to write the metaparameters
 # and derivatives.
 iteration = 0
@@ -379,7 +395,7 @@ iteration = 0
 value0 = None
 
 inv_hessian = None
-if not args.read_inv_hessian is None:
+if args.read_inv_hessian is not None:
     print("optimize_metaparameters.py: reading inverse Hessian from {0}".format(
             args.read_inv_hessian), file=sys.stderr)
     inv_hessian = np.loadtxt(args.read_inv_hessian)
@@ -389,15 +405,15 @@ if not args.read_inv_hessian is None:
                  file=sys.stderr)
 
 (x, value, deriv, inv_hessian) = bfgs.Bfgs(x0, GetObjfAndDeriv, (lambda x: True),
-                                           init_inv_hessian = inv_hessian,
-                                           gradient_tolerance = args.gradient_tolerance,
-                                           progress_tolerance = args.progress_tolerance,
-                                           verbose = True)
+                                           init_inv_hessian=inv_hessian,
+                                           gradient_tolerance=args.gradient_tolerance,
+                                           progress_tolerance=args.progress_tolerance,
+                                           verbose=True)
 
 y = UnconstrainedToConstrained(x)
 print("optimize_metaparameters: final metaparameters are ", y, file=sys.stderr)
 if y[-4] < 0.1:
-  sys.exit("your dev set is probably in your training set; this is not advisable")
+    sys.exit("your dev set is probably in your training set; this is not advisable")
 
 WriteMetaparameters("{0}/final.metaparams".format(args.optimize_dir), y)
 
@@ -411,7 +427,7 @@ print("optimize_metaparameters.py: log-prob on dev data increased "
 
 print("optimize_metaparameters.py: final objf was %.6f (perplexity: %.6f)" %
       (new_objf, math.exp(-new_objf)),
-       file=sys.stderr)
+      file=sys.stderr)
 
 print("optimize_metaparameters.py: do `diff -y {0}/{{0,final}}.metaparams` "
       "to see change in metaparameters.".format(args.optimize_dir),

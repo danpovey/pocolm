@@ -2,8 +2,9 @@
 
 # We're using python 3.x style print but want it to work in python 2.x.
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, operator
-from collections import defaultdict
+import argparse
+import sys
+# from collections import defaultdict
 
 
 parser = argparse.ArgumentParser(description="Creates a vocabulary file from a pre-existing word "
@@ -55,10 +56,10 @@ for i in range(len(words)):
 warn_words = set(['<s>', '</s>', '<unk>', '<eps>', '<S>', '</S>', '<UNK>', '<EPS>'])
 
 # 'output' is a list of words, where the integer id corresponds to the index.
-output = [ args.epsilon_symbol, args.bos_symbol, args.eos_symbol, args.unk_symbol ]
+output = [args.epsilon_symbol, args.bos_symbol, args.eos_symbol, args.unk_symbol]
 num_special_symbols = len(output)
 
-word_to_index = { }
+word_to_index = {}
 
 for i in range(len(output)):
     special_word = output[i]
@@ -97,4 +98,3 @@ for i in range(len(output)):
 
 if len(output) < 5:
     sys.exit("wordlist_to_vocab.py: something went wrong.  The output vocab is too small.")
-

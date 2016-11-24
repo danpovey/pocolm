@@ -2,8 +2,11 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess, shutil
-from collections import defaultdict
+import os
+import argparse
+import sys
+import shutil
+# from collections import defaultdict
 
 parser = argparse.ArgumentParser(description="This script, given counts and metaparameters, will "
                                  "estimate an LM  in the 'pocolm-internal' format.  This consists of "
@@ -24,14 +27,14 @@ parser.add_argument("--num-splits", type=int, default=1,
                     help="Controls the number of parallel processes used to "
                     "get objective functions and derivatives.  If >1, then "
                     "we split the counts and build the LM in parallel.")
-parser.add_argument("--keep-splits", type=str, choices=['true','false'],
+parser.add_argument("--keep-splits", type=str, choices=['true', 'false'],
                     default='false',
                     help="If true, instead of creating float.all, we'll create "
                     "float.all.1, float.all.2 and so on, split by history-state according "
                     "to the most recent history-word (the unigram state is repeated), "
                     "and the file num_splits containing the --num-splits argument, which "
                     "must be >1.")
-parser.add_argument("--cleanup", type=str, default="true", choices=["true","false"],
+parser.add_argument("--cleanup", type=str, default="true", choices=["true", "false"],
                     help="If true, remove intermediate files in work_dir "
                     "that won't be used in future")
 parser.add_argument("count_dir",
@@ -48,7 +51,7 @@ args = parser.parse_args()
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
+                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src")
 
 work_dir = args.lm_dir + "/work"
 
@@ -60,7 +63,7 @@ if os.system("validate_count_dir.py " + args.count_dir) != 0:
 
 # read the variables 'ngram_order', 'num_train_sets' and 'num_words'
 # from the corresponding files in count_dir.
-for name in [ 'ngram_order', 'num_train_sets', 'num_words' ]:
+for name in ['ngram_order', 'num_train_sets', 'num_words']:
     f = open(args.count_dir + os.sep + name)
     globals()[name] = int(f.readline())
     f.close()
@@ -84,10 +87,10 @@ if args.num_splits > 1:
                 args.count_dir, args.num_splits))) != 0:
         sys.exit("make_lm_dir.py: failed to create split count-dir.")
 
-fold_dev_opt=''
+fold_dev_opt = ''
 
-if args.fold_dev_into != None:
-    fold_dev_into_int = None
+if args.fold_dev_into is not None:
+    fold_dev_into_int is None
     f = open(args.count_dir + "/names")
     for line in f.readlines():
         # we already validated the count-dir so we can assume the names file is
@@ -99,16 +102,16 @@ if args.fold_dev_into != None:
         sys.exit("make_lm_dir.py: invalid option --fold-dev-into={0}, does not "
                  "correspond to any entry in {1}/names".format(args.fold_dev_into,
                                                                args.count_dir))
-    fold_dev_opt='--fold-dev-into-int=' + str(fold_dev_into_int)
+    fold_dev_opt = '--fold-dev-into-int=' + str(fold_dev_into_int)
 
 if os.system("validate_metaparameters.py --ngram-order={ngram_order} "
              "--num-train-sets={num_train_sets} {metaparameters}".format(
-        ngram_order = ngram_order, num_train_sets = num_train_sets,
-        metaparameters = args.metaparameters)) != 0:
+                 ngram_order=ngram_order, num_train_sets=num_train_sets,
+                 metaparameters=args.metaparameters)) != 0:
     sys.exit("make_lm_dir.py: failed to validate metaparameters "
              + args.metaparameters)
 
-for name in ['words.txt', 'ngram_order', 'names' ]:
+for name in ['words.txt', 'ngram_order', 'names']:
     src = args.count_dir + os.sep + name
     dest = args.lm_dir + os.sep + name
     try:
@@ -133,11 +136,10 @@ if args.num_splits == 1:
     if args.cleanup == 'true':
         cleanup_opt = ' --need-model=true'
     command = ("get_objf_and_derivs.py {fold_dev_opt} {cleanup_opt} {count_dir} {metaparameters} "
-               "{work_dir}/objf {work_dir} 2>{work_dir}/log.txt".format(fold_dev_opt = fold_dev_opt,
-                 cleanup_opt = cleanup_opt,
-                                                        count_dir = args.count_dir,
-                                                        metaparameters = args.metaparameters,
-                                                        work_dir = work_dir))
+               "{work_dir}/objf {work_dir} 2>{work_dir}/log.txt".format(
+                   fold_dev_opt=fold_dev_opt, cleanup_opt=cleanup_opt,
+                   count_dir=args.count_dir,
+                   metaparameters=args.metaparameters, work_dir=work_dir))
 else:
     need_model_opt = '--need-model=true' if args.keep_splits == 'false' else ''
     cleanup_opt = '--cleanup=' + args.cleanup
@@ -146,10 +148,10 @@ else:
     command = ("get_objf_and_derivs_split.py --num-splits={num_splits} {need_model_opt} "
                "{fold_dev_opt} {cleanup_opt} {count_dir} {metaparameters} {work_dir}/objf "
                "{work_dir} 2>{work_dir}/log.txt".format(
-            need_model_opt = need_model_opt, fold_dev_opt = fold_dev_opt,
-            cleanup_opt = cleanup_opt,
-            num_splits = args.num_splits, count_dir = args.count_dir,
-            metaparameters = args.metaparameters, work_dir = work_dir))
+                   need_model_opt=need_model_opt, fold_dev_opt=fold_dev_opt,
+                   cleanup_opt=cleanup_opt,
+                   num_splits=args.num_splits, count_dir=args.count_dir,
+                   metaparameters=args.metaparameters, work_dir=work_dir))
 
 print("make_lm_dir.py: running command {0}".format(command), file=sys.stderr)
 
@@ -183,8 +185,6 @@ else:
     except:
         sys.exit("make_lm_dir.py: error moving {0}/float.all to {1}/float.all".format(
                 work_dir, args.lm_dir))
-
-
 
 if os.system("validate_lm_dir.py " + args.lm_dir) != 0:
     sys.exit("make_lm_dir.py: error validating lm-dir " + args.lm_dir)
