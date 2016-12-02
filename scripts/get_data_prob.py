@@ -2,8 +2,14 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess, shutil, tempfile, threading
-from collections import defaultdict
+import os
+import argparse
+import sys
+import math
+import subprocess
+import shutil
+import tempfile
+import threading
 
 parser = argparse.ArgumentParser(description="This script evaluates the probability of some "
                                  "data (in text or gzipped-text format), given a language model "
@@ -25,7 +31,7 @@ args = parser.parse_args()
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src");
+                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src")
 # this will affect the program "sort" that we call.
 os.environ['LC_ALL'] = 'C'
 
@@ -51,12 +57,12 @@ if args.max_memory != '':
             # max memory size must be larger than zero
             if int(s[:-1]) == 0:
                 sys.exit("get_data_prob.py: --max-memory must be > 0 {unit}.".format(
-                         unit = s[-1]))
+                         unit=s[-1]))
         else:
             sys.exit("get_data_prob.py: the format of string --max-memory is not correct.")
     else:
-         sys.exit("get_data_prob.py: the lenght of string --max-memory must >= 2.")
-    if args.max_memory[-1] == 'B': # sort seems not recognize 'B'
+        sys.exit("get_data_prob.py: the lenght of string --max-memory must >= 2.")
+    if args.max_memory[-1] == 'B':  # sort seems not recognize 'B'
         args.max_memory[-1] = 'b'
 
 num_splits = None
@@ -69,9 +75,11 @@ if os.path.exists(args.lm_dir_in + "/num_splits"):
 if not os.path.exists(args.text_in):
     sys.exit("get_data_prob.py: input text data {0} does not exist".format(args.text_in))
 
+
 def GetNgramOrder(lm_dir):
-    f = open(lm_dir + "/ngram_order");
+    f = open(lm_dir + "/ngram_order")
     return int(f.readline())
+
 
 def RunCommand(command):
     # print the command for logging
@@ -79,7 +87,8 @@ def RunCommand(command):
     if os.system(command) != 0:
         sys.exit("get_data_prob.py: error running command: " + command)
 
-work_dir = tempfile.mkdtemp(dir = args.lm_dir_in)
+
+work_dir = tempfile.mkdtemp(dir=args.lm_dir_in)
 
 # this temporary directory will be used by "sort".
 os.environ['TMPDIR'] = work_dir
@@ -89,7 +98,7 @@ ngram_order = GetNgramOrder(args.lm_dir_in)
 # set the memory restriction for "sort"
 sort_mem_opt = ''
 if args.max_memory != '':
-  sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
+    sort_mem_opt = ("--buffer-size={0} ".format(args.max_memory))
 
 # create
 if args.text_in[-3:] == '.gz':
@@ -100,19 +109,20 @@ else:
                                                          args.text_in)
 command += "| get-text-counts {0} | sort {1} | uniq -c | get-int-counts ".format(
             ngram_order, sort_mem_opt)
-if num_splits == None:
+if num_splits is None:
     command += "{0}/int.dev".format(work_dir)
 else:
-    command += "/dev/stdout | split-int-counts " + ' '.join([ work_dir + "/int.dev." + str(n)
-                                                              for n in range(1, num_splits + 1) ])
+    command += "/dev/stdout | split-int-counts " + ' '.join([work_dir + "/int.dev." + str(n)
+                                                            for n in range(1, num_splits + 1)])
 
 RunCommand(command)
 
 tot_num_words = 0.0
 tot_logprob = 0.0
 
+
 def ComputeProbs(split_index):
-    if split_index == None:
+    if split_index is None:
         command = "compute-probs {0}/float.all {1}/int.dev".format(
             args.lm_dir_in, work_dir)
     else:
@@ -120,21 +130,22 @@ def ComputeProbs(split_index):
             args.lm_dir_in, work_dir, split_index)
     print (command, file=sys.stderr)
     try:
-        output = subprocess.check_output(command, shell = True, universal_newlines = True)
+        output = subprocess.check_output(command, shell=True, universal_newlines=True)
     except:
         sys.exit("get_data_prob.py: error running command: " + command)
-    [ num_words, tot_objf ] = output.split()
+    [num_words, tot_objf] = output.split()
     global tot_num_words, tot_logprob
     tot_num_words += float(num_words)
     tot_logprob += float(tot_objf)
 
-if num_splits == None:
+
+if num_splits is None:
     ComputeProbs(None)
 else:
     threads = []
     for split_index in range(1, num_splits + 1):
-        threads.append(threading.Thread(target = ComputeProbs,
-                                        args = [split_index]))
+        threads.append(threading.Thread(target=ComputeProbs,
+                                        args=[split_index]))
         threads[-1].start()
     for t in threads:
         t.join()
@@ -151,4 +162,3 @@ print("get_data_prob.py: log-prob of {0} given model {1} was "
 print(logprob, file=sys.stdout)
 
 shutil.rmtree(work_dir)
-

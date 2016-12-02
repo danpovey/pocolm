@@ -2,7 +2,10 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings
+import os
+import argparse
+import sys
+import math
 from collections import defaultdict
 
 parser = argparse.ArgumentParser(description="Given a directory containing word counts "
@@ -18,9 +21,9 @@ parser = argparse.ArgumentParser(description="Given a directory containing word 
 
 parser.add_argument("--verbose", type=str,
                     help="If true, print more verbose output",
-                    default="false", choices = ["false", "true"])
+                    default="false", choices=["false", "true"])
 parser.add_argument("count_dir",
-                    help="Directory from which to obtain counts files\n");
+                    help="Directory from which to obtain counts files\n")
 
 
 args = parser.parse_args()
@@ -30,7 +33,7 @@ args = parser.parse_args()
 # count.
 def ReadCountsFile(counts_file):
     try:
-        f = open(counts_file, "r");
+        f = open(counts_file, "r")
     except:
         sys.exit("Failed to open {0} for reading".format(counts_file))
     word_to_count = defaultdict(int)
@@ -40,9 +43,10 @@ def ReadCountsFile(counts_file):
     f.close()
     return word_to_count
 
-train_counts = { }
 
-num_files_in_dest = 0;
+train_counts = {}
+
+num_files_in_dest = 0
 for f in os.listdir(args.count_dir):
     full_path = args.count_dir + os.sep + f
     if f.endswith(".counts"):
@@ -73,13 +77,13 @@ if num_train_files == 1:
 # one train count, the matrix has a row of the form
 # [ dev-count train-count1 train-count2 ]
 # To avoid a numpy dependency we just make it a list of lists.
-tot_counts = [ 0 ] * num_train_files
+tot_counts = [0] * num_train_files
 for i in range(num_train_files):
     tot_counts[i] = sum(train_counts[train_keys[i]].values()) * 1.0
 
 all_counts = []
 for word, count in dev_counts.items():
-    this_row = [ 0 ] * (num_train_files + 1)
+    this_row = [0] * (num_train_files + 1)
     found_train_count = False
     this_row[0] = count
     for i in range(num_train_files):
@@ -95,13 +99,13 @@ if len(all_counts) == 0:
 
 # print("All_counts [normalized] = " + str(all_counts))
 
-current_weights = [ 1.0 / num_train_files ] * num_train_files
+current_weights = [1.0 / num_train_files] * num_train_files
 
 threshold = 1.0e-03
 iter = 0
 while True:
     # this is an E-M procedure to re-estimate the weights.
-    next_weights = [ 0.0 ] * num_train_files
+    next_weights = [0.0] * num_train_files
     tot_logprob = 0.0
     tot_count = 0
     num_rows = len(all_counts)
@@ -129,7 +133,7 @@ while True:
               file=sys.stderr)
     current_weights = next_weights
     if math.sqrt(tot_diff) < threshold:
-        break;
+        break
     iter += 1
 
 
@@ -144,7 +148,7 @@ for i in range(num_train_files):
 # weights that inherently sum to one.
 m = max(current_weights)
 for i in range(num_train_files):
-    current_weights[i] /= m;
+    current_weights[i] /= m
 
 if args.verbose == "true":
     print("get_unigram_weights.py: Final weights after renormalizing so they "
@@ -154,4 +158,3 @@ if args.verbose == "true":
 
 for i in range(num_train_files):
     print(train_keys[i], current_weights[i])
-

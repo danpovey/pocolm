@@ -2,7 +2,9 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings
+import os
+import argparse
+import sys
 
 parser = argparse.ArgumentParser(description="Validates meta-parameter derivatives, "
                                  "as produced by get_objf_and_derivs.py-- chiefly "
@@ -22,11 +24,11 @@ parser.add_argument("metaparameter_derivs",
 
 args = parser.parse_args()
 
-if args.ngram_order == None or args.ngram_order <= 1:
+if args.ngram_order is None or args.ngram_order <= 1:
     sys.exit("validate_metaparameter_derivs.py: --ngram-order "
              "option must be supplied and >1")
 
-if args.num_train_sets == None or args.num_train_sets <= 0:
+if args.num_train_sets is None or args.num_train_sets <= 0:
     sys.exit("validate_metaparameter_derivs.py: --num-train-sets "
              "option must be supplied and >0")
 
@@ -51,8 +53,8 @@ for n in range(1, args.num_train_sets + 1):
     line = f.readline()
     deriv_line = deriv_f.readline()
     try:
-        [ name, value ] = line.split()
-        [ deriv_name, deriv ] = deriv_line.split()
+        [name, value] = line.split()
+        [deriv_name, deriv] = deriv_line.split()
         value = float(value)
         deriv = float(deriv)
         scaling_deriv += value * deriv
@@ -68,8 +70,8 @@ for o in range(2, args.ngram_order + 1):
         line = f.readline()
         deriv_line = deriv_f.readline()
         try:
-            [ name, value ] = line.split()
-            [ deriv_name, deriv ] = deriv_line.split()
+            [name, value] = line.split()
+            [deriv_name, deriv] = deriv_line.split()
             value = float(value)
             deriv = float(deriv)
             assert name == deriv_name
@@ -90,4 +92,4 @@ print("validate_metaparameter_derivs.py: deriv w.r.t. scaling "
 
 if abs(scaling_deriv) > 0.01:
     sys.exit("validate_metaparameter_derivs.py: excessively large deriv "
-    "w.r.t. scaling: {0} ".format(scaling_deriv))
+             "w.r.t. scaling: {0} ".format(scaling_deriv))

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-import math, sys
+import math
+import sys
 import numpy as np
 
 
@@ -20,22 +21,23 @@ init_hessian   This gives you a way to specify a "better guess" at the initial
 
 
 """
-def Bfgs(x0, f, f_finite, init_inv_hessian = None,
-         gradient_tolerance = 0.0005, progress_tolerance = 1.0e-06,
-         verbose = False):
+
+
+def Bfgs(x0, f, f_finite, init_inv_hessian=None,
+         gradient_tolerance=0.0005, progress_tolerance=1.0e-06,
+         verbose=False):
     b = __bfgs(x0, f, f_finite,
-               init_inv_hessian = init_inv_hessian,
-               gradient_tolerance = gradient_tolerance,
-               progress_tolerance = progress_tolerance,
-               verbose = verbose)
+               init_inv_hessian=init_inv_hessian,
+               gradient_tolerance=gradient_tolerance,
+               progress_tolerance=progress_tolerance,
+               verbose=verbose)
     return b.Minimize()
 
 
-
 class __bfgs:
-    def __init__(self, x0, f, f_finite, init_inv_hessian = None,
-                 gradient_tolerance = 0.0005, progress_tolerance = 1.0e-06,
-                 progress_tolerance_num_iters = 3, verbose = False):
+    def __init__(self, x0, f, f_finite, init_inv_hessian=None,
+                 gradient_tolerance=0.0005, progress_tolerance=1.0e-06,
+                 progress_tolerance_num_iters=3, verbose=False):
         self.c1 = 1.0e-04  # constant used in line search
         self.c2 = 0.9      # constant used in line search
         assert len(x0.shape) == 1
@@ -56,12 +58,12 @@ class __bfgs:
         # evaluations will be a list of 3-tuples (x, function-value f(x),
         # function-derivative f'(x)).  it's written to and read from by the
         # function self.FunctionValueAndDerivative().
-        self.cached_evaluations = [ ]
+        self.cached_evaluations = []
 
-        self.x = [ x0 ]
+        self.x = [x0]
         (value0, deriv0) = self.FunctionValueAndDerivative(x0)
-        self.value = [ value0 ]
-        self.deriv = [ deriv0 ]
+        self.value = [value0]
+        self.deriv = [deriv0]
 
         deriv_magnitude = math.sqrt(np.dot(deriv0, deriv0))
         self.LogMessage("On iteration 0, value is %.6f, deriv-magnitude %.6f" %
@@ -79,7 +81,6 @@ class __bfgs:
             self.Iterate()
         self.FinalDebugOutput()
         return (self.x[-1], self.value[-1], self.deriv[-1], self.inv_hessian)
-
 
     def FinalDebugOutput(self):
         pass
@@ -122,23 +123,24 @@ class __bfgs:
         #                     (I - np.outer(y_k, s_k) * rho_k)) + np.outer(s_k, s_k) * rho_k
 
         z_k = np.dot(self.inv_hessian, y_k)
-        self.inv_hessian += np.outer(s_k, s_k) * (ysdot + np.dot(y_k,z_k)) * rho_k**2 - \
-                            (np.outer(z_k, s_k) + np.outer(s_k, z_k)) * rho_k
+        self.inv_hessian += np.outer(s_k, s_k) * (ysdot + np.dot(y_k, z_k)) * rho_k**2 - \
+                                    (np.outer(z_k, s_k) + np.outer(s_k, z_k)) * rho_k
     # the function LineSearch is to be called after you have set self.x and
     # self.p.  It returns an alpha value satisfying the strong Wolfe conditions,
     # or None if the line search failed.  It is Algorithm 3.5 of Nocedal and
     # Wright.
+
     def LineSearch(self):
         alpha_max = 1.0e+10
         alpha1 = self.GetDefaultAlpha()
-        increase_factor = 2.0  # amount by which we increase alpha if
-                               # needed... after the 1st time we make it 4.
+        # amount by which we increase alpha if needed... after the 1st time we make it 4.
+        increase_factor = 2.0
         if alpha1 is None:
             self.LogMessage("Line search failed unexpectedly in making sure "
                             "f(x) is finite.")
             return None
 
-        alpha = [ 0.0, alpha1 ]
+        alpha = [0.0, alpha1]
         (phi_0, phi_dash_0) = self.FunctionValueAndDerivativeForAlpha(0.0)
         phi = [phi_0]
         phi_dash = [phi_dash_0]
@@ -157,7 +159,7 @@ class __bfgs:
             phi.append(phi_i)
             phi_dash.append(phi_dash_i)
             if (phi_i > phi_0 + self.c1 * alpha_i * phi_dash_0 or
-                (i > 1 and phi_i >= phi[-2])):
+                    (i > 1 and phi_i >= phi[-2])):
                 return self.Zoom(alpha[-2], alpha_i)
             if abs(phi_dash_i) <= -self.c2 * phi_dash_0:
                 self.LogMessage("Line search: accepting alpha = {0}".format(alpha_i))
@@ -173,7 +175,7 @@ class __bfgs:
                 # something went wrong if alpha needed to get this large.
                 # most likely we'll restart BFGS.
                 self.LogMessage("Line search failed unexpectedly, went "
-                                "past the max.");
+                                "past the max.")
                 return None
             # make sure the function is finite at the next alpha, if possible.
             # we don't need to worry about efficiency too much, as this check
@@ -225,7 +227,6 @@ class __bfgs:
                     (alpha_hi, phi_hi, phi_dash_hi) = (alpha_lo, phi_lo, phi_dash_lo)
                 (alpha_lo, phi_lo, phi_dash_lo) = (alpha_j, phi_j, phi_dash_j)
 
-
     # The function GetDefaultAlpha(), called from LineSearch(), is to be called
     # after you have set self.x and self.p.  It normally returns 1.0, but it
     # will reduce it by factors of 0.9 until the function evaluated at 1.5 * alpha
@@ -260,7 +261,7 @@ class __bfgs:
         if gradient_magnitude < self.gradient_tolerance:
             self.LogMessage("BFGS converged on iteration {0} due to gradient magnitude {1} "
                             "less than gradient tolerance {2}".format(
-                    len(self.x), "%.6f" % gradient_magnitude, self.gradient_tolerance))
+                                len(self.x), "%.6f" % gradient_magnitude, self.gradient_tolerance))
             return True
         if self.num_restarts > 1:
             self.LogMessage("Restarted BFGS computation twice: declaring convergence to avoid a loop")
@@ -275,7 +276,7 @@ class __bfgs:
                 self.LogMessage("BFGS converged on iteration {0} due to objf-change per "
                                 "iteration amortized over {1} iterations = {2} < "
                                 "threshold = {3}.".format(
-                    len(self.x), n, change_per_iter_amortized, self.progress_tolerance))
+                                    len(self.x), n, change_per_iter_amortized, self.progress_tolerance))
                 return True
         return False
 
@@ -312,6 +313,6 @@ def __TestFunction(x):
 def __TestBfgs():
     dim = 15
     x0 = np.array(range(10, dim + 10))
-    (a,b,c,d) = Bfgs(x0, __TestFunction, lambda x : True, )
+    (a, b, c, d) = Bfgs(x0, __TestFunction, lambda x: True, )
 
-#__TestBfgs()
+# __TestBfgs()

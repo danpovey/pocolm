@@ -2,11 +2,9 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess
-try:              # since gzip will only be needed if there are gzipped files, accept
-    import gzip   # failure to import it.
-except:
-    pass
+import os
+import argparse
+import sys
 
 parser = argparse.ArgumentParser(description="Validates directory containing binary "
                                  "counts, as produced by prepare_counts.sh",
@@ -67,8 +65,6 @@ if os.path.exists("{0}/split_modulus".format(args.count_dir)):
                  "to contain an integer >0: {1}".format(args.count_dir, str(e)))
     f.close()
 
-
-
 # the following code checks ngram_order
 f = open("{0}/ngram_order".format(args.count_dir))
 line = f.readline()
@@ -97,7 +93,7 @@ f = open("{0}/names".format(args.count_dir))
 for n in range(1, num_train_sets + 1):
     line = f.readline()
     try:
-        [ m, name ] = line.split()
+        [m, name] = line.split()
         if name in names:
             sys.exit("validate_count_dir.py: repeated name {0} in {1}/names".format(
                     name, args.count_dir))
@@ -119,36 +115,36 @@ if os.path.exists("{0}/unigram_weights".format(args.count_dir)):
         if line == '':
             break
         try:
-            [ name, weight ] = line.split()
+            [name, weight] = line.split()
             weight = float(weight)
             assert weight >= 0.0 and weight <= 1.0
-            if not name in names:
+            if name not in names:
                 sys.exit("validate_count_dir.py: bad line '{0}' in file {1}/unigram_weights: "
                          "name {2} does not appear in {1}/names".format(
-                        line[:-1], args.count_dir, name))
+                             line[:-1], args.count_dir, name))
             if name in names_with_weights:
                 sys.exit("validate_count_dir.py: bad line '{0}' in file {1}/unigram_weights: "
                          "name {2} appears twice".format(
-                        line[:-1], args.count_dir, name))
+                             line[:-1], args.count_dir, name))
             names_with_weights.add(name)
         except Exception as e:
             sys.exit("validate_count_dir.py: bad line '{0}' in file {1}/unigram_weights: {2}".format(
                     line[:-1], args.count_dir, str(e)))
     for name in names:
-        if not name in names_with_weights:
+        if name not in names_with_weights:
             sys.exit("validate_count_dir.py: expected the name {0} to appear in "
                      "{1}/unigram_weights".format(name, args.count_dir))
     f.close()
 
 
-for n in [ 'dev' ] + list(range(1, num_train_sets + 1)):
-    for o in range(2, ngram_order +1):
+for n in ['dev'] + list(range(1, num_train_sets + 1)):
+    for o in range(2, ngram_order + 1):
         filename = "{0}/int.{1}.{2}".format(args.count_dir, n, o)
         if not os.path.exists(filename):
             sys.exit("validate_count_dir.py: Expected file {0} to exist".format(filename))
         # commenting the check that the file is nonempty, since in split directories, we
         # do get empty files.
-        #if not os.path.getsize(filename) > 0:
+        # if not os.path.getsize(filename) > 0:
         #    sys.exit("validate_count_dir.py: Expected file {0} to be nonempty".format(filename))
 
 if not os.path.exists("{0}/int.dev".format(args.count_dir)):

@@ -2,7 +2,9 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings
+import os
+import argparse
+import sys
 
 parser = argparse.ArgumentParser(description="Transforms text data into integer form "
                                  "using a symbol table, e.g. turns line 'hello there' into "
@@ -14,7 +16,7 @@ parser = argparse.ArgumentParser(description="Transforms text data into integer 
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("vocab_file",
-                    help="Filename of vocabulary file, e.g. as produced by get_vocab.py");
+                    help="Filename of vocabulary file, e.g. as produced by get_vocab.py")
 
 args = parser.parse_args()
 
@@ -27,7 +29,7 @@ f = open(args.vocab_file, "r")
 
 for line in f:
     try:
-        [ word, index ] = line.split()
+        [word, index] = line.split()
         word_to_index[word] = int(index)
     except:
         sys.exit("validate_vocab.py: bad line {0} in vocab file {1}".format(
@@ -63,13 +65,12 @@ print("text_to_int.py: converted {0} words, {1}% of which were OOV".format(
 
 forbidden_words = []
 if (num_words_forbidden != 0):
-    for (word,index) in word_to_index.items():
+    for (word, index) in word_to_index.items():
         if index <= 2:
             forbidden_words.append(word)
         if index == 3:
             unk_word = word
     print("text_to_int.py: warning: encountered forbidden symbols ({0}) {1} times; "
           "converted them to {2}".format(",".join(forbidden_words),
-                                       num_words_forbidden, unk_word),
+                                         num_words_forbidden, unk_word),
           file=sys.stderr)
-

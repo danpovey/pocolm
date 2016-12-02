@@ -2,12 +2,10 @@
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
-import re, os, argparse, sys, math, warnings, subprocess
-try:              # since gzip will only be needed if there are gzipped files, accept
-    import gzip   # failure to import it.
-except:
-    pass
-
+import os
+import argparse
+import sys
+import subprocess
 
 parser = argparse.ArgumentParser(description="Validates directory containing integerized "
                                  "text data, as produced by prepare_int_data.py",
@@ -15,7 +13,7 @@ parser = argparse.ArgumentParser(description="Validates directory containing int
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("int_dir",
-                    help="Directory in which to find the data");
+                    help="Directory in which to find the data")
 
 args = parser.parse_args()
 
@@ -79,7 +77,7 @@ f = open("{0}/names".format(args.int_dir))
 for n in range(1, num_train_sets + 1):
     line = f.readline()
     try:
-        [ m, name ] = line.split()
+        [m, name] = line.split()
         if name in names:
             sys.exit("validate_int_dir.py: repeated name {0} in {1}/names".format(
                     name, args.int_dir))
@@ -101,23 +99,23 @@ if os.path.exists("{0}/unigram_weights".format(args.int_dir)):
         if line == '':
             break
         try:
-            [ name, weight ] = line.split()
+            [name, weight] = line.split()
             weight = float(weight)
             assert weight >= 0.0 and weight <= 1.0
-            if not name in names:
+            if name not in names:
                 sys.exit("validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: "
                          "name {2} does not appear in {1}/names".format(
-                        line[:-1], args.int_dir, name))
+                             line[:-1], args.int_dir, name))
             if name in names_with_weights:
                 sys.exit("validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: "
                          "name {2} appears twice".format(
-                        line[:-1], args.int_dir, name))
+                             line[:-1], args.int_dir, name))
             names_with_weights.add(name)
         except Exception as e:
             sys.exit("validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: {2}".format(
                     line[:-1], args.int_dir, str(e)))
     for name in names:
-        if not name in names_with_weights:
+        if name not in names_with_weights:
             sys.exit("validate_int_dir.py: expected the name {0} to appear in "
                      "{1}/unigram_weights".format(name, args.int_dir))
     f.close()
@@ -132,10 +130,10 @@ for name in names:
     num_ints = 0
     for l in range(10):
         line = p.stdout.readline()
-        if line == None:
+        if line is None:
             break
         try:
-            ints = [ int(x) for x in line.split() ]
+            ints = [int(x) for x in line.split()]
             num_ints += len(ints)
             for i in ints:
                 if i < 3 or i > num_words:
