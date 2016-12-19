@@ -90,7 +90,7 @@ if args.num_splits > 1:
 fold_dev_opt = ''
 
 if args.fold_dev_into is not None:
-    fold_dev_into_int is None
+    fold_dev_into_int = None
     f = open(args.count_dir + "/names")
     for line in f.readlines():
         # we already validated the count-dir so we can assume the names file is
