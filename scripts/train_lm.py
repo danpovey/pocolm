@@ -5,6 +5,7 @@ from __future__ import print_function
 import os
 import argparse
 import sys
+import subprocess
 # from collections import defaultdict
 # from subprocess import CalledProcessError
 
@@ -87,7 +88,7 @@ parser.add_argument("lm_dir", type=str, default='', nargs='?',
                     "if --wordlist is specified otherwise the size of vocabulary, and <order> is the ngram order of model.")
 
 # echo command line to stderr for logging.
-print(' '.join(sys.argv), file=sys.stderr)
+print(subprocess.list2cmdline(sys.argv), file=sys.stderr)
 
 args = parser.parse_args()
 # Add the script dir and the src dir to the path.
