@@ -40,7 +40,7 @@ for f in os.listdir(args.text_dir):
         all_names.append(f[:-4])
     elif f.endswith(".txt.gz") and f != "dev.txt.gz":
         all_names.append(f[:-7])
-    elif f != "dev" and f != "dev.txt" and f != 'unigram_weights':
+    elif f != "dev" and f != "dev.txt" and f != "dev.txt.gz" and f != 'unigram_weights':
         sys.exit("get_names.py: unexpected file found, {0}/{1}".format(
                 args.text_dir, f))
 
