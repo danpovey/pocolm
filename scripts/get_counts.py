@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # we're using python 3.x style print but want it to work in python 2.x,
-from __future__ import print_function
+from __future__ import print_function, division
 import os
 import argparse
 import sys
@@ -457,7 +457,7 @@ def ParseMemoryString(s):
 
 def DivideMemory(total, n):
     (value, unit) = ParseMemoryString(total)
-    sub_memory = value / n
+    sub_memory = value // n
     if sub_memory != float(value) / n:
         if unit in ['K', 'k', '']:
             sub_memory = value * 1024 / n
