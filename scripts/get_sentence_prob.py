@@ -127,7 +127,7 @@ def output_result(text_in, output_file, ngram_order):
             for line in lines:
                 new_line = "<s> " + line[:-1] + " </s>"
                 logprob = compute_sentence_prob(new_line, ngram_order)
-                output_file.write("{} {} {}\n".format(index, line[:-1], logprob))
+                output_file.write("{}\n".format(logprob))
                 index += 1
             
 if __name__ == "__main__":
