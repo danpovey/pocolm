@@ -102,7 +102,7 @@ if args.max_memory != '':
 
 # create
 if args.text_in[-3:] == '.gz':
-    command = "gunzip -c {0} | text_to_int.py {1}/words.txt ".format(args.lm_dir_in,
+    command = "gunzip -c {1} | text_to_int.py {0}/words.txt ".format(args.lm_dir_in,
                                                                      args.text_in)
 else:
     command = "text_to_int.py {0}/words.txt <{1}".format(args.lm_dir_in,
