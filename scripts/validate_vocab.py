@@ -40,7 +40,7 @@ likely_special_indexes.add((3, '<Unk>'))
 default_special_indexes = ['<eps>', '<s>', '</s>', '<unk>']
 
 
-f = open(args.vocab_file, "r")
+f = open(args.vocab_file, "r", encoding='utf-8')
 num_lines = 0
 for line in f:
     try:
