@@ -42,7 +42,7 @@ args = parser.parse_args()
 
 
 def GetNumTrainSets(int_dir):
-    with open(int_dir) as f:
+    with open(int_dir, encoding="utf-8") as f:
         for line in f:
             try:
                 a = line.split()
@@ -133,18 +133,18 @@ GetNames(args.text_dir, args.int_dir)
 CopyFile(args.vocab, args.int_dir + "/words.txt")
 
 # get file 'num_train_sets' in int_dir from file 'names' in int_dir
-with open(args.int_dir + os.sep + "num_train_sets", "w") as f:
+with open(args.int_dir + os.sep + "num_train_sets", "w", encoding="utf-8") as f:
     num_train_sets = GetNumTrainSets(args.int_dir + os.sep + "names")
     f.write(str(num_train_sets) + "\n")
 
 # get file 'num_words' in int_dir from vocab
-with open(args.int_dir + os.sep + "num_words", "w") as f:
+with open(args.int_dir + os.sep + "num_words", "w", encoding="utf-8") as f:
     num_words = GetNumWords(args.vocab)
     f.write(str(num_words) + "\n")
 
 # parallel/sequential processing
 threads = []
-with open(args.int_dir + "/names", "r") as f:
+with open(args.int_dir + "/names", "r", encoding="utf-8") as f:
     for line in f:
         [int, name] = line.split()
         threads.append(threading.Thread(target=GetData, args=[int, name]))

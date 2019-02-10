@@ -61,7 +61,7 @@ if os.system("validate_count_dir.py " + args.count_dir) != 0:
 # read the variables 'ngram_order', 'num_train_sets' and 'num_words'
 # from the corresponding files in count_dir.
 for name in ['ngram_order', 'num_train_sets', 'num_words']:
-    f = open(args.count_dir + os.sep + name)
+    f = open(args.count_dir + os.sep + name, encoding="utf-8")
     globals()[name] = int(f.readline())
     f.close()
 
@@ -84,7 +84,7 @@ if os.system("validate_metaparameters.py --ngram-order={ngram_order} "
 # train_set_scale will be a map from integer
 # training-set number to floating-point scale.  Note: there is no checking
 # because we already called validate_metaparameters.py.
-f = open(args.metaparameters, "r")
+f = open(args.metaparameters, "r", encoding="utf-8")
 train_set_scale = {}
 for n in range(1, num_train_sets + 1):
     train_set_scale[n] = float(f.readline().split()[1])
@@ -235,7 +235,7 @@ def DiscountCountsOrder1Backward():
 def ParseNumNgrams(out_dir, merge_all_orders_log):
     try:
         num = []
-        f = open(merge_all_orders_log, "r")
+        f = open(merge_all_orders_log, "r", encoding="utf-8")
         for line in f:
             if line[0] == '#':
                 continue
@@ -254,7 +254,7 @@ def ParseNumNgrams(out_dir, merge_all_orders_log):
 
     try:
         out_file = out_dir + "/num_ngrams"
-        f = open(out_file, "w")
+        f = open(out_file, "w", encoding="utf-8")
         for order, num in enumerate(nums):
             print(str(order + 1) + ' ' + str(num), file=f)
         f.close()
@@ -291,7 +291,7 @@ def ComputeObjfAndFinalDerivs(need_derivs):
           "words".format(objf, num_dev_set_words), file=sys.stderr)
     # Write the objective function.
     try:
-        f = open(args.objf_out, "w")
+        f = open(args.objf_out, "w", encoding="utf-8")
         print(str(objf), file=f)
         f.close()
     except:
@@ -301,7 +301,7 @@ def ComputeObjfAndFinalDerivs(need_derivs):
 
 def WriteDerivs():
     try:
-        f = open(args.derivs_out, "w")
+        f = open(args.derivs_out, "w", encoding="utf-8")
     except:
         sys.exit("get_objf_and_derivs.py: error opening --derivs-out={0} for writing".format(
                  args.derivs_out))

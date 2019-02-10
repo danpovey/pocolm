@@ -33,7 +33,7 @@ args = parser.parse_args()
 # count.
 def ReadCountsFile(counts_file):
     try:
-        f = open(counts_file, "r")
+        f = open(counts_file, "r", encoding="utf-8")
     except:
         sys.exit("Failed to open {0} for reading".format(counts_file))
     word_to_count = defaultdict(int)

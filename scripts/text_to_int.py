@@ -25,7 +25,7 @@ if not os.path.exists(args.vocab_file):
 
 word_to_index = {}
 
-f = open(args.vocab_file, "r")
+f = open(args.vocab_file, "r", encoding="utf-8")
 
 for line in f:
     try:

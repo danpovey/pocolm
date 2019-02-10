@@ -85,7 +85,7 @@ if not os.path.exists(args.optimize_dir + "/work"):
 # read the variables 'ngram_order' and 'num_train_sets'
 # from the corresponding files in count_dir.
 for name in ['ngram_order', 'num_train_sets']:
-    f = open(args.count_dir + os.sep + name)
+    f = open(args.count_dir + os.sep + name, encoding="utf-8")
     globals()[name] = int(f.readline())
     f.close()
 
@@ -117,7 +117,7 @@ else:
 
 
 def ReadObjf(file):
-    f = open(file, "r")
+    f = open(file, "r", encoding="utf-8")
     line = f.readline()
     assert len(line.split()) == 1
     assert f.readline() == ''
@@ -132,7 +132,7 @@ metaparameter_names = None
 
 def ReadMetaparametersOrDerivs(file):
     global metaparameter_names
-    f = open(file, "r")
+    f = open(file, "r", encoding="utf-8")
     a = f.readlines()
     if metaparameter_names is None:
         metaparameter_names = [line.split()[0] for line in a]
@@ -148,7 +148,7 @@ def ReadMetaparametersOrDerivs(file):
 # to file 'file'; it returns true if the file was newly created and/or
 # had different contents than its previous contents.
 def WriteMetaparameters(file, array):
-    f = open(file + ".tmp", "w")
+    f = open(file + ".tmp", "w", encoding="utf-8")
     assert len(array) == len(metaparameter_names)
 
     # Even though mathematically none of the values can be <= 0 or >= 1, they

@@ -27,7 +27,7 @@ if not os.path.exists("{0}/num_train_sets".format(args.count_dir)):
 
 # the following code checks num_train_sets and sets num_train_sets
 # to the appropriate variable.
-f = open("{0}/num_train_sets".format(args.count_dir))
+f = open("{0}/num_train_sets".format(args.count_dir), encoding="utf-8")
 line = f.readline()
 try:
     num_train_sets = int(line)
@@ -39,7 +39,7 @@ except Exception as e:
 f.close()
 
 # the following code checks num_words.
-f = open("{0}/num_words".format(args.count_dir))
+f = open("{0}/num_words".format(args.count_dir), encoding="utf-8")
 line = f.readline()
 try:
     num_words = int(line)
@@ -54,7 +54,7 @@ f.close()
 # the following code checks split_modulus (which doesn't have to exist,
 # it's optional).
 if os.path.exists("{0}/split_modulus".format(args.count_dir)):
-    f = open("{0}/num_words".format(args.count_dir))
+    f = open("{0}/num_words".format(args.count_dir), encoding="utf-8")
     line = f.readline()
     try:
         split_modulus = int(line)
@@ -66,7 +66,7 @@ if os.path.exists("{0}/split_modulus".format(args.count_dir)):
     f.close()
 
 # the following code checks ngram_order
-f = open("{0}/ngram_order".format(args.count_dir))
+f = open("{0}/ngram_order".format(args.count_dir), encoding="utf-8")
 line = f.readline()
 try:
     ngram_order = int(line)
@@ -89,7 +89,7 @@ names = set()
 #  1 switchboard
 #  2 fisher
 # etc.
-f = open("{0}/names".format(args.count_dir))
+f = open("{0}/names".format(args.count_dir), encoding="utf-8")
 for n in range(1, num_train_sets + 1):
     line = f.readline()
     try:
@@ -108,7 +108,7 @@ f.close()
 # is an optional part of the directory format; we put it here so it can be used
 # to initialize the metaparameters in a reasonable way.
 if os.path.exists("{0}/unigram_weights".format(args.count_dir)):
-    f = open("{0}/unigram_weights".format(args.count_dir))
+    f = open("{0}/unigram_weights".format(args.count_dir), encoding="utf-8")
     names_with_weights = set()
     while True:
         line = f.readline()

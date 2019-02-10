@@ -22,7 +22,7 @@ if not os.path.exists(args.lm_dir):
     sys.exit("validate_lm_dir.py: Expected directory {0} to exist".format(args.lm_dir))
 
 # the following code checks ngram_order
-f = open("{0}/ngram_order".format(args.lm_dir))
+f = open("{0}/ngram_order".format(args.lm_dir), encoding="utf-8")
 line = f.readline()
 try:
     ngram_order = int(line)
@@ -35,7 +35,7 @@ f.close()
 
 # the following code checks num_ngrams
 try:
-    f = open("{0}/num_ngrams".format(args.lm_dir))
+    f = open("{0}/num_ngrams".format(args.lm_dir), encoding="utf-8")
     lines = f.readlines()
     assert(len(lines) == ngram_order)
     for order, line in enumerate(lines):
@@ -62,7 +62,7 @@ if os.system("echo true | cmp -s - {0}/was_pruned || "
 #  1 switchboard
 #  2 fisher
 # etc.
-f = open("{0}/names".format(args.lm_dir))
+f = open("{0}/names".format(args.lm_dir), encoding="utf-8")
 num_train_sets = 0
 while True:
     line = f.readline()
@@ -80,7 +80,7 @@ f.close()
 
 if os.path.exists(args.lm_dir + "/num_splits"):
     # split LM dir, contains float.all.split{1,2,3..}
-    f = open(args.lm_dir + "/num_splits")
+    f = open(args.lm_dir + "/num_splits", encoding="utf-8")
     try:
         num_splits = int(f.readline())
         assert f.readline() == '' and num_splits > 1

@@ -83,7 +83,7 @@ os.environ['TMPDIR'] = args.dest_count_dir
 # and so on), and returns a dictionary from integer id to name.
 def ReadNames(names_file):
     try:
-        f = open(names_file, "r")
+        f = open(names_file, "r", encoding="utf-8")
     except:
         sys.exit("get_counts.py: failed to open --names={0}"
                  " for reading".format(names_file))
@@ -104,7 +104,7 @@ def ReadNames(names_file):
 
 
 def GetNumTrainSets(source_int_dir):
-    f = open(source_int_dir + '/num_train_sets')
+    f = open(source_int_dir + '/num_train_sets', encoding="utf-8")
     # the following should not fail, since we validated source_int_dir.
     num_train_sets = int(f.readline())
     assert f.readline() == ''
@@ -258,7 +258,7 @@ def FormatMinCounts(source_int_dir, num_train_sets, ngram_order, min_counts):
 # save the n-gram order.
 def SaveNgramOrder(dest_count_dir, ngram_order):
     try:
-        f = open('{0}/ngram_order'.format(dest_count_dir), 'w')
+        f = open('{0}/ngram_order'.format(dest_count_dir), 'w', encoding="utf-8")
     except:
         ExitProgram('error opening file {0}/ngram_order for writing'.format(dest_count_dir))
     assert ngram_order >= 2
@@ -493,7 +493,7 @@ if args.ngram_order < 2:
 # read the variable 'num_train_sets'
 # from the corresponding file in source_int_dir  This shouldn't fail
 # because we just called validate_int-dir.py..
-f = open(args.source_int_dir + "/num_train_sets")
+f = open(args.source_int_dir + "/num_train_sets", encoding="utf-8")
 num_train_sets = int(f.readline())
 f.close()
 

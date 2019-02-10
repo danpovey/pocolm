@@ -91,7 +91,7 @@ if not os.path.exists(args.work_dir + "/log"):
 # from the corresponding files in count_dir.  (this should be the
 # same as in the split directories; if not, you have a big problem).
 for name in ['ngram_order', 'num_train_sets', 'num_words']:
-    f = open(args.count_dir + os.sep + name)
+    f = open(args.count_dir + os.sep + name, encoding="utf-8")
     globals()[name] = int(f.readline())
     f.close()
 
@@ -114,7 +114,7 @@ if os.system("validate_metaparameters.py --ngram-order={ngram_order} "
 # train_set_scale will be a map from integer
 # training-set number to floating-point scale.  Note: there is no checking
 # because we already called validate_metaparameters.py.
-f = open(args.metaparameters, "r")
+f = open(args.metaparameters, "r", encoding="utf-8")
 train_set_scale = {}
 for n in range(1, num_train_sets + 1):
     train_set_scale[n] = float(f.readline().split()[1])
@@ -321,7 +321,7 @@ def DiscountCountsOrder1Backward():
 def WriteNumNgrams(out_dir, num_ngrams):
     out_file = out_dir + "/num_ngrams"
     try:
-        f = open(out_file, "w")
+        f = open(out_file, "w", encoding="utf-8")
         for order, num in enumerate(num_ngrams):
             print(str(order + 1) + ' ' + str(num), file=f)
         f.close()
@@ -332,7 +332,7 @@ def WriteNumNgrams(out_dir, num_ngrams):
 def ParseNumNgrams(out_dir, merge_all_orders_log):
     try:
         num_ngrams = []
-        f = open(merge_all_orders_log, "r")
+        f = open(merge_all_orders_log, "r", encoding="utf-8")
         for line in f:
             if line[0] == '#':
                 continue
@@ -358,7 +358,7 @@ def CombineNumNgrams():
         this_split_work = "{0}/{1}".format(split_work_dir, split_index)
         num_file = this_split_work + "/num_ngrams"
         try:
-            f = open(num_file, "r")
+            f = open(num_file, "r", encoding="utf-8")
             for order, line in enumerate(f):
                 num = int(line.split()[1])
                 assert(num > 0)
@@ -433,7 +433,7 @@ def WriteObjectiveFunction():
           "words".format(objf, num_dev_set_words_total), file=sys.stderr)
     # Write the objective function.
     try:
-        f = open(args.objf_out, "w")
+        f = open(args.objf_out, "w", encoding="utf-8")
         print(str(objf), file=f)
         f.close()
     except:
@@ -443,7 +443,7 @@ def WriteObjectiveFunction():
 
 def WriteDerivs():
     try:
-        f = open(args.derivs_out, "w")
+        f = open(args.derivs_out, "w", encoding="utf-8")
     except:
         ExitProgram("get_objf_and_derivs_split.py: error opening --derivs-out={0} for writing".format(
                  args.derivs_out))

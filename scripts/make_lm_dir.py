@@ -64,7 +64,7 @@ if os.system("validate_count_dir.py " + args.count_dir) != 0:
 # read the variables 'ngram_order', 'num_train_sets' and 'num_words'
 # from the corresponding files in count_dir.
 for name in ['ngram_order', 'num_train_sets', 'num_words']:
-    f = open(args.count_dir + os.sep + name)
+    f = open(args.count_dir + os.sep + name, encoding="utf-8")
     globals()[name] = int(f.readline())
     f.close()
 
@@ -91,7 +91,7 @@ fold_dev_opt = ''
 
 if args.fold_dev_into is not None:
     fold_dev_into_int = None
-    f = open(args.count_dir + "/names")
+    f = open(args.count_dir + "/names", encoding="utf-8")
     for line in f.readlines():
         # we already validated the count-dir so we can assume the names file is
         # correctly formatted.
@@ -127,7 +127,7 @@ except:
             args.metaparameters,
             args.lm_dir + os.sep + "metaparameters"))
 
-f = open(args.lm_dir + "/was_pruned", "w")
+f = open(args.lm_dir + "/was_pruned", "w", encoding="utf-8")
 print("false", file=f)
 f.close()
 
@@ -167,7 +167,7 @@ except:
 
 
 if args.keep_splits == 'true':
-    f = open(args.lm_dir + '/num_splits', 'w')
+    f = open(args.lm_dir + '/num_splits', 'w', encoding="utf-8")
     print(str(args.num_splits), file=f)
     f.close()
     for i in range(1, args.num_splits + 1):

@@ -23,7 +23,7 @@ def RunCommand(command, log_file, verbose=False):
                 os.path.basename(sys.argv[0]), command, log_file),
               file=sys.stderr)
     try:
-        f = open(log_file, 'w')
+        f = open(log_file, 'w', encoding="utf-8")
     except:
         ExitProgram('error opening log file {0} for writing'.format(log_file))
 
@@ -50,7 +50,7 @@ def GetCommandStdout(command, log_file, verbose=False):
               file=sys.stderr)
 
     try:
-        f = open(log_file, 'w')
+        f = open(log_file, 'w', encoding="utf-8")
     except:
         ExitProgram('error opening log file {0} for writing'.format(log_file))
 
@@ -82,7 +82,7 @@ def TouchFile(fname):
     if os.path.exists(fname):
         os.utime(fname, None)
     else:
-        open(fname, 'a').close()
+        open(fname, 'a').close(, encoding="utf-8")
 
 
 def LogMessage(message):

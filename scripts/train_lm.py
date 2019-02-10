@@ -139,7 +139,7 @@ if not os.path.isdir(log_dir):
 def GetNumNgrams(lm_dir_in):
     tot_num_ngrams = 0
     num_ngrams = []
-    f = open(os.path.join(lm_dir_in, "num_ngrams"))
+    f = open(os.path.join(lm_dir_in, "num_ngrams"), encoding="utf-8")
     for line in f:
         n = int(line.split()[1])
         num_ngrams.append(n)
@@ -152,7 +152,7 @@ def GetNumNgrams(lm_dir_in):
 
 def ReadMetaparameters(metaparameter_file):
     metaparameters = []
-    f = open(metaparameter_file)
+    f = open(metaparameter_file, encoding="utf-8")
     for line in f:
         metaparameters.append(float(line.split()[1]))
     f.close()
@@ -162,7 +162,7 @@ def ReadMetaparameters(metaparameter_file):
 
 def WriteMetaparameters(metaparameters, ngram_order, num_train_sets, out_file):
     assert(len(metaparameters) == (ngram_order - 1) * 4 + num_train_sets)
-    f = open(out_file, "w")
+    f = open(out_file, "w", encoding="utf-8")
     i = 0
     for n in range(1, num_train_sets + 1):
         print("count_scale_{0}".format(n), metaparameters[i], file=f)
@@ -341,7 +341,7 @@ if args.bypass_metaparameter_optimization is not None:
     LogMessage("Bypass optimization steps")
 
     for name in ['ngram_order', 'num_train_sets']:
-        f = open(os.path.join(counts_dir, name))
+        f = open(os.path.join(counts_dir, name), encoding="utf-8")
         globals()[name] = int(f.readline())
         f.close()
 

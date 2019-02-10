@@ -116,7 +116,7 @@ if args.max_memory != '':
 
 num_splits = None
 if os.path.exists(args.lm_dir_in + "/num_splits"):
-    f = open(args.lm_dir_in + "/num_splits")
+    f = open(args.lm_dir_in + "/num_splits", encoding="utf-8")
     num_splits = int(f.readline())
     f.close()
 
@@ -174,7 +174,7 @@ def GetNumWords(lm_dir_in):
 
 
 def GetNgramOrder(lm_dir_in):
-    f = open(lm_dir_in + "/ngram_order")
+    f = open(lm_dir_in + "/ngram_order", encoding="utf-8")
     return int(f.readline())
 
 
@@ -182,7 +182,7 @@ def GetNumGrams(lm_dir_in):
     num_unigrams = 0
     # we generally use num_xgrams to refer to num_ngrams - num_unigrams
     tot_num_xgrams = 0
-    f = open(lm_dir_in + "/num_ngrams")
+    f = open(lm_dir_in + "/num_ngrams", encoding="utf-8")
     for order, line in enumerate(f):
         if order == 0:
             num_unigrams = int(line.split()[1])
@@ -258,7 +258,7 @@ def GetInitialLogprob():
                    float_star=float_star))
     try:
         print(command, file=sys.stderr)
-        p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, universal_newlines=True)
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, universal_newlines=True, encoding="utf-8")
         # the stdout of this program will be something like:
         # 1.63388e+06 -7.39182e+06 10.5411 41.237 49.6758
         # representing: total-count, total-like, and for each order, the like-change
@@ -284,7 +284,7 @@ def GetInitialLogprob():
 def WriteNumNgrams(out_dir, num_ngrams):
     out_file = out_dir + "/num_ngrams"
     try:
-        f = open(out_file, "w")
+        f = open(out_file, "w", encoding="utf-8")
         for order, num in enumerate(num_ngrams):
             print(str(order + 1) + ' ' + str(num), file=f)
         f.close()
@@ -302,11 +302,11 @@ def RunPruneStep(work_in, work_out, threshold):
                "{work_in}/protected.all {float_star} 2>>{log_file}".format(
                   threshold=threshold, num_words=num_words,
                   work_in=work_in, float_star=float_star, log_file=log_file))
-    with open(log_file, 'w') as f:
+    with open(log_file, 'w', encoding="utf-8") as f:
         print("# " + command, file=f)
     try:
         print(command, file=sys.stderr)
-        p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, universal_newlines=True)
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, universal_newlines=True, encoding="utf-8")
         [word_count, like_change] = p.stdout.readline().split()
         like_change_per_word = float(like_change) / float(word_count)
         [tot_xgrams, shadowed, protected, pruned] = p.stdout.readline().split()
@@ -448,7 +448,7 @@ def FinalizeOutput(final_work_out):
     except:
         ExitProgram("error copying {0}/num_ngrams to {1}/num_ngrams".format(
                 final_work_out, args.lm_dir_out))
-    f = open(args.lm_dir_out + "/was_pruned", "w")
+    f = open(args.lm_dir_out + "/was_pruned", "w", encoding="utf-8")
     print("true", file=f)
     f.close()
     for f in ['names', 'words.txt', 'ngram_order', 'metaparameters']:

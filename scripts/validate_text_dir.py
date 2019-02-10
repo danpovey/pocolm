@@ -36,9 +36,9 @@ num_text_files = 0
 def SpotCheckTextFile(text_file):
     try:
         if text_file.endswith(".gz"):
-            f = gzip.open(text_file, 'r')
+            f = gzip.open(text_file, 'rt', encoding="utf-8")
         else:
-            f = open(text_file, 'r')
+            f = open(text_file, 'r', encoding="utf-8")
     except Exception as e:
         sys.exit("validate_text_dir.py: Failed to open {0} for reading: {1}".format(
                 text_file, str(e)))
@@ -62,9 +62,9 @@ def SpotCheckTextFile(text_file):
     # with some kind of utterance-id
     f.close()
     if text_file.endswith(".gz"):
-        f = gzip.open(text_file, 'r')
+        f = gzip.open(text_file, 'rt', encoding="utf-8")
     else:
-        f = open(text_file, 'r')
+        f = open(text_file, 'r', encoding="utf-8")
     first_field_set = set()
     other_fields_set = set()
     for line in f:

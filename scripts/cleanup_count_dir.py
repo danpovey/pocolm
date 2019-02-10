@@ -34,12 +34,12 @@ def CleanupDir(count_dir, ngram_order, num_train_sets):
 if os.system("validate_count_dir.py " + args.count_dir) != 0:
     sys.exit("command validate_count_dir.py {0} failed".format(args.count_dir))
 
-f = open(os.path.join(args.count_dir, 'ngram_order'))
+f = open(os.path.join(args.count_dir, 'ngram_order'), encoding="utf-8")
 line = f.readline()
 ngram_order = int(line)
 f.close()
 
-f = open(os.path.join(args.count_dir, 'num_train_sets'))
+f = open(os.path.join(args.count_dir, 'num_train_sets'), encoding="utf-8")
 line = f.readline()
 num_train_sets = int(line)
 f.close()

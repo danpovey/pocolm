@@ -69,14 +69,14 @@ command = ("get_objf_and_derivs{split_suffix}.py {split_opt} --derivs-out={deriv
 RunCommand(command)
 
 # get baseline objective function (before perturbing metaparameters).
-f = open(derivs_dir + "/objf")
+f = open(derivs_dir + "/objf", encoding="utf-8")
 baseline_objf = float(f.readline())
 f.close()
 
 # let the metaparameters be a list of 2-tuples
 # (metaparameter-name, value)
 metaparameters = []
-f = open(args.metaparameter_file, "r")
+f = open(args.metaparameter_file, "r", encoding="utf-8")
 for line in f.readlines():
     [name, value] = line.split()
     value = float(value)
@@ -87,7 +87,7 @@ num_metaparameters = len(metaparameters)
 
 
 def WriteMetaparameters(metaparameters, file):
-    f = open(file, "w")
+    f = open(file, "w", encoding="utf-8")
     for t in metaparameters:
         (name, value) = t
         print("{0} {1}".format(name, value), file=f)
@@ -113,21 +113,21 @@ for i in range(num_metaparameters):
     print("test_metaparameter_derivs.py: running command " + command,
           file=sys.stderr)
     RunCommand(command)
-    f = open("{derivs}/objf.{i}".format(derivs=derivs_dir, i=i), "r")
+    f = open("{derivs}/objf.{i}".format(derivs=derivs_dir, i=i), "r", encoding="utf-8")
     modified_objfs[i] = float(f.readline())
     deltas[i] = this_delta
     f.close()
 
 # Now compare the computed derivatives with the 'difference-method' derivatives
 derivs = []
-f = open(derivs_dir + "/derivs", "r")
+f = open(derivs_dir + "/derivs", "r", encoding="utf-8")
 derivs = [float(line.split()[1]) for line in f.readlines()]
 f.close()
 
 output_file = derivs_dir + "/derivs_compare"
 print ("test_metaparameters_derivs.py: writing the analytical and "
        "difference-method derivatives to " + output_file, file=sys.stderr)
-f = open(output_file, "w")
+f = open(output_file, "w", encoding="utf-8")
 print("#parameter-name    analytical derivative    difference-method derivative",
       file=f)
 analytical_sumsq = 0.0

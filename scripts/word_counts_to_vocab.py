@@ -57,7 +57,7 @@ args = parser.parse_args()
 # read in the weights.
 name_to_weight = {}
 if args.weights is not None:
-    f = open(args.weights, 'r')
+    f = open(args.weights, 'r', encoding="utf-8")
     num_weights_read = 0
     for line in f:
         try:
@@ -105,7 +105,7 @@ for name in os.listdir(args.count_dir):
             weight = 1.0
             saw_counts_without_weight = True
         counts_path = args.count_dir + os.sep + name
-        f = open(counts_path, 'r')
+        f = open(counts_path, 'r', encoding="utf-8")
         for line in f:
             try:
                 [count, word] = line.split()

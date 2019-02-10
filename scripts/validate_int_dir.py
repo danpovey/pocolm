@@ -31,7 +31,7 @@ if not os.path.exists("{0}/num_train_sets".format(args.int_dir)):
 
 # the following code checks num_train_sets and sets num_train_sets
 # to the appropriate variable.
-f = open("{0}/num_train_sets".format(args.int_dir))
+f = open("{0}/num_train_sets".format(args.int_dir), encoding="utf-8")
 line = f.readline()
 try:
     num_train_sets = int(line)
@@ -43,7 +43,7 @@ except Exception as e:
 f.close()
 
 # the following code checks num_words.
-f = open("{0}/num_words".format(args.int_dir))
+f = open("{0}/num_words".format(args.int_dir), encoding="utf-8")
 line = f.readline()
 try:
     num_words = int(line)
@@ -73,7 +73,7 @@ names = set()
 #  1 switchboard
 #  2 fisher
 # etc.
-f = open("{0}/names".format(args.int_dir))
+f = open("{0}/names".format(args.int_dir), encoding="utf-8")
 for n in range(1, num_train_sets + 1):
     line = f.readline()
     try:
@@ -92,7 +92,7 @@ f.close()
 # is an optional part of the directory format; we put it here so it can be used
 # to initialize the metaparameters in a reasonable way.
 if os.path.exists("{0}/unigram_weights".format(args.int_dir)):
-    f = open("{0}/unigram_weights".format(args.int_dir))
+    f = open("{0}/unigram_weights".format(args.int_dir), encoding="utf-8")
     names_with_weights = set()
     while True:
         line = f.readline()
@@ -125,7 +125,7 @@ for n in range(1, num_train_sets + 1):
     names.append(str(n))
 
 for name in names:
-    p = subprocess.Popen("gunzip -c {0}/{1}.txt.gz 2>/dev/null".format(args.int_dir, name),
+    p = subprocess.Popen("gunzip -c {0}/{1}.txt.gz 2>/dev/null".format(args.int_dir, name, encoding="utf-8"),
                          stdout=subprocess.PIPE, shell=True)
     num_ints = 0
     for l in range(10):

@@ -41,8 +41,8 @@ if not os.path.exists(args.metaparameter_derivs):
              " to exist".format(args.metaparameter_derivs))
 
 try:
-    f = open(args.metaparameter_file, "r")
-    deriv_f = open(args.metaparameter_derivs, "r")
+    f = open(args.metaparameter_file, "r", encoding="utf-8")
+    deriv_f = open(args.metaparameter_derivs, "r", encoding="utf-8")
 except:
     sys.exit("validate_metaparameter_derivs.py: error opening {0} or {1}".format(
         args.metaparameter_file, args.metaparameter_derivs))

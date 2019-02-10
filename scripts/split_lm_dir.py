@@ -61,7 +61,7 @@ command = ("split-float-counts " +
 if os.system(command) != 0:
     sys.exit("split_lm_dir.py: error running command " + command)
 
-f = open(args.lm_dir_out + "/num_splits", "w")
+f = open(args.lm_dir_out + "/num_splits", "w", encoding="utf-8")
 print(args.num_splits, file=f)
 f.close()
 
