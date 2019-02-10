@@ -125,7 +125,7 @@ for n in range(1, num_train_sets + 1):
     names.append(str(n))
 
 for name in names:
-    p = subprocess.Popen("gunzip -c {0}/{1}.txt.gz 2>/dev/null".format(args.int_dir, name, encoding="utf-8"),
+    p = subprocess.Popen("gunzip -c {0}/{1}.txt.gz 2>/dev/null".format(args.int_dir, name),
                          stdout=subprocess.PIPE, shell=True)
     num_ints = 0
     for l in range(10):

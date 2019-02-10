@@ -258,7 +258,7 @@ def GetInitialLogprob():
                    float_star=float_star))
     try:
         print(command, file=sys.stderr)
-        p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, universal_newlines=True, encoding="utf-8")
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, universal_newlines=True)
         # the stdout of this program will be something like:
         # 1.63388e+06 -7.39182e+06 10.5411 41.237 49.6758
         # representing: total-count, total-like, and for each order, the like-change
@@ -306,7 +306,7 @@ def RunPruneStep(work_in, work_out, threshold):
         print("# " + command, file=f)
     try:
         print(command, file=sys.stderr)
-        p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, universal_newlines=True, encoding="utf-8")
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True, universal_newlines=True)
         [word_count, like_change] = p.stdout.readline().split()
         like_change_per_word = float(like_change) / float(word_count)
         [tot_xgrams, shadowed, protected, pruned] = p.stdout.readline().split()
