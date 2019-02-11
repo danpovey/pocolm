@@ -141,7 +141,7 @@ if not os.path.exists(args.lm_dir + "/num_splits"):
                    lm_dir=args.lm_dir, mem_opt=mem_opt))
 else:
     # reading num_splits shouldn't fail, we validated the directory.
-    num_splits = int(open(args.lm_dir + "/num_splits").readline(), encoding="utf-8")
+    num_splits = int(open(args.lm_dir + "/num_splits", encoding="utf-8").readline())
     if args.max_memory == '':
         mem_opt = ''
     else:

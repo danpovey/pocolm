@@ -82,7 +82,7 @@ def TouchFile(fname):
     if os.path.exists(fname):
         os.utime(fname, None)
     else:
-        open(fname, 'a').close(, encoding="utf-8")
+        open(fname, 'a', encoding="utf-8").close()
 
 
 def LogMessage(message):
