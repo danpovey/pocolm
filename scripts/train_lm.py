@@ -254,8 +254,8 @@ if args.wordlist is None:
             log_file = os.path.join(log_dir, 'word_counts_to_vocab.log')
             LogMessage("Generating vocab with num-words={0} ... log in {1}".format(
                 args.num_words, log_file))
-            command = "word_counts_to_vocab.py --num-words={0} {1} > {2}".format(
-                    args.num_words, word_counts_dir,  vocab)
+            command = "word_counts_to_vocab.py --num-words={0} --weights={1} {2} > {3}".format(
+                                    args.num_words, unigram_weights, word_counts_dir,  vocab)
             RunCommand(command, log_file, args.verbose == 'true')
             TouchFile(done_file)
     else:
