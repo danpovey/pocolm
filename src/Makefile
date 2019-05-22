@@ -30,8 +30,8 @@ CXXFLAGS += -Wall -g
 LDFLAGS += -g
 
 ifeq ($(shell uname), Darwin)
- CXXFLAGS += -stdlib=libstdc++
- LDFLAGS += -stdlib=libstdc++
+ CXXFLAGS += -std=c++11 -stdlib=libc++
+ LDFLAGS += -std=c++11 -stdlib=libc++
 endif
 
 LDLIBS =
