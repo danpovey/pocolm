@@ -38,8 +38,8 @@ def ReadCountsFile(counts_file):
         sys.exit("Failed to open {0} for reading".format(counts_file))
     word_to_count = defaultdict(int)
     for line in f:
-        for word in line.split():
-            word_to_count[word] += 1
+        fields = line.split()
+        word_to_count[fields[1]] += int(fields[0])
     f.close()
     return word_to_count
 
