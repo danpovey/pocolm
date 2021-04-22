@@ -44,6 +44,8 @@ def SpotCheckTextFile(text_file):
                 text_file, str(e)))
     found_nonempty_line = False
     for x in range(1, 10):
+        if type(line) == bytes:
+            line = line.decode('utf-8')
         line = f.readline().strip("\n")
         if line is None:
             break
