@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -40,9 +40,9 @@ if not os.path.exists(args.count_dir):
 def ProcessFile(text_file, counts_file):
     try:
         if text_file.endswith(".gz"):
-            f = gzip.open(text_file, 'r')
+            f = gzip.open(text_file, 'rt', encoding="utf-8")
         else:
-            f = open(text_file, 'r')
+            f = open(text_file, 'r', encoding="utf-8")
     except Exception as e:
         sys.exit("Failed to open {0} for reading: {1}".format(
                 text_file, str(e)))
@@ -52,7 +52,7 @@ def ProcessFile(text_file, counts_file):
             word_to_count[word] += 1
     f.close()
     try:
-        cf = open(counts_file, "w")
+        cf = open(counts_file, "w", encoding="utf-8")
     except:
         sys.exit("Failed to open {0} for writing".format(text_file))
     for word, count in word_to_count.items():

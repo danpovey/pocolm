@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -34,7 +34,7 @@ args = parser.parse_args()
 # and so on), and returns a dictionary from integer id to name.
 def ReadNames(names_file):
     try:
-        f = open(names_file, "r")
+        f = open(names_file, "r", encoding="utf-8")
     except:
         sys.exit("initialize_metaparameters.py: failed to open --names={0}"
                  " for reading".format(names_file))
@@ -59,7 +59,7 @@ def ReadNames(names_file):
 # floating-point weight.
 def ReadWeights(weights_file):
     try:
-        f = open(weights_file, "r")
+        f = open(weights_file, "r", encoding="utf-8")
     except:
         sys.exit("initialize_metaparameters.py: failed to open --weights={0}"
                  " for reading".format(weights_file))

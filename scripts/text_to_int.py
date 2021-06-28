@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -25,7 +25,7 @@ if not os.path.exists(args.vocab_file):
 
 word_to_index = {}
 
-f = open(args.vocab_file, "r")
+f = open(args.vocab_file, "r", encoding="utf-8")
 
 for line in f:
     try:

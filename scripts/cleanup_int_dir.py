@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -22,7 +22,7 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
 if os.system("validate_int_dir.py " + args.int_dir) != 0:
     sys.exit("command validate_int_dir.py {0} failed".format(args.int_dir))
 
-f = open(os.path.join(args.int_dir, 'num_train_sets'))
+f = open(os.path.join(args.int_dir, 'num_train_sets'), encoding="utf-8")
 line = f.readline()
 num_train_sets = int(line)
 f.close()

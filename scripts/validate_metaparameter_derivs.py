@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -41,8 +41,8 @@ if not os.path.exists(args.metaparameter_derivs):
              " to exist".format(args.metaparameter_derivs))
 
 try:
-    f = open(args.metaparameter_file, "r")
-    deriv_f = open(args.metaparameter_derivs, "r")
+    f = open(args.metaparameter_file, "r", encoding="utf-8")
+    deriv_f = open(args.metaparameter_derivs, "r", encoding="utf-8")
 except:
     sys.exit("validate_metaparameter_derivs.py: error opening {0} or {1}".format(
         args.metaparameter_file, args.metaparameter_derivs))

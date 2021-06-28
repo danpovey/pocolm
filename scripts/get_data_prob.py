@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -68,7 +68,7 @@ if args.max_memory != '':
 num_splits = None
 
 if os.path.exists(args.lm_dir_in + "/num_splits"):
-    f = open(args.lm_dir_in + "/num_splits")
+    f = open(args.lm_dir_in + "/num_splits", encoding="utf-8")
     num_splits = int(f.readline())
     f.close()
 
@@ -77,7 +77,7 @@ if not os.path.exists(args.text_in):
 
 
 def GetNgramOrder(lm_dir):
-    f = open(lm_dir + "/ngram_order")
+    f = open(lm_dir + "/ngram_order", encoding="utf-8")
     return int(f.readline())
 
 

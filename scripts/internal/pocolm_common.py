@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -23,7 +23,7 @@ def RunCommand(command, log_file, verbose=False):
                 os.path.basename(sys.argv[0]), command, log_file),
               file=sys.stderr)
     try:
-        f = open(log_file, 'w')
+        f = open(log_file, 'w', encoding="utf-8")
     except:
         ExitProgram('error opening log file {0} for writing'.format(log_file))
 
@@ -50,7 +50,7 @@ def GetCommandStdout(command, log_file, verbose=False):
               file=sys.stderr)
 
     try:
-        f = open(log_file, 'w')
+        f = open(log_file, 'w', encoding="utf-8")
     except:
         ExitProgram('error opening log file {0} for writing'.format(log_file))
 
@@ -82,7 +82,7 @@ def TouchFile(fname):
     if os.path.exists(fname):
         os.utime(fname, None)
     else:
-        open(fname, 'a').close()
+        open(fname, 'a', encoding="utf-8").close()
 
 
 def LogMessage(message):

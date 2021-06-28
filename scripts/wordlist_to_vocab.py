@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # We're using python 3.x style print but want it to work in python 2.x.
 from __future__ import print_function
@@ -37,7 +37,7 @@ parser.add_argument('wordlist',
 args = parser.parse_args()
 
 # read in the weights.
-words = open(args.wordlist, "r").readlines()
+words = open(args.wordlist, "r", encoding="utf-8").readlines()
 if len(words) <= 1:
     sys.exit("wordlist_to_vocab.py: input word-list {0} has only {1} lines".format(
             args.wordlist, len(words)))

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -33,7 +33,7 @@ args = parser.parse_args()
 # count.
 def ReadCountsFile(counts_file):
     try:
-        f = open(counts_file, "r")
+        f = open(counts_file, "r", encoding="utf-8")
     except:
         sys.exit("Failed to open {0} for reading".format(counts_file))
     word_to_count = defaultdict(int)

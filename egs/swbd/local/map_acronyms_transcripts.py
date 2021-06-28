@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # convert acronyms in swbd transcript to fisher convention
 # accoring to first two columns in the input acronyms mapping
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -114,7 +114,7 @@ def DivideMemory(total, n):
 
 
 # read ngram order.
-f = open(args.lm_dir + "/ngram_order")
+f = open(args.lm_dir + "/ngram_order", encoding="utf-8")
 ngram_order = int(f.readline())
 f.close()
 
@@ -141,7 +141,7 @@ if not os.path.exists(args.lm_dir + "/num_splits"):
                    lm_dir=args.lm_dir, mem_opt=mem_opt))
 else:
     # reading num_splits shouldn't fail, we validated the directory.
-    num_splits = int(open(args.lm_dir + "/num_splits").readline())
+    num_splits = int(open(args.lm_dir + "/num_splits", encoding="utf-8").readline())
     if args.max_memory == '':
         mem_opt = ''
     else:

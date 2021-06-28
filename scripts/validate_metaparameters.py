@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -35,7 +35,7 @@ if not os.path.exists(args.metaparameter_file):
              " to exist".format(args.metaparameter_file))
 
 try:
-    f = open(args.metaparameter_file, "r")
+    f = open(args.metaparameter_file, "r", encoding="utf-8")
 except:
     sys.exit("validate_metaparameters.py: error opening metaparameters file " +
              args.metaparameter_file)
