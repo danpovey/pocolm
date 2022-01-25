@@ -63,7 +63,7 @@ if ! python -c 'import numpy' >&/dev/null; then
   echo "$0: python-numpy is not installed"
   # I'm not sure if this package name is OK for all distributions, this is what
   # it seems to be called on Debian.  We'll have to investigate this.
-  add_packages numpy python-numpy python-numpy
+  add_packages numpy python3-numpy python3-numpy
 fi
 
 printed=false
