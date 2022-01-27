@@ -8,26 +8,37 @@ import sys
 import shutil
 # from collections import defaultdict
 
-parser = argparse.ArgumentParser(description="This script takes an lm-dir, as produced by make_lm_dir.py, "
-                                 "that should not have the counts split up into pieces, and it "
-                                 "splits up the counts into a specified number of pieces. "
-                                 "Output is the 'split' form of lm-dir, with float.all.{1,2,3...} and "
-                                 "num_splits",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# If the encoding of the default sys.stdout is not utf-8,
+# force it to be utf-8. See PR #95.
+if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding.lower() != "utf-8":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+    sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
+
+parser = argparse.ArgumentParser(
+    description="This script takes an lm-dir, as produced by make_lm_dir.py, "
+    "that should not have the counts split up into pieces, and it "
+    "splits up the counts into a specified number of pieces. "
+    "Output is the 'split' form of lm-dir, with float.all.{1,2,3...} and "
+    "num_splits",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("lm_dir_in",
                     help="Source directory, for the input language model.")
-parser.add_argument("num_splits", type=int,
+parser.add_argument("num_splits",
+                    type=int,
                     help="Number of split-up pieces in the source lm-dir")
-parser.add_argument("lm_dir_out",
-                    help="Output directory where the language model is created.")
-
+parser.add_argument(
+    "lm_dir_out", help="Output directory where the language model is created.")
 
 args = parser.parse_args()
 
 # Add the script dir and the src dir to the path.
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src")
+                      os.path.abspath(os.path.dirname(sys.argv[0])) +
+                      os.pathsep +
+                      os.path.abspath(os.path.dirname(sys.argv[0])) +
+                      "/../src")
 
 if args.num_splits <= 1:
     sys.exit("split_lm_dir.py: num_splits must be >1.")
@@ -42,10 +53,14 @@ if not os.path.isdir(args.lm_dir_out):
     try:
         os.makedirs(args.lm_dir_out)
     except Exception as e:
-        sys.exit("split_lm_dir.py: error creating directory " + args.lm_dir_out + ": " + str(e))
+        sys.exit("split_lm_dir.py: error creating directory " +
+                 args.lm_dir_out + ": " + str(e))
 
 # copy some smallish informational files from the input to output directory.
-for name in ['words.txt', 'ngram_order', 'num_ngrams', 'names', 'metaparameters', 'was_pruned']:
+for name in [
+        'words.txt', 'ngram_order', 'num_ngrams', 'names', 'metaparameters',
+        'was_pruned'
+]:
     src = args.lm_dir_in + "/" + name
     dest = args.lm_dir_out + "/" + name
     try:
@@ -53,10 +68,10 @@ for name in ['words.txt', 'ngram_order', 'num_ngrams', 'names', 'metaparameters'
     except:
         sys.exit("split_lm_dir.py: error copying {0} to {1}".format(src, dest))
 
-command = ("split-float-counts " +
-           ' '.join([args.lm_dir_out + "/" + "float.all." + str(n)
-                    for n in range(1, args.num_splits + 1)]) +
-           ' <' + args.lm_dir_in + "/float.all")
+command = ("split-float-counts " + ' '.join([
+    args.lm_dir_out + "/" + "float.all." + str(n)
+    for n in range(1, args.num_splits + 1)
+]) + ' <' + args.lm_dir_in + "/float.all")
 
 if os.system(command) != 0:
     sys.exit("split_lm_dir.py: error running command " + command)
@@ -68,5 +83,6 @@ f.close()
 if os.system("validate_lm_dir.py " + args.lm_dir_out) != 0:
     sys.exit("split_lm_dir.py: failed to validate output LM-dir")
 
-print("split_lm_dir.py: split input LM-dir {0} into {1} pieces into directory {2}".format(
-        args.lm_dir_in, args.num_splits, args.lm_dir_out))
+print(
+    "split_lm_dir.py: split input LM-dir {0} into {1} pieces into directory {2}"
+    .format(args.lm_dir_in, args.num_splits, args.lm_dir_out))

@@ -6,19 +6,29 @@ import os
 import argparse
 import sys
 
-parser = argparse.ArgumentParser(description="Validates meta-parameter derivatives, "
-                                 "as produced by get_objf_and_derivs.py-- chiefly "
-                                 "checks that the derivative w.r.t. scaling all the scales "
-                                 "by the same scaling factor is zero",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# If the encoding of the default sys.stdout is not utf-8,
+# force it to be utf-8. See PR #95.
+if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding.lower() != "utf-8":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+    sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
 
-parser.add_argument("--ngram-order", type=int,
+parser = argparse.ArgumentParser(
+    description="Validates meta-parameter derivatives, "
+    "as produced by get_objf_and_derivs.py-- chiefly "
+    "checks that the derivative w.r.t. scaling all the scales "
+    "by the same scaling factor is zero",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+parser.add_argument("--ngram-order",
+                    type=int,
                     help="The N-gram order of your final LM (required)")
-parser.add_argument("--num-train-sets", type=int,
+parser.add_argument("--num-train-sets",
+                    type=int,
                     help="The number of training sets (required)")
 
-parser.add_argument("metaparameter_file",
-                    help="Filename of metaparameters")
+parser.add_argument("metaparameter_file", help="Filename of metaparameters")
 parser.add_argument("metaparameter_derivs",
                     help="Filename of derivatives w.r.t. metaparameters")
 
@@ -44,8 +54,9 @@ try:
     f = open(args.metaparameter_file, "r", encoding="utf-8")
     deriv_f = open(args.metaparameter_derivs, "r", encoding="utf-8")
 except:
-    sys.exit("validate_metaparameter_derivs.py: error opening {0} or {1}".format(
-        args.metaparameter_file, args.metaparameter_derivs))
+    sys.exit(
+        "validate_metaparameter_derivs.py: error opening {0} or {1}".format(
+            args.metaparameter_file, args.metaparameter_derivs))
 
 scaling_deriv = 0.0
 
@@ -61,9 +72,10 @@ for n in range(1, args.num_train_sets + 1):
         assert name == deriv_name
         assert value > 0.0 and value < 1.0
     except:
-        sys.exit("validate_metaparameter_derivs.py: bad {0}'th line '{1}' and '{2}'"
-                 "of metaparameters and derivatives".format(n, line[0:-1],
-                                                            deriv_line[0:-1]))
+        sys.exit(
+            "validate_metaparameter_derivs.py: bad {0}'th line '{1}' and '{2}'"
+            "of metaparameters and derivatives".format(n, line[0:-1],
+                                                       deriv_line[0:-1]))
 
 for o in range(2, args.ngram_order + 1):
     for n in range(4):
@@ -77,9 +89,10 @@ for o in range(2, args.ngram_order + 1):
             assert name == deriv_name
             assert value > 0.0 and value < 1.0
         except:
-            sys.exit("validate_metaparameter_derivs.py: bad lines '{0}' and '{1}'"
-                     "of metaparameters and derivatives".format(line[0:-1],
-                                                                deriv_line[0:-1]))
+            sys.exit(
+                "validate_metaparameter_derivs.py: bad lines '{0}' and '{1}'"
+                "of metaparameters and derivatives".format(
+                    line[0:-1], deriv_line[0:-1]))
 
 assert f.readline() == ''
 assert deriv_f.readline() == ''

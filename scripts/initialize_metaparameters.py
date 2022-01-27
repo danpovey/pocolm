@@ -5,26 +5,40 @@ from __future__ import print_function
 import argparse
 import sys
 
-parser = argparse.ArgumentParser(description="This script prints to its standard output "
-                                 "an initial version of the file of meta-parameters, "
-                                 "containing either default weight values or values supplied "
-                                 "via the --weights option.",
-                                 epilog="Prints its output to the stdout",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# If the encoding of the default sys.stdout is not utf-8,
+# force it to be utf-8. See PR #95.
+if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding.lower() != "utf-8":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+    sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
 
+parser = argparse.ArgumentParser(
+    description="This script prints to its standard output "
+    "an initial version of the file of meta-parameters, "
+    "containing either default weight values or values supplied "
+    "via the --weights option.",
+    epilog="Prints its output to the stdout",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument("--weights", type=str,
-                    help="If supplied, the filename for weights from unigram "
-                    "LM estimation (e.g. as obtained from get_unigram_weights.py). "
-                    "In this case you must also supply the --names option to "
-                    "help interpret the weights.")
-parser.add_argument("--names", type=str,
-                    help="Required if the --weights option is used, to help "
-                    "interpret the weights (as we want them expressed in terms of "
-                    "the integer names of the training sets)")
-parser.add_argument("--ngram-order", type=int,
+parser.add_argument(
+    "--weights",
+    type=str,
+    help="If supplied, the filename for weights from unigram "
+    "LM estimation (e.g. as obtained from get_unigram_weights.py). "
+    "In this case you must also supply the --names option to "
+    "help interpret the weights.")
+parser.add_argument(
+    "--names",
+    type=str,
+    help="Required if the --weights option is used, to help "
+    "interpret the weights (as we want them expressed in terms of "
+    "the integer names of the training sets)")
+parser.add_argument("--ngram-order",
+                    type=int,
                     help="The N-gram order of your final LM (required)")
-parser.add_argument("--num-train-sets", type=int,
+parser.add_argument("--num-train-sets",
+                    type=int,
                     help="The number of training sets (required)")
 
 args = parser.parse_args()
@@ -44,11 +58,13 @@ def ReadNames(names_file):
             [number, name] = line.split()
             number = int(number)
         except:
-            sys.exit("initialize_metaparameters.py: Bad line '{0}' in names file {1}".format(
-                    line[0:-1], names_file))
+            sys.exit(
+                "initialize_metaparameters.py: Bad line '{0}' in names file {1}"
+                .format(line[0:-1], names_file))
         if number in number_to_name:
-            sys.exit("initialize_metaparameters.py: duplicate number {0} in names file {1}".format(
-                    number, names_file))
+            sys.exit(
+                "initialize_metaparameters.py: duplicate number {0} in names file {1}"
+                .format(number, names_file))
         number_to_name[number] = name
     f.close()
     return number_to_name
@@ -69,22 +85,27 @@ def ReadWeights(weights_file):
             [name, weight] = line.split()
             weight = float(weight)
         except:
-            sys.exit("initialize_metaparameters.py: Bad line '{0}' in weights file {1}".format(
-                    line[0:-1], weights_file))
+            sys.exit(
+                "initialize_metaparameters.py: Bad line '{0}' in weights file {1}"
+                .format(line[0:-1], weights_file))
         if name in name_to_weight:
-            sys.exit("initialize_metaparameters.py: duplicate name {0} in weights file {1}".format(
-                    name, weights_file))
+            sys.exit(
+                "initialize_metaparameters.py: duplicate name {0} in weights file {1}"
+                .format(name, weights_file))
         name_to_weight[name] = weight
     f.close()
     return name_to_weight
 
 
 if args.num_train_sets is None or args.num_train_sets <= 0:
-    sys.exit("initialize_metaparameters.py: --num-train-sets must be supplied, and >0.")
+    sys.exit(
+        "initialize_metaparameters.py: --num-train-sets must be supplied, and >0."
+    )
 
 if args.ngram_order is None or args.ngram_order <= 1:
-    sys.exit("initialize_metaparameters.py: --num-train-sets must be supplied, and >1.")
-
+    sys.exit(
+        "initialize_metaparameters.py: --num-train-sets must be supplied, and >1."
+    )
 
 # set all the weights to 0.5, it will give them room to grow (since
 # we'll constrain them to not exceed 1.0).
@@ -100,10 +121,11 @@ if args.weights is not None:
         try:
             weights[n] = name_to_weight[number_to_name[n + 1]]
         except:
-            sys.exit("initialize_metaparameters.py: it looks like there is a mismatch between "
-                     "the --names, --weights, and/or --num-train-sets options; check that the "
-                     "{0}'th dataset has a name in the 'names' file and that that name has a "
-                     "weight in the 'weights' file.".format(n+1))
+            sys.exit(
+                "initialize_metaparameters.py: it looks like there is a mismatch between "
+                "the --names, --weights, and/or --num-train-sets options; check that the "
+                "{0}'th dataset has a name in the 'names' file and that that name has a "
+                "weight in the 'weights' file.".format(n + 1))
 
 # OK, now we need to make sure that all the weights are unique (otherwise the
 # derivative backpropagation gets very arbitrary, due to ties).  Note, we want

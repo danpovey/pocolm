@@ -11,67 +11,99 @@ import glob
 import tempfile
 import platform
 
+# If the encoding of the default sys.stdout is not utf-8,
+# force it to be utf-8. See PR #95.
+if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding.lower() != "utf-8":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+    sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
 
 # make sure scripts/internal is on the pythonpath.
-sys.path = [os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal"] + sys.path
+sys.path = [os.path.abspath(os.path.dirname(sys.argv[0])) + "/internal"
+            ] + sys.path
 
 # for ExitProgram and RunCommand
 from pocolm_common import ExitProgram
 from pocolm_common import RunCommand
 
+parser = argparse.ArgumentParser(
+    description="Usage: "
+    "get_counts.py [options] <source-int-dir> <ngram-order> <dest-count-dir>"
+    "e.g.:  get_counts.py data/int 3 data/counts_3"
+    "This script computes data-counts of the specified n-gram order"
+    "for each data-source in <source-int-dir>, and puts them all in"
+    "<dest-counts-dir>.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser = argparse.ArgumentParser(description="Usage: "
-                                 "get_counts.py [options] <source-int-dir> <ngram-order> <dest-count-dir>"
-                                 "e.g.:  get_counts.py data/int 3 data/counts_3"
-                                 "This script computes data-counts of the specified n-gram order"
-                                 "for each data-source in <source-int-dir>, and puts them all in"
-                                 "<dest-counts-dir>.",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-parser.add_argument("--dump-counts-parallel", type=str, default='true',
-                    choices=['true', 'false'],
-                    help="If true, while obtaining the original counts, process multiple data-sources "
-                    "in parallel (configurable because 'sort' may use a fair amount of memory).")
-parser.add_argument("--verbose", type=str, default='false',
+parser.add_argument(
+    "--dump-counts-parallel",
+    type=str,
+    default='true',
+    choices=['true', 'false'],
+    help=
+    "If true, while obtaining the original counts, process multiple data-sources "
+    "in parallel (configurable because 'sort' may use a fair amount of memory)."
+)
+parser.add_argument("--verbose",
+                    type=str,
+                    default='false',
                     choices=['true', 'false'],
                     help="If true, print commands as we execute them.")
-parser.add_argument("--cleanup", type=str, default='true',
-                    choices=['true', 'false'],
-                    help="If true, remove intermediate files (only relevant if --min-counts option "
-                    "is supplied).")
-parser.add_argument("--min-counts", type=str, default='',
-                    help="This string allows you to specify minimum counts to be applied "
-                    "to the stats.  You may in general specify min-counts per n-gram order "
-                    "and per data-source, but they applied 'jointly' in a smart way so "
-                    "that, for example, for some order if all data-sources have a min-count "
-                    "of 2, an n-gram will be pruned from all data-sources if the total count "
-                    "over all data-sources is 2.  Min-counts may be specified for order 3 "
-                    "and above, in a comma-separated list, with values that must be "
-                    "non-decreasing.  E.g. --min-counts=2,3.  In case of mismatch with "
-                    "the actual n-gram order, excess min-counts will be truncated and "
-                    "an deficit will be remedied by repeating the last min-count.  You "
-                    "may specify different min-counts for different data-sources, e.g. "
-                    "--min-counts='fisher=2,3 swbd1=1,1'.  You may also set min-counts for "
-                    "some data-sources and use a default for others, as in "
-                    "--min-counts='fisher=2,3 default=1,1'.  You may not set min-counts for "
-                    "the dev set.")
-parser.add_argument("--num-min-count-jobs", type=int, default=5,
-                    help="The number of parallel jobs used for applying min-counts (only "
-                    "relevant if --min-counts option is given")
-parser.add_argument("--num-count-jobs", type=int, default=4,
-                    help="The number of parallel processes per data source used for "
-                    "getting initial counts")
-parser.add_argument("--max-memory", type=str, default='',
+parser.add_argument(
+    "--cleanup",
+    type=str,
+    default='true',
+    choices=['true', 'false'],
+    help=
+    "If true, remove intermediate files (only relevant if --min-counts option "
+    "is supplied).")
+parser.add_argument(
+    "--min-counts",
+    type=str,
+    default='',
+    help="This string allows you to specify minimum counts to be applied "
+    "to the stats.  You may in general specify min-counts per n-gram order "
+    "and per data-source, but they applied 'jointly' in a smart way so "
+    "that, for example, for some order if all data-sources have a min-count "
+    "of 2, an n-gram will be pruned from all data-sources if the total count "
+    "over all data-sources is 2.  Min-counts may be specified for order 3 "
+    "and above, in a comma-separated list, with values that must be "
+    "non-decreasing.  E.g. --min-counts=2,3.  In case of mismatch with "
+    "the actual n-gram order, excess min-counts will be truncated and "
+    "an deficit will be remedied by repeating the last min-count.  You "
+    "may specify different min-counts for different data-sources, e.g. "
+    "--min-counts='fisher=2,3 swbd1=1,1'.  You may also set min-counts for "
+    "some data-sources and use a default for others, as in "
+    "--min-counts='fisher=2,3 default=1,1'.  You may not set min-counts for "
+    "the dev set.")
+parser.add_argument(
+    "--num-min-count-jobs",
+    type=int,
+    default=5,
+    help="The number of parallel jobs used for applying min-counts (only "
+    "relevant if --min-counts option is given")
+parser.add_argument(
+    "--num-count-jobs",
+    type=int,
+    default=4,
+    help="The number of parallel processes per data source used for "
+    "getting initial counts")
+parser.add_argument("--max-memory",
+                    type=str,
+                    default='',
                     help="Memory limitation for sort.")
-parser.add_argument("--limit-unk-history", type=str, default='false',
+parser.add_argument("--limit-unk-history",
+                    type=str,
+                    default='false',
                     choices=['true', 'false'],
                     help="Truncate the left n-gram of an <unk> in history.")
 parser.add_argument("source_int_dir",
                     help="Specify <source_int_dir> the data-source")
-parser.add_argument("ngram_order", type=int,
-                    help="Specify the order of ngram")
-parser.add_argument("dest_count_dir",
-                    help="Specify <dest_count_dir> the destination to puts the counts")
+parser.add_argument("ngram_order", type=int, help="Specify the order of ngram")
+parser.add_argument(
+    "dest_count_dir",
+    help="Specify <dest_count_dir> the destination to puts the counts")
 
 args = parser.parse_args()
 
@@ -94,9 +126,10 @@ def ReadNames(names_file):
             number = int(number)
         except:
             sys.exit("get_counts.py: Bad line '{0}' in names file {1}".format(
-                    line[0:-1], names_file))
+                line[0:-1], names_file))
         if number in number_to_name:
-            sys.exit("get_counts.py: duplicate number {0} in names file {1}".format(
+            sys.exit(
+                "get_counts.py: duplicate number {0} in names file {1}".format(
                     number, names_file))
         number_to_name[number] = name
     f.close()
@@ -124,7 +157,8 @@ def CopyMetaInfo(source_int_dir, dest_count_dir):
 
 
 def IsCygwin():
-    return platform.system()[0:3].lower() == 'win' or platform.system()[0:3].lower() == 'cyg'
+    return platform.system()[0:3].lower() == 'win' or platform.system(
+    )[0:3].lower() == 'cyg'
 
 
 # This function, called from FormatMinCounts, takes an array of
@@ -139,22 +173,26 @@ def NormalizeMinCountsLength(min_counts, ngram_order):
     # Check that the min-counts are non-decreasing and are >= 1.
     for i in range(len(min_counts) - 1):
         if min_counts[i] < 1:
-            sys.exit("get_counts.py: invalid --min-counts string, min-counts must "
-                     "be >= 1.")
-        if min_counts[i] > min_counts[i+1]:
-            sys.exit("get_counts.py: invalid --min-counts string, min-counts must "
-                     "not decrease from one n-gram order to the next.")
+            sys.exit(
+                "get_counts.py: invalid --min-counts string, min-counts must "
+                "be >= 1.")
+        if min_counts[i] > min_counts[i + 1]:
+            sys.exit(
+                "get_counts.py: invalid --min-counts string, min-counts must "
+                "not decrease from one n-gram order to the next.")
     if len(ans) < ngram_order - 2:
         while len(ans) < ngram_order - 2:
             ans.append(ans[-1])  # duplicate the last element
         print("get_counts.py: extending min-counts from {0} to {1} since "
-              "ngram order is {2}".format(','.join([str(x) for x in min_counts]),
-                                          ','.join([str(x) for x in ans]), ngram_order))
+              "ngram order is {2}".format(
+                  ','.join([str(x) for x in min_counts]),
+                  ','.join([str(x) for x in ans]), ngram_order))
     if len(ans) > ngram_order - 2:
-        ans = ans[0:ngram_order-2]
+        ans = ans[0:ngram_order - 2]
         print("get_counts.py: truncating min-counts from {0} to {1} since "
-              "ngram order is {2}".format(','.join([str(x) for x in min_counts]),
-                                          ','.join([str(x) for x in ans]), ngram_order))
+              "ngram order is {2}".format(
+                  ','.join([str(x) for x in min_counts]),
+                  ','.join([str(x) for x in ans]), ngram_order))
     return ans
 
 
@@ -172,7 +210,8 @@ def FormatMinCounts(source_int_dir, num_train_sets, ngram_order, min_counts):
     if ngram_order < 3:
         print("get_counts.py: ignoring --min-counts string since ngram "
               "order is {0} and min-counts are only supported for orders "
-              "3 and greater.".format(ngram_order), file=sys.stderr)
+              "3 and greater.".format(ngram_order),
+              file=sys.stderr)
         return ''
 
     pieces = min_counts.split()
@@ -184,12 +223,15 @@ def FormatMinCounts(source_int_dir, num_train_sets, ngram_order, min_counts):
         try:
             min_counts_per_order = [float(x) for x in pieces[0].split(',')]
         except:
-            sys.exit("get_counts.py: --min-counts={0} has unexpected format".format(
+            sys.exit(
+                "get_counts.py: --min-counts={0} has unexpected format".format(
                     min_counts))
-        min_counts_per_order = NormalizeMinCountsLength(min_counts_per_order,
-                                                        ngram_order)
-        ans = ' '.join([str(int(x)) if x == int(x) else str(x)
-                        for x in min_counts_per_order])
+        min_counts_per_order = NormalizeMinCountsLength(
+            min_counts_per_order, ngram_order)
+        ans = ' '.join([
+            str(int(x)) if x == int(x) else str(x)
+            for x in min_counts_per_order
+        ])
     else:
         # we expect 'pieces' to be something like [ 'fisher=2,3' 'swbd=1,2' ].
 
@@ -199,17 +241,21 @@ def FormatMinCounts(source_int_dir, num_train_sets, ngram_order, min_counts):
         for piece in pieces:
             try:
                 [name, comma_separated_list] = piece.split('=')
-                this_mincounts = [float(x) for x in comma_separated_list.split(',')]
-                this_mincounts = NormalizeMinCountsLength(this_mincounts,
-                                                          ngram_order)
+                this_mincounts = [
+                    float(x) for x in comma_separated_list.split(',')
+                ]
+                this_mincounts = NormalizeMinCountsLength(
+                    this_mincounts, ngram_order)
             except:
-                sys.exit("get_counts.py: could not parse --min-counts='{0}'.".format(
-                        min_counts))
+                sys.exit("get_counts.py: could not parse --min-counts='{0}'.".
+                         format(min_counts))
             if name in name_to_mincounts:
-                sys.exit("get_counts.py: duplicate entry found in --min-counts='{0}'.".format(
-                        min_counts))
+                sys.exit(
+                    "get_counts.py: duplicate entry found in --min-counts='{0}'."
+                    .format(min_counts))
             name_to_mincounts[name] = this_mincounts
-        names_used = set()  # the set of keys of 'name_to_mincounts' that have been used.
+        names_used = set(
+        )  # the set of keys of 'name_to_mincounts' that have been used.
         # names is a map from integer to name, e.g.
         # names = [ 1:'fisher', 2:'swbd' ]
         names = ReadNames(source_int_dir + "/names")
@@ -230,37 +276,46 @@ def FormatMinCounts(source_int_dir, num_train_sets, ngram_order, min_counts):
                 this_mincounts = name_to_mincounts['default']
                 names_used.add('default')
             else:
-                sys.exit("get_counts.py: invalid min-counts --min-counts='{0}' since there "
-                         "is no min-count specified for {1}.".format(min_counts, name))
+                sys.exit(
+                    "get_counts.py: invalid min-counts --min-counts='{0}' since there "
+                    "is no min-count specified for {1}.".format(
+                        min_counts, name))
             for o in range(ngram_order - 2):
                 min_counts_per_order[o].append(this_mincounts[o])
 
-        ans = ' '.join([','.join([str(int(x)) if x == int(x) else str(x)
-                                 for x in array])
-                       for array in min_counts_per_order])
+        ans = ' '.join([
+            ','.join([str(int(x)) if x == int(x) else str(x) for x in array])
+            for array in min_counts_per_order
+        ])
         for name in name_to_mincounts.keys():
             if name not in names_used:
-                sys.exit("get_counts.py: invalid min-counts --min-counts='{0}' since the key "
-                         "{1} is never used.".format(min_counts, name))
+                sys.exit(
+                    "get_counts.py: invalid min-counts --min-counts='{0}' since the key "
+                    "{1} is never used.".format(min_counts, name))
     if args.verbose == 'true':
-        print("get_counts.py: converted min-counts from --min-counts='{0}' to '{1}'".format(
-                min_counts, ans))
+        print(
+            "get_counts.py: converted min-counts from --min-counts='{0}' to '{1}'"
+            .format(min_counts, ans))
 
     # test whether ans is all ones, and warn if so.
     a = ans.replace(',', ' ').split()
     if a == ['1'] * len(a):
-        print("get_counts.py: **warning: --min-counts={0} is equivalent to not applying any "
-              "min-counts, it would be more efficient not to use the option at all, or "
-              "to set it to the empty string.".format(min_counts))
+        print(
+            "get_counts.py: **warning: --min-counts={0} is equivalent to not applying any "
+            "min-counts, it would be more efficient not to use the option at all, or "
+            "to set it to the empty string.".format(min_counts))
     return ans
 
 
 # save the n-gram order.
 def SaveNgramOrder(dest_count_dir, ngram_order):
     try:
-        f = open('{0}/ngram_order'.format(dest_count_dir), 'w', encoding="utf-8")
+        f = open('{0}/ngram_order'.format(dest_count_dir),
+                 'w',
+                 encoding="utf-8")
     except:
-        ExitProgram('error opening file {0}/ngram_order for writing'.format(dest_count_dir))
+        ExitProgram('error opening file {0}/ngram_order for writing'.format(
+            dest_count_dir))
     assert ngram_order >= 2
     print(ngram_order, file=f)
     f.close()
@@ -275,11 +330,18 @@ def SaveNgramOrder(dest_count_dir, ngram_order):
 # If num-splits >= 1 [relevant when we're using min-counts], then it dumps its output
 # {dest_count_dir}/int.{n}.split{j} with n = 1..num_train_sets, j=1..num_splits.
 
-def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n,
-                           max_mem, num_splits=0):
+
+def GetCountsSingleProcess(source_int_dir,
+                           dest_count_dir,
+                           ngram_order,
+                           n,
+                           max_mem,
+                           num_splits=0):
     if num_splits == 0:
-        int_counts_output = "/dev/null " + " ".join(["{0}/int.{1}.{2}".format(dest_count_dir, n, o)
-                                                    for o in range(2, ngram_order + 1)])
+        int_counts_output = "/dev/null " + " ".join([
+            "{0}/int.{1}.{2}".format(dest_count_dir, n, o)
+            for o in range(2, ngram_order + 1)
+        ])
     else:
         assert num_splits >= 1
         int_counts_output = '/dev/stdout | split-int-counts ' + \
@@ -306,12 +368,18 @@ def GetCountsSingleProcess(source_int_dir, dest_count_dir, ngram_order, n,
 # If num-splits >= 1 [relevant when we're using min-counts], then it dumps its output
 # {dest_count_dir}/int.{n}.split{j} with n = 1..num_train_sets, j=1..num_splits.
 
+
 # This function uses multiple processes (num_proc) in parallel to run
 # 'get-text-counts' (this tends to be the bottleneck).
 # It will use just one process if the amount of data is quite small or if
 # the platform is Cygwin (where named pipes don't work)
-def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_proc,
-                          max_mem, num_splits=0):
+def GetCountsMultiProcess(source_int_dir,
+                          dest_count_dir,
+                          ngram_order,
+                          n,
+                          num_proc,
+                          max_mem,
+                          num_splits=0):
     try:
         file_size = os.path.getsize('{0}/{1}.txt.gz'.format(source_int_dir, n))
     except:
@@ -322,14 +390,17 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
         if num_proc > 1 and file_size >= 1000000:
             # it's only because of Cygwin that we're not using multiple
             # processes this merits a warning.
-            print("get_counts.py: cygwin platform detected so named pipes won't work; "
-                  "using a single process (will be slower)")
+            print(
+                "get_counts.py: cygwin platform detected so named pipes won't work; "
+                "using a single process (will be slower)")
         return GetCountsSingleProcess(source_int_dir, dest_count_dir,
                                       ngram_order, n, max_mem, num_splits)
 
     if num_splits == 0:
-        int_counts_output = "/dev/null " + " ".join(["{0}/int.{1}.{2}".format(dest_count_dir, n, o)
-                                                    for o in range(2, ngram_order + 1)])
+        int_counts_output = "/dev/null " + " ".join([
+            "{0}/int.{1}.{2}".format(dest_count_dir, n, o)
+            for o in range(2, ngram_order + 1)
+        ])
     else:
         assert num_splits >= 1
         int_counts_output = '/dev/stdout | split-int-counts ' + \
@@ -348,8 +419,11 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
     # need to use mkfifo.  This does not work properly on cygwin.
 
     log_dir = "{dest_count_dir}/log".format(dest_count_dir=dest_count_dir)
-    [os.remove(x) for x in glob.glob("{log_dir}/.{n}.*.error".format(
-          log_dir=log_dir, n=n))]
+    [
+        os.remove(x)
+        for x in glob.glob("{log_dir}/.{n}.*.error".format(log_dir=log_dir,
+                                                           n=n))
+    ]
 
     log_file = "{log_dir}/get_counts.{n}.log".format(log_dir=log_dir, n=n)
 
@@ -362,26 +436,34 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
     if max_mem == '':
         mem_opt = ''
     else:
-        mem_opt = "--buffer-size={0}".format(DivideMemory(max_mem, num_proc + 1))
+        mem_opt = "--buffer-size={0}".format(
+            DivideMemory(max_mem, num_proc + 1))
     # we use "bash -c '...'" to make sure it gets run in bash, since
     # for example 'set -o pipefail' would only work in bash.
-    command = ("bash -c 'set -o pipefail; set -e; export LC_ALL=C; mkdir -p {0}; ".format(tempdir) +
-               ''.join(['mkfifo {0}/{1}; '.format(tempdir, p)
-                       for p in range(num_proc)]) +
-               'trap "rm -r {0}" SIGINT SIGKILL SIGTERM EXIT; '.format(tempdir) +
-               'gunzip -c {0}/{1}.txt.gz | distribute-input-lines '.format(source_int_dir, n) +
-               ' '.join(['{0}/{1}'.format(tempdir, p) for p in range(num_proc)]) + '& ' +
-               'sort -m {0} '.format(mem_opt) +
-               ' '.join(['<(get-text-counts {4} {0} <{1}/{2} | sort {3} || touch {5}/.{6}.{2}.error)'.format(ngram_order, tempdir, p, mem_opt,
-                        "--limit-unk-history" if args.limit_unk_history == 'true' else "", log_dir, n)
-                         for p in range(num_proc)]) +
-               '| uniq -c | get-int-counts {0}'.format(int_counts_output) +
-               "'")  # end the quote from the 'bash -c'.
+    command = (
+        "bash -c 'set -o pipefail; set -e; export LC_ALL=C; mkdir -p {0}; ".
+        format(tempdir) + ''.join(
+            ['mkfifo {0}/{1}; '.format(tempdir, p) for p in range(num_proc)]) +
+        'trap "rm -r {0}" SIGINT SIGKILL SIGTERM EXIT; '.format(tempdir) +
+        'gunzip -c {0}/{1}.txt.gz | distribute-input-lines '.format(
+            source_int_dir, n) +
+        ' '.join(['{0}/{1}'.format(tempdir, p) for p in range(num_proc)]) +
+        '& ' + 'sort -m {0} '.format(mem_opt) + ' '.join([
+            '<(get-text-counts {4} {0} <{1}/{2} | sort {3} || touch {5}/.{6}.{2}.error)'
+            .format(
+                ngram_order, tempdir, p, mem_opt, "--limit-unk-history"
+                if args.limit_unk_history == 'true' else "", log_dir, n)
+            for p in range(num_proc)
+        ]) + '| uniq -c | get-int-counts {0}'.format(int_counts_output) + "'"
+    )  # end the quote from the 'bash -c'.
 
     RunCommand(command, log_file, args.verbose == 'true')
 
-    if len(glob.glob("{log_dir}/.{n}.*.error".format(log_dir=log_dir, n=n))) > 0:
-        ExitProgram("Something went wrong for the get-text-counts or sort command for training set {n}.".format(n=n))
+    if len(glob.glob("{log_dir}/.{n}.*.error".format(log_dir=log_dir,
+                                                     n=n))) > 0:
+        ExitProgram(
+            "Something went wrong for the get-text-counts or sort command for training set {n}."
+            .format(n=n))
 
 
 # This function applies the min-counts (it is only called if you supplied the
@@ -389,12 +471,18 @@ def GetCountsMultiProcess(source_int_dir, dest_count_dir, ngram_order, n, num_pr
 # GetCounts.  It dumps the files into {dest_count_dir}/int.{n}.split{j}.{o}
 # for n = 1...num_train_sets j = 1..num_jobs, and o=2..ngram_order.  [note: j is
 # supplied to this function].
-def EnforceMinCounts(dest_count_dir, formatted_min_counts, ngram_order, num_train_sets, j):
-    inputs = ' '.join(["{0}/int.{1}.split{2}".format(dest_count_dir, n, j)
-                      for n in range(1, num_train_sets + 1)])
-    outputs = ' '.join([' '.join(['{0}/int.{1}.split{2}.{3}'.format(dest_count_dir, n, j, o)
-                                 for o in range(2, ngram_order + 1)])
-                       for n in range(1, num_train_sets + 1)])
+def EnforceMinCounts(dest_count_dir, formatted_min_counts, ngram_order,
+                     num_train_sets, j):
+    inputs = ' '.join([
+        "{0}/int.{1}.split{2}".format(dest_count_dir, n, j)
+        for n in range(1, num_train_sets + 1)
+    ])
+    outputs = ' '.join([
+        ' '.join([
+            '{0}/int.{1}.split{2}.{3}'.format(dest_count_dir, n, j, o)
+            for o in range(2, ngram_order + 1)
+        ]) for n in range(1, num_train_sets + 1)
+    ])
     # e.g. suppose j is 2 and ngram_order is 4, outputs would be as follows
     # [assuming brace expansion].:
     # outputs = dir/int.1.split2.{2,3,4} dir/int.2.split2.{2,3,4} ...
@@ -416,11 +504,12 @@ def EnforceMinCounts(dest_count_dir, formatted_min_counts, ngram_order, num_trai
 # it merges the files into {dest_count_dir}/int.{n}.{o}.
 def MergeCounts(dest_count_dir, num_jobs, n, o):
     if num_jobs > 1:
-        command = ('merge-int-counts ' +
-                   ' '.join(['{0}/int.{1}.split{2}.{3}'.format(dest_count_dir, n, j, o)
-                             for j in range(1, num_jobs + 1)]) +
-                   '>{0}/int.{1}.{2}'.format(dest_count_dir, n, o))
-        log_file = '{0}/log/merge_counts.{1}.{2}.log'.format(dest_count_dir, n, o)
+        command = ('merge-int-counts ' + ' '.join([
+            '{0}/int.{1}.split{2}.{3}'.format(dest_count_dir, n, j, o)
+            for j in range(1, num_jobs + 1)
+        ]) + '>{0}/int.{1}.{2}'.format(dest_count_dir, n, o))
+        log_file = '{0}/log/merge_counts.{1}.{2}.log'.format(
+            dest_count_dir, n, o)
         RunCommand(command, log_file, args.verbose == 'true')
     else:
         assert num_jobs == 1
@@ -437,9 +526,10 @@ def MergeCounts(dest_count_dir, num_jobs, n, o):
 # that contains all the dev-data's counts; this will be used in likelihood
 # evaluation.
 def MergeDevData(dest_count_dir, ngram_order):
-    command = ("merge-int-counts " + ' '.join([dest_count_dir + "/int.dev." + str(n)
-                                              for n in range(2, ngram_order + 1)]) +
-               ">{0}/int.dev".format(dest_count_dir))
+    command = ("merge-int-counts " + ' '.join([
+        dest_count_dir + "/int.dev." + str(n)
+        for n in range(2, ngram_order + 1)
+    ]) + ">{0}/int.dev".format(dest_count_dir))
     log_file = dest_count_dir + '/log/merge_dev_counts.log'
     RunCommand(command, log_file, args.verbose == 'true')
 
@@ -471,7 +561,8 @@ def DivideMemory(total, n):
         elif (unit in ['B', 'b', '%']) and (sub_memory == 0):
             ExitProgram("max_memory for each of the {0} train sets is {1}{2}."
                         "Please reset a larger max_memory value".format(
-                            n, float(value)/n, unit))
+                            n,
+                            float(value) / n, unit))
         else:
             ExitProgram("Invalid format for max_memory. "
                         "Please 'man sort' to see how to set buffer size.")
@@ -480,11 +571,14 @@ def DivideMemory(total, n):
 
 # make sure 'scripts' and 'src' directory are on the path
 os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + os.pathsep +
-                      os.path.abspath(os.path.dirname(sys.argv[0])) + "/../src")
+                      os.path.abspath(os.path.dirname(sys.argv[0])) +
+                      os.pathsep +
+                      os.path.abspath(os.path.dirname(sys.argv[0])) +
+                      "/../src")
 
 if os.system("validate_int_dir.py " + args.source_int_dir) != 0:
-    ExitProgram("command validate_int_dir.py {0} failed".format(args.source_int_dir))
+    ExitProgram("command validate_int_dir.py {0} failed".format(
+        args.source_int_dir))
 
 if args.ngram_order < 2:
     ExitProgram("ngram-order is {0}; it must be at least 2.  If you "
@@ -499,15 +593,13 @@ f.close()
 
 if not os.path.isdir(args.dest_count_dir):
     try:
-        os.makedirs(args.dest_count_dir+'/log')
+        os.makedirs(args.dest_count_dir + '/log')
     except:
         ExitProgram("error creating directory " + args.dest_count_dir)
-
 
 CopyMetaInfo(args.source_int_dir, args.dest_count_dir)
 
 SaveNgramOrder(args.dest_count_dir, args.ngram_order)
-
 
 if args.min_counts == '':
     # no min-counts specified: use normal pipeline.
@@ -521,9 +613,13 @@ if args.min_counts == '':
     else:
         max_mem = ''
     for n in ["dev"] + list(range(1, num_train_sets + 1)):
-        threads.append(threading.Thread(target=GetCountsMultiProcess,
-                                        args=[args.source_int_dir, args.dest_count_dir,
-                                              args.ngram_order, str(n), args.num_count_jobs, max_mem]))
+        threads.append(
+            threading.Thread(target=GetCountsMultiProcess,
+                             args=[
+                                 args.source_int_dir, args.dest_count_dir,
+                                 args.ngram_order,
+                                 str(n), args.num_count_jobs, max_mem
+                             ]))
         threads[-1].start()
         if args.dump_counts_parallel == 'false':
             threads[-1].join()
@@ -544,13 +640,12 @@ else:
     num_mc_jobs = args.num_min_count_jobs
     if num_mc_jobs < 1:
         ExitProgram("bad option --num-min-count-jobs={0}".format(num_mc_jobs))
-    formatted_min_counts = FormatMinCounts(args.source_int_dir,
-                                           num_train_sets,
-                                           args.ngram_order,
-                                           args.min_counts)
+    formatted_min_counts = FormatMinCounts(args.source_int_dir, num_train_sets,
+                                           args.ngram_order, args.min_counts)
 
     if not num_mc_jobs >= 1:
-        sys.exit("get_counts.py: invalid option --num-jobs={0}".format(num_mc_jobs))
+        sys.exit(
+            "get_counts.py: invalid option --num-jobs={0}".format(num_mc_jobs))
 
     # First, dump the counts split up by most-recent-history instead of ngram-order.
     print("get_counts.py: dumping counts", file=sys.stderr)
@@ -563,10 +658,14 @@ else:
         max_mem = ''
     threads = []
     for n in range(1, num_train_sets + 1):
-        threads.append(threading.Thread(target=GetCountsMultiProcess,
-                                        args=[args.source_int_dir, args.dest_count_dir,
-                                              args.ngram_order, str(n), args.num_count_jobs, max_mem,
-                                              num_mc_jobs]))
+        threads.append(
+            threading.Thread(target=GetCountsMultiProcess,
+                             args=[
+                                 args.source_int_dir, args.dest_count_dir,
+                                 args.ngram_order,
+                                 str(n), args.num_count_jobs, max_mem,
+                                 num_mc_jobs
+                             ]))
         threads[-1].start()
         if args.dump_counts_parallel == 'false':
             threads[-1].join()
@@ -578,9 +677,12 @@ else:
     print("get_counts.py: applying min-counts", file=sys.stderr)
     threads = []
     for j in range(1, num_mc_jobs + 1):
-        threads.append(threading.Thread(target=EnforceMinCounts,
-                                        args=[args.dest_count_dir, formatted_min_counts,
-                                              args.ngram_order, num_train_sets, j]))
+        threads.append(
+            threading.Thread(target=EnforceMinCounts,
+                             args=[
+                                 args.dest_count_dir, formatted_min_counts,
+                                 args.ngram_order, num_train_sets, j
+                             ]))
         threads[-1].start()
 
     for t in threads:
@@ -590,15 +692,16 @@ else:
         for n in range(1, num_train_sets + 1):
             for j in range(1, num_mc_jobs + 1):
                 os.remove("{0}/int.{1}.split{2}".format(
-                        args.dest_count_dir, n, j))
+                    args.dest_count_dir, n, j))
 
     print("get_counts.py: merging counts", file=sys.stderr)
     threads = []
     for n in range(1, num_train_sets + 1):
         for o in range(2, args.ngram_order + 1):
-            threads.append(threading.Thread(target=MergeCounts,
-                                            args=[args.dest_count_dir,
-                                                  num_mc_jobs, n, o]))
+            threads.append(
+                threading.Thread(target=MergeCounts,
+                                 args=[args.dest_count_dir, num_mc_jobs, n,
+                                       o]))
             threads[-1].start()
     for t in threads:
         t.join()
@@ -609,11 +712,11 @@ else:
                 for o in range(2, args.ngram_order + 1):
                     try:
                         os.remove("{0}/int.{1}.split{2}.{3}".format(
-                                args.dest_count_dir, n, j, o))
+                            args.dest_count_dir, n, j, o))
                     except:
                         pass
     print("get_counts.py: finished.", file=sys.stderr)
 
-
 if os.system("validate_count_dir.py " + args.dest_count_dir) != 0:
-    ExitProgram("command validate_count_dir.py {0} failed".format(args.dest_count_dir))
+    ExitProgram("command validate_count_dir.py {0} failed".format(
+        args.dest_count_dir))

@@ -6,13 +6,21 @@ import os
 import argparse
 import sys
 
-parser = argparse.ArgumentParser(description="Cleanup the largish files. "
-                                 "This may be called when the counts no longer useful.",
-                                 epilog="E.g. cleanup_count_dir.py data/lm/work/counts_20000_3",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# If the encoding of the default sys.stdout is not utf-8,
+# force it to be utf-8. See PR #95.
+if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding.lower() != "utf-8":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+    sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
 
-parser.add_argument("count_dir",
-                    help="Directory to cleanup")
+parser = argparse.ArgumentParser(
+    description="Cleanup the largish files. "
+    "This may be called when the counts no longer useful.",
+    epilog="E.g. cleanup_count_dir.py data/lm/work/counts_20000_3",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+parser.add_argument("count_dir", help="Directory to cleanup")
 
 args = parser.parse_args()
 
@@ -50,7 +58,8 @@ CleanupDir(args.count_dir, ngram_order, num_train_sets)
 # find split-dir and cleanup
 entities = os.listdir(args.count_dir)
 for dirname in entities:
-    if os.path.isdir(os.path.join(args.count_dir, dirname)) and dirname[0:5] == 'split':
+    if os.path.isdir(os.path.join(args.count_dir,
+                                  dirname)) and dirname[0:5] == 'split':
         for n in range(1, int(dirname[5:]) + 1):
             count_dir = os.path.join(args.count_dir, dirname, str(n))
             if os.path.isdir(count_dir):

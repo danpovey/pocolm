@@ -7,13 +7,21 @@ import argparse
 import sys
 import subprocess
 
-parser = argparse.ArgumentParser(description="Validates directory containing integerized "
-                                 "text data, as produced by prepare_int_data.py",
-                                 epilog="E.g. validate_int_dir.py data/int.100k",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# If the encoding of the default sys.stdout is not utf-8,
+# force it to be utf-8. See PR #95.
+if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding.lower() != "utf-8":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+    sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
 
-parser.add_argument("int_dir",
-                    help="Directory in which to find the data")
+parser = argparse.ArgumentParser(
+    description="Validates directory containing integerized "
+    "text data, as produced by prepare_int_data.py",
+    epilog="E.g. validate_int_dir.py data/int.100k",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+parser.add_argument("int_dir", help="Directory in which to find the data")
 
 args = parser.parse_args()
 
@@ -21,13 +29,17 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
                       os.path.abspath(os.path.dirname(sys.argv[0])))
 
 if not os.path.exists(args.int_dir):
-    sys.exit("validate_int_dir.py: Expected directory {0} to exist".format(args.int_dir))
+    sys.exit("validate_int_dir.py: Expected directory {0} to exist".format(
+        args.int_dir))
 
 if not os.path.exists("{0}/dev.txt.gz".format(args.int_dir)):
-    sys.exit("validate_int_dir.py: Expected file {0}/dev.txt.gz to exist".format(args.int_dir))
+    sys.exit(
+        "validate_int_dir.py: Expected file {0}/dev.txt.gz to exist".format(
+            args.int_dir))
 
 if not os.path.exists("{0}/num_train_sets".format(args.int_dir)):
-    sys.exit("validate_int_dir.py: Expected file {0}/num_train_sets to exist".format(args.int_dir))
+    sys.exit("validate_int_dir.py: Expected file {0}/num_train_sets to exist".
+             format(args.int_dir))
 
 # the following code checks num_train_sets and sets num_train_sets
 # to the appropriate variable.
@@ -38,8 +50,9 @@ try:
     assert num_train_sets > 0 and len(line.split()) == 1
     assert f.readline() == ''
 except Exception as e:
-    sys.exit("validate_int_dir.py: Expected file {0}/num_train_sets to contain "
-             "an integer >0: {1}".format(args.int_dir, str(e)))
+    sys.exit(
+        "validate_int_dir.py: Expected file {0}/num_train_sets to contain "
+        "an integer >0: {1}".format(args.int_dir, str(e)))
 f.close()
 
 # the following code checks num_words.
@@ -54,19 +67,20 @@ except Exception as e:
              "an integer >0: {1}".format(args.int_dir, str(e)))
 f.close()
 
-
 # call validate_vocab.py to check the vocab.
 if os.system("validate_vocab.py --num-words={0} {1}/words.txt".format(
         num_words, args.int_dir)) != 0:
     sys.exit(1)
 
-num_words = subprocess.check_output("cat {0}/words.txt | wc -l".format(args.int_dir), shell=True)
+num_words = subprocess.check_output("cat {0}/words.txt | wc -l".format(
+    args.int_dir),
+                                    shell=True)
 try:
     num_words = int(num_words) + 1
 except:
-    sys.exit("validate_int_dir.py: error getting number of words from {0}/words.txt".format(
-            args.int_dir))
-
+    sys.exit(
+        "validate_int_dir.py: error getting number of words from {0}/words.txt"
+        .format(args.int_dir))
 
 names = set()
 # check the 'names' file; it should have lines like:
@@ -79,12 +93,14 @@ for n in range(1, num_train_sets + 1):
     try:
         [m, name] = line.split()
         if name in names:
-            sys.exit("validate_int_dir.py: repeated name {0} in {1}/names".format(
+            sys.exit(
+                "validate_int_dir.py: repeated name {0} in {1}/names".format(
                     name, args.int_dir))
         names.add(name)
         assert int(m) == n
     except:
-        sys.exit("validate_int_dir.py: bad {0}'th line of {1}/names: '{2}'".format(
+        sys.exit(
+            "validate_int_dir.py: bad {0}'th line of {1}/names: '{2}'".format(
                 n, args.int_dir, line[0:-1]))
 f.close()
 
@@ -103,17 +119,20 @@ if os.path.exists("{0}/unigram_weights".format(args.int_dir)):
             weight = float(weight)
             assert weight >= 0.0 and weight <= 1.0
             if name not in names:
-                sys.exit("validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: "
-                         "name {2} does not appear in {1}/names".format(
-                             line[:-1], args.int_dir, name))
+                sys.exit(
+                    "validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: "
+                    "name {2} does not appear in {1}/names".format(
+                        line[:-1], args.int_dir, name))
             if name in names_with_weights:
-                sys.exit("validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: "
-                         "name {2} appears twice".format(
-                             line[:-1], args.int_dir, name))
+                sys.exit(
+                    "validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: "
+                    "name {2} appears twice".format(line[:-1], args.int_dir,
+                                                    name))
             names_with_weights.add(name)
         except Exception as e:
-            sys.exit("validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: {2}".format(
-                    line[:-1], args.int_dir, str(e)))
+            sys.exit(
+                "validate_int_dir.py: bad line '{0}' in file {1}/unigram_weights: {2}"
+                .format(line[:-1], args.int_dir, str(e)))
     for name in names:
         if name not in names_with_weights:
             sys.exit("validate_int_dir.py: expected the name {0} to appear in "
@@ -125,8 +144,10 @@ for n in range(1, num_train_sets + 1):
     names.append(str(n))
 
 for name in names:
-    p = subprocess.Popen("gunzip -c {0}/{1}.txt.gz 2>/dev/null".format(args.int_dir, name),
-                         stdout=subprocess.PIPE, shell=True)
+    p = subprocess.Popen("gunzip -c {0}/{1}.txt.gz 2>/dev/null".format(
+        args.int_dir, name),
+                         stdout=subprocess.PIPE,
+                         shell=True)
     num_ints = 0
     for l in range(10):
         line = p.stdout.readline()
@@ -137,15 +158,18 @@ for name in names:
             num_ints += len(ints)
             for i in ints:
                 if i < 3 or i > num_words:
-                    sys.exit("validate_int_dir.py: value {0} out of range in file {1}/{2}.txt.gz".format(
-                            i, args.int_dir, name))
+                    sys.exit(
+                        "validate_int_dir.py: value {0} out of range in file {1}/{2}.txt.gz"
+                        .format(i, args.int_dir, name))
         except:
-            sys.exit("validate_int_dir.py: bad line {0} in file {1}/{2}.txt.gz".format(
-                    line.strip('\n'), args.int_dir, name))
+            sys.exit(
+                "validate_int_dir.py: bad line {0} in file {1}/{2}.txt.gz".
+                format(line.strip('\n'), args.int_dir, name))
     if num_ints == 0:
         # in theory it's possible that a file whose first 10 lines is empty
         # could be valid, a there is nothing wrong in principle with modeling
         # empty sequences.  But it's very odd.
-        sys.exit("validate_int_dir.py: did not see any data in file {0}/{1}.txt.gz".format(
-                args.int_dir, name))
+        sys.exit(
+            "validate_int_dir.py: did not see any data in file {0}/{1}.txt.gz".
+            format(args.int_dir, name))
     p.terminate()
