@@ -41,20 +41,12 @@ if ! which awk >&/dev/null; then
   add_packages gawk gawk gawk
 fi
 
-if which python >&/dev/null ; then
-  version=`/usr/bin/env python 2>&1 --version | awk '{print $2}' `
-  if [[ $version != "3."* ]] ; then
-    status=1
-    echo "$0: python 3 is not installed"
-    add_packages python3 python3 python3
-  fi
-
-else
-  echo "$0: python 3 is not installed"
+if ! which python3 >&/dev/null ; then
+  echo "$0: python3 is not installed"
   add_packages python3 python3 python3
 fi
 
-if ! python -c 'import numpy' >&/dev/null; then
+if ! python3 -c 'import numpy' >&/dev/null; then
   echo "$0: python-numpy is not installed"
   # I'm not sure if this package name is OK for all distributions, this is what
   # it seems to be called on Debian.  We'll have to investigate this.
