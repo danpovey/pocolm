@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -6,23 +6,31 @@ import os
 import argparse
 import sys
 from collections import defaultdict
-try:              # since gzip will only be needed if there are gzipped files,
-    import gzip   # accept failure to import it.
+try:  # since gzip will only be needed if there are gzipped files,
+    import gzip  # accept failure to import it.
 except:
     pass
 
-parser = argparse.ArgumentParser(description="Extracts word counts from a data directory "
-                                 "and creates a count directory with similar structure. "
-                                 "Input directory has *.txt, counts directory has *.counts. "
-                                 "Format of counts files is 'count word', e.g. '124 hello' ",
-                                 epilog="See egs/swbd/run.sh for example.",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# If the encoding of the default sys.stdout is not utf-8,
+# force it to be utf-8. See PR #95.
+if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding.lower() != "utf-8":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+    sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
+
+parser = argparse.ArgumentParser(
+    description="Extracts word counts from a data directory "
+    "and creates a count directory with similar structure. "
+    "Input directory has *.txt, counts directory has *.counts. "
+    "Format of counts files is 'count word', e.g. '124 hello' ",
+    epilog="See egs/swbd/run.sh for example.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument("text_dir",
                     help="Directory in which to look for input text data\n")
 parser.add_argument("count_dir",
                     help="Directory, to be written to, for counts files\n")
-
 
 args = parser.parse_args()
 
@@ -32,7 +40,6 @@ os.environ['PATH'] = (os.environ['PATH'] + os.pathsep +
 if os.system("validate_text_dir.py " + args.text_dir) != 0:
     sys.exit(1)
 
-
 if not os.path.exists(args.count_dir):
     os.mkdir(args.count_dir)
 
@@ -40,19 +47,19 @@ if not os.path.exists(args.count_dir):
 def ProcessFile(text_file, counts_file):
     try:
         if text_file.endswith(".gz"):
-            f = gzip.open(text_file, 'r')
+            f = gzip.open(text_file, 'rt', encoding="utf-8")
         else:
-            f = open(text_file, 'r')
+            f = open(text_file, 'r', encoding="utf-8")
     except Exception as e:
         sys.exit("Failed to open {0} for reading: {1}".format(
-                text_file, str(e)))
+            text_file, str(e)))
     word_to_count = defaultdict(int)
     for line in f:
         for word in line.split():
             word_to_count[word] += 1
     f.close()
     try:
-        cf = open(counts_file, "w")
+        cf = open(counts_file, "w", encoding="utf-8")
     except:
         sys.exit("Failed to open {0} for writing".format(text_file))
     for word, count in word_to_count.items():

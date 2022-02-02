@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -6,26 +6,37 @@ import os
 import argparse
 import sys
 
-parser = argparse.ArgumentParser(description="Transforms text data into integer form "
-                                 "using a symbol table, e.g. turns line 'hello there' into "
-                                 "'134 943'.  There are a couple of special cases: any "
-                                 "word not in the word-list or equal to words numbered 0, 1 or 2 "
-                                 "(normally <eps>, <s> and </s>) are treated as out-of-vocabulary "
-                                 "words (OOV) and written as symbol 3 (normally '<unk>').",
-                                 epilog="e.g. text_to_int.py words.txt < text > int_text",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# If the encoding of the default sys.stdout is not utf-8,
+# force it to be utf-8. See PR #95.
+if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding.lower() != "utf-8":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+    sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
 
-parser.add_argument("vocab_file",
-                    help="Filename of vocabulary file, e.g. as produced by get_vocab.py")
+parser = argparse.ArgumentParser(
+    description="Transforms text data into integer form "
+    "using a symbol table, e.g. turns line 'hello there' into "
+    "'134 943'.  There are a couple of special cases: any "
+    "word not in the word-list or equal to words numbered 0, 1 or 2 "
+    "(normally <eps>, <s> and </s>) are treated as out-of-vocabulary "
+    "words (OOV) and written as symbol 3 (normally '<unk>').",
+    epilog="e.g. text_to_int.py words.txt < text > int_text",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+parser.add_argument(
+    "vocab_file",
+    help="Filename of vocabulary file, e.g. as produced by get_vocab.py")
 
 args = parser.parse_args()
 
 if not os.path.exists(args.vocab_file):
-    sys.exit("validate_vocab.py: Expected file {0} to exist".format(args.text_dir))
+    sys.exit("validate_vocab.py: Expected file {0} to exist".format(
+        args.text_dir))
 
 word_to_index = {}
 
-f = open(args.vocab_file, "r")
+f = open(args.vocab_file, "r", encoding="utf-8")
 
 for line in f:
     try:
@@ -33,8 +44,7 @@ for line in f:
         word_to_index[word] = int(index)
     except:
         sys.exit("validate_vocab.py: bad line {0} in vocab file {1}".format(
-                line[:-1], args.vocab_file))
-
+            line[:-1], args.vocab_file))
 
 num_words_total = 0
 num_words_oov = 0
@@ -59,9 +69,9 @@ for line in sys.stdin:
             line_ints.append(str(3))
     print(' '.join(line_ints))
 
-
 print("text_to_int.py: converted {0} words, {1}% of which were OOV".format(
-        num_words_total, (100.0*num_words_oov)/num_words_total), file=sys.stderr)
+    num_words_total, (100.0 * num_words_oov) / num_words_total),
+      file=sys.stderr)
 
 forbidden_words = []
 if (num_words_forbidden != 0):
@@ -70,7 +80,8 @@ if (num_words_forbidden != 0):
             forbidden_words.append(word)
         if index == 3:
             unk_word = word
-    print("text_to_int.py: warning: encountered forbidden symbols ({0}) {1} times; "
-          "converted them to {2}".format(",".join(forbidden_words),
-                                         num_words_forbidden, unk_word),
-          file=sys.stderr)
+    print(
+        "text_to_int.py: warning: encountered forbidden symbols ({0}) {1} times; "
+        "converted them to {2}".format(",".join(forbidden_words),
+                                       num_words_forbidden, unk_word),
+        file=sys.stderr)

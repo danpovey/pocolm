@@ -1,10 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from __future__ import print_function
 import math
 import sys
-
-
 """
 This scripts uses a model to predict the num-ngrams that we will get from doing a
 prune iteration with a particular threshold, using informations collected
@@ -12,6 +10,14 @@ from previous prune iterations. With this model, we can approches a target num-n
 The model would be adjusted slightly in case of overshoot.
 We may decide to esimate the model on the fly in the future.
 """
+
+# If the encoding of the default sys.stdout is not utf-8,
+# force it to be utf-8. See PR #95.
+if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding.lower() != "utf-8":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+    sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
 
 
 class PruneSizeModel:
@@ -22,7 +28,6 @@ class PruneSizeModel:
 
     See the __main__ section at the end of this file for example usage.
     """
-
     def __init__(self, num_unigrams, target_num_ngrams, target_lower_threshold,
                  target_upper_threshold):
         self.num_unigrams = num_unigrams
@@ -57,7 +62,8 @@ class PruneSizeModel:
     def SetInitialThreshold(self, initial_threshold, initial_num_xgrams):
         self.initial_threshold = initial_threshold
         self.history.append([0.0, initial_num_xgrams, 0, 0, 0])
-        self.DebugLog("Iter {0}: threshold={1:.3f}, num_xgrams={2}".format(self.iter, 0.0, int(initial_num_xgrams)))
+        self.DebugLog("Iter {0}: threshold={1:.3f}, num_xgrams={2}".format(
+            self.iter, 0.0, int(initial_num_xgrams)))
         self.history.append([initial_threshold, 0, 0, 0, 0])
 
     def NumXgrams2NumNgrams(self, num_xgrams):
@@ -99,19 +105,23 @@ class PruneSizeModel:
         self.SetCurNumXgrams(cur_num_xgrams)
         self.iter += 1
 
-        self.DebugLog("Iter {0}: threshold={1:.3f}, num_xgrams={2} "
-                      "[vs. modeled_next_num_xgrams={3}, intermediate_target={4}]".format(
-                          self.iter, cur_threshold, cur_num_xgrams, int(self.GetCurModeledNumXgrams()),
-                          int(self.GetCurTargetNumXgrams())))
+        self.DebugLog(
+            "Iter {0}: threshold={1:.3f}, num_xgrams={2} "
+            "[vs. modeled_next_num_xgrams={3}, intermediate_target={4}]".
+            format(self.iter, cur_threshold, cur_num_xgrams,
+                   int(self.GetCurModeledNumXgrams()),
+                   int(self.GetCurTargetNumXgrams())))
 
         if self.MatchTargetNumNgrams(cur_num_xgrams):
             return ('success', None)
 
         backtrack_iter = -1
-        if self.NumXgrams2NumNgrams(cur_num_xgrams) < self.target_lower_threshold:  # we overshot
+        if self.NumXgrams2NumNgrams(
+                cur_num_xgrams) < self.target_lower_threshold:  # we overshot
             if cur_threshold == self.initial_threshold:
                 # overshot with initial threshold
-                self.DebugLog("Overshoot with initial_threshold={0}".format(self.initial_threshold))
+                self.DebugLog("Overshoot with initial_threshold={0}".format(
+                    self.initial_threshold))
                 return ('overshoot', None)
 
             # remove cur_threshold from history
@@ -129,13 +139,16 @@ class PruneSizeModel:
             cur_threshold = self.GetCurThreshold()
             if prev_threshold != cur_threshold:
                 # we will prune again with the same threshold
-                self.DebugLog("Backtrack to iter: {0} without adjust model".format(backtrack_iter))
+                self.DebugLog(
+                    "Backtrack to iter: {0} without adjust model".format(
+                        backtrack_iter))
             else:
                 self.AdjustModelForOvershoot()
-                self.DebugLog("Backtrack to iter: {0}, xgrams_change_power={1}, "
-                              "prev_change_power={2}".format(backtrack_iter,
-                                                             self.xgrams_change_power,
-                                                             self.prev_change_power))
+                self.DebugLog(
+                    "Backtrack to iter: {0}, xgrams_change_power={1}, "
+                    "prev_change_power={2}".format(backtrack_iter,
+                                                   self.xgrams_change_power,
+                                                   self.prev_change_power))
 
         if backtrack_iter > 0 and prev_threshold != cur_threshold:
             # we repeat the threshold again to see the full effect of the
@@ -146,9 +159,12 @@ class PruneSizeModel:
             cur_target_num_xgrams = self.GetCurTargetNumXgrams()
         else:
             cur_target_num_xgrams = self.GetIntermediateTargetNumXgrams()
-            (next_threshold, modeled_next_num_xgrams) = self.GetNextThreshold(cur_target_num_xgrams)
+            (next_threshold, modeled_next_num_xgrams
+             ) = self.GetNextThreshold(cur_target_num_xgrams)
 
-        hist = [next_threshold, 0, modeled_next_num_xgrams, cur_target_num_xgrams]
+        hist = [
+            next_threshold, 0, modeled_next_num_xgrams, cur_target_num_xgrams
+        ]
         if backtrack_iter > 0:
             self.history.append(hist + [backtrack_iter])
             return ('backtrack', [next_threshold, backtrack_iter])
@@ -169,14 +185,16 @@ class PruneSizeModel:
             # If we're more than 1.5 times the target, aim to go only
             # halfway to the target [in log-space], but to decrease
             # the num-xgrams by no more than a factor of 4.
-            change_factor = (float(self.target_num_xgrams) / cur_num_xgrams) ** 0.5
+            change_factor = (float(self.target_num_xgrams) /
+                             cur_num_xgrams)**0.5
             if change_factor < 0.25:
                 change_factor = 0.25
             return cur_num_xgrams * change_factor
         elif cur_num_xgrams > 1.15 * self.target_num_xgrams:
             # If we're between 1.15 and 1.5 times the target, aim to go
             # two thirds of the way to the target.
-            change_factor = (float(self.target_num_xgrams) / cur_num_xgrams) ** 0.666
+            change_factor = (float(self.target_num_xgrams) /
+                             cur_num_xgrams)**0.666
 
             return cur_num_xgrams * change_factor
         else:
@@ -199,7 +217,8 @@ class PruneSizeModel:
         next_larger_num_xgrams = cur_target_num_xgrams
         while left <= right - tolerance:
             next_threshold = (left + right) / 2
-            modeled_next_num_xgrams = self.GetModeledNextNumXgrams(next_threshold)
+            modeled_next_num_xgrams = self.GetModeledNextNumXgrams(
+                next_threshold)
 
             if modeled_next_num_xgrams < cur_target_num_xgrams:
                 right = next_threshold
@@ -231,14 +250,16 @@ class PruneSizeModel:
         # First predict the num-xgrams we think we'll get if we prune again
         # with the same threshold 'cur_threshold'.
         assert prev_num_xgrams >= cur_num_xgrams
-        prev_change_factor = (float(cur_num_xgrams) / prev_num_xgrams) ** self.prev_change_power
+        prev_change_factor = (float(cur_num_xgrams) /
+                              prev_num_xgrams)**self.prev_change_power
 
         # the following gives us the predicted num-xgrams if we were
         # to prune again with the same threshold 'cur_threshold'.
         predicted_num_xgrams_if_repeat = prev_change_factor * cur_num_xgrams
         assert next_threshold >= cur_threshold
 
-        predicted_extra_factor = (next_threshold / cur_threshold) ** self.xgrams_change_power
+        predicted_extra_factor = (next_threshold /
+                                  cur_threshold)**self.xgrams_change_power
         return predicted_num_xgrams_if_repeat * predicted_extra_factor
 
     def AdjustModelForOvershoot(self):
@@ -288,7 +309,8 @@ if __name__ == "__main__":
         if Prune.prev_threshold == threshold:
             num_xgrams = Prune.prev_num_xgrams / random.uniform(1, 1.5)
         else:
-            num_xgrams = math.exp(math.log(initial_num_xgrams) - 2 * math.log(threshold + 1))
+            num_xgrams = math.exp(
+                math.log(initial_num_xgrams) - 2 * math.log(threshold + 1))
         Prune.prev_threshold = threshold
         Prune.prev_num_xgrams = num_xgrams
 

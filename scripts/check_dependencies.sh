@@ -41,29 +41,16 @@ if ! which awk >&/dev/null; then
   add_packages gawk gawk gawk
 fi
 
-if which python >&/dev/null ; then
-  version=`/usr/bin/env python 2>&1 --version | awk '{print $2}' `
-  if [[ $version != "2.7"* && $version != "3."* ]] ; then
-    status=1
-    if which python2.7 >&/dev/null ; then
-      echo "$0: python 2.7 is not the default python (lower version python does not "
-      echo "$0: have packages that are required by pocolm). You should make it default"
-    else
-      echo "$0: python 2.7 is not installed"
-      add_packages python2.7 python2.7 python2.7
-    fi
-  fi
-
-else
-  echo "$0: python 2.7 is not installed"
-  add_packages python2.7 python2.7 python2.7
+if ! which python3 >&/dev/null ; then
+  echo "$0: python3 is not installed"
+  add_packages python3 python3 python3
 fi
 
-if ! python -c 'import numpy' >&/dev/null; then
+if ! python3 -c 'import numpy' >&/dev/null; then
   echo "$0: python-numpy is not installed"
   # I'm not sure if this package name is OK for all distributions, this is what
   # it seems to be called on Debian.  We'll have to investigate this.
-  add_packages numpy python-numpy python-numpy
+  add_packages numpy python3-numpy python3-numpy
 fi
 
 printed=false

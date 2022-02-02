@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # we're using python 3.x style print but want it to work in python 2.x,
 from __future__ import print_function
@@ -8,23 +8,32 @@ import sys
 import math
 from collections import defaultdict
 
-parser = argparse.ArgumentParser(description="Given a directory containing word counts "
-                                 "as created by get_counts.py, this program obtains "
-                                 "weighting factors for each of the non-dev counts files, "
-                                 "based on maximizing a unigram probability of "
-                                 "the dev data's counts.  It writes to the standard output "
-                                 "the weights of the form '<basename> <weight>', one weight "
-                                 "per line e.g. 'switchboard 0.23'.",
-                                 epilog="See egs/swbd/run.sh for example.",
-                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+# If the encoding of the default sys.stdout is not utf-8,
+# force it to be utf-8. See PR #95.
+if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding.lower() != "utf-8":
+    import codecs
+    sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+    sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
+    sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
 
+parser = argparse.ArgumentParser(
+    description="Given a directory containing word counts "
+    "as created by get_counts.py, this program obtains "
+    "weighting factors for each of the non-dev counts files, "
+    "based on maximizing a unigram probability of "
+    "the dev data's counts.  It writes to the standard output "
+    "the weights of the form '<basename> <weight>', one weight "
+    "per line e.g. 'switchboard 0.23'.",
+    epilog="See egs/swbd/run.sh for example.",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument("--verbose", type=str,
+parser.add_argument("--verbose",
+                    type=str,
                     help="If true, print more verbose output",
-                    default="false", choices=["false", "true"])
+                    default="false",
+                    choices=["false", "true"])
 parser.add_argument("count_dir",
                     help="Directory from which to obtain counts files\n")
-
 
 args = parser.parse_args()
 
@@ -33,7 +42,7 @@ args = parser.parse_args()
 # count.
 def ReadCountsFile(counts_file):
     try:
-        f = open(counts_file, "r")
+        f = open(counts_file, "r", encoding="utf-8")
     except:
         sys.exit("Failed to open {0} for reading".format(counts_file))
     word_to_count = defaultdict(int)
@@ -65,11 +74,12 @@ if num_train_files == 1:
     # one source of data, the weight won't matter, and we'll
     # just write one.
     if args.verbose == "true":
-        print("get_unigram_weights.py: only one data source so not "
-              "really estimating weights.", file=sys.stderr)
+        print(
+            "get_unigram_weights.py: only one data source so not "
+            "really estimating weights.",
+            file=sys.stderr)
     print(train_keys[0], 1.0)
     sys.exit(0)
-
 
 # for efficiency, change the format...
 # we'll make it a matrix, with the following format:
@@ -88,7 +98,7 @@ for word, count in dev_counts.items():
     this_row[0] = count
     for i in range(num_train_files):
         if word in train_counts[train_keys[i]]:
-            this_row[i+1] = train_counts[train_keys[i]][word] / tot_counts[i]
+            this_row[i + 1] = train_counts[train_keys[i]][word] / tot_counts[i]
             found_train_count = True
     if found_train_count:
         all_counts.append(this_row)
@@ -115,27 +125,29 @@ while True:
         tot_count += this_count
         this_prob = 0.0
         for j in range(num_train_files):
-            this_prob += current_weights[j] * this_row[j+1]
+            this_prob += current_weights[j] * this_row[j + 1]
         tot_logprob += math.log(this_prob) * this_count
         for j in range(num_train_files):
             next_weights[j] += (this_count * current_weights[j] *
-                                this_row[j+1] / this_prob)
+                                this_row[j + 1] / this_prob)
 
     if args.verbose == "true":
-        print("Average log-prob per word on iteration {0} is {1} over {2} observations".format(
-                iter, tot_logprob / tot_count, tot_count), file=sys.stderr)
+        print(
+            "Average log-prob per word on iteration {0} is {1} over {2} observations"
+            .format(iter, tot_logprob / tot_count, tot_count),
+            file=sys.stderr)
     tot_diff = 0.0
     for j in range(num_train_files):
         next_weights[j] /= tot_count
-        tot_diff += (next_weights[j] - current_weights[j]) ** 2
+        tot_diff += (next_weights[j] - current_weights[j])**2
     if args.verbose == "true":
-        print("Weights on iteration {0} are {1}".format(iter, str(next_weights)),
+        print("Weights on iteration {0} are {1}".format(
+            iter, str(next_weights)),
               file=sys.stderr)
     current_weights = next_weights
     if math.sqrt(tot_diff) < threshold:
         break
     iter += 1
-
 
 # Now we renormalize the weights so that instead of weighting the unigram
 # probabilities, they weight the actual counts.  If the datasets have different
@@ -154,7 +166,6 @@ if args.verbose == "true":
     print("get_unigram_weights.py: Final weights after renormalizing so they "
           "can be applied to the raw counts, are: " + str(next_weights),
           file=sys.stderr)
-
 
 for i in range(num_train_files):
     print(train_keys[i], current_weights[i])
