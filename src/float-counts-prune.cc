@@ -360,7 +360,7 @@ class FloatCountsPruner {
     // check that backoff_total > backoff_count and
     // that backoff_total >= discount [while allowing for roundoff].
     assert(count > 0.0 && discount > 0.0 &&
-           backoff_total > backoff_count &&
+           backoff_total >= backoff_count &&
            backoff_total >= 0.99 * discount);
 
     // augmented_count is like 'count', but with the extra count for symbol 'a'
