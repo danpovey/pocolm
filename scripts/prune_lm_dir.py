@@ -217,7 +217,8 @@ def GetNumWords(lm_dir_in):
     command = "tail -n 1 {0}/words.txt".format(lm_dir_in)
     line = subprocess.check_output(command,
                                    shell=True,
-                                   universal_newlines=True)
+                                   universal_newlines=True,
+                                   encoding='utf-8')
     try:
         a = line.split()
         assert len(a) == 2

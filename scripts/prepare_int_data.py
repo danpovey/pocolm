@@ -72,7 +72,8 @@ def GetNumWords(vocab):
     command = "tail -n 1 {0}".format(vocab)
     line = subprocess.check_output(command,
                                    shell=True,
-                                   universal_newlines=True)
+                                   universal_newlines=True,
+                                   encoding='utf-8')
     try:
         a = line.split()
         assert len(a) == 2
